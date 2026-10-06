@@ -26,7 +26,8 @@ async function request(path, { body, headers, ...options } = {}) {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch (err) {
-    if (err.name === 'AbortError') throw err
+    // Cancelled or timed out by the caller's signal: let the caller handle it.
+    if (options.signal?.aborted) throw err
     throw new ApiError(`Could not reach the API at ${API_URL}`, 0)
   }
 

@@ -12,4 +12,13 @@ export const router = createBrowserRouter([
       { path: '*', element: <NotFoundPage /> },
     ],
   },
+  // Full-screen dashboard with its own header, outside the App layout.
+  // Lazy so its chart library stays out of the main bundle.
+  {
+    path: '/mission-control',
+    hydrateFallbackElement: <div className="min-h-svh" />,
+    lazy: async () => ({
+      Component: (await import('@/pages/MissionControlPage')).default,
+    }),
+  },
 ])

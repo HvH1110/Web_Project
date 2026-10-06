@@ -1,0 +1,285 @@
+/* Launch scene styles (used by LaunchScene). Theme tokens live in src/styles/mocr.css. */
+
+/* ---- Launch scene ----
+   The <svg> carries the pose as data attributes and CSS variables (see
+   launchPose.js). Layers marked .lc-smooth glide between the few poses a second
+   the scene renders; data-snap (on hold) puts everything straight back. */
+.lc-scene:not([data-snap]) .lc-smooth {
+  transition:
+    transform 0.3s linear,
+    opacity 0.3s linear;
+}
+.lc-scene[data-snap] * {
+  transition: none !important;
+}
+
+/* Engine plumes */
+.lc-scene .sv-plume,
+.lc-scene .sv-flicker {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+}
+.lc-scene:not([data-snap]) .sv-plume {
+  transition:
+    transform 0.3s linear,
+    opacity 0.3s linear;
+}
+.lc-scene .sv-plume-f1 {
+  opacity: var(--f1, 0);
+  transform: scale(var(--f1sx, 1), var(--f1sy, 1));
+}
+.lc-scene .sv-plume-s2 {
+  opacity: var(--s2, 0);
+}
+.lc-scene .sv-plume-s3 {
+  opacity: var(--s3, 0);
+}
+.lc-scene .sv-flicker {
+  animation: lc-flicker 0.1s steps(2, end) infinite alternate;
+}
+
+/* Staging: J-2 bells appear once the stage below is gone; spent stages fall
+   away, the escape tower fires off. End states are the base rules so reduced
+   motion (no animation) still lands right. */
+.lc-scene .sv-after-s1,
+.lc-scene .sv-after-s2,
+.lc-scene .sv-puff,
+.lc-scene .sv-les-burn {
+  opacity: 0;
+}
+.lc-scene[data-s1sep] .sv-after-s1,
+.lc-scene[data-s2sep] .sv-after-s2 {
+  opacity: 1;
+}
+.lc-scene .sv-s1,
+.lc-scene .sv-s2,
+.lc-scene .sv-les,
+.lc-scene .sv-puff {
+  transform-box: fill-box;
+}
+.lc-scene .sv-s1,
+.lc-scene .sv-s2 {
+  transform-origin: 50% 0;
+}
+.lc-scene .sv-puff {
+  transform-origin: 50% 50%;
+}
+.lc-scene[data-s1sep] .sv-s1,
+.lc-scene[data-s2sep] .sv-s2 {
+  opacity: 0;
+  animation: lc-stage-drop 8s ease-in;
+}
+.lc-scene[data-les] .sv-les {
+  opacity: 0;
+  animation: lc-jettison 4s ease-in;
+}
+.lc-scene[data-les] .sv-les-burn {
+  animation: lc-burn 1.4s ease-out;
+}
+.lc-scene[data-s1sep] .sv-puff-s1,
+.lc-scene[data-s2sep] .sv-puff-s2 {
+  animation: lc-puff 1.6s ease-out;
+}
+
+/* Venting liquid oxygen while the vehicle sits on the pad */
+.lc-scene .sv-vents ellipse {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.lc-scene:not([data-launched]) .sv-vent-left {
+  animation: lc-vent-left 3.2s ease-out infinite;
+}
+.lc-scene:not([data-launched]) .sv-vent-right {
+  animation: lc-vent-right 3.2s ease-out infinite;
+}
+
+/* Swing arms retract at liftoff */
+.lc-scene .lc-arm {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+}
+.lc-scene[data-launched] .lc-arm {
+  transform: rotate(-75deg);
+  transition: transform 1.2s ease-in;
+}
+
+/* Ignition and liftoff at the pad: fireball, trench jets, exhaust, ice */
+.lc-scene .lc-fire,
+.lc-scene .lc-jet,
+.lc-scene .lc-smoke circle,
+.lc-scene .lc-ice rect {
+  opacity: 0;
+}
+.lc-scene .lc-fire,
+.lc-scene .lc-smoke circle {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.lc-scene .lc-smoke circle {
+  transform: scale(0.2);
+}
+.lc-scene:is([data-ignition], [data-launched]) .lc-fire {
+  opacity: 1;
+  transition: opacity 0.8s;
+  animation: lc-fire 0.16s ease-in-out infinite alternate;
+}
+.lc-scene:is([data-ignition], [data-launched]) .lc-jet {
+  opacity: 1;
+  transition: opacity 0.6s;
+}
+.lc-scene[data-ignition] .lc-smoke circle {
+  opacity: 0.92;
+  transform: scale(0.85);
+  transition:
+    transform 6s cubic-bezier(0.2, 0.7, 0.3, 1),
+    opacity 1.5s;
+}
+.lc-scene[data-launched] .lc-smoke circle {
+  opacity: 0.96;
+  transform: scale(1.9);
+  transition:
+    transform 8s cubic-bezier(0.2, 0.7, 0.3, 1),
+    opacity 1s;
+}
+.lc-scene[data-ice] .lc-ice rect {
+  animation: lc-ice 1.8s ease-in infinite;
+}
+.lc-scene[data-shake] .lc-camera {
+  animation: lc-shake 0.09s linear infinite;
+}
+.lc-scene[data-drift] .lc-star-drift {
+  animation: lc-drift 24s linear infinite;
+}
+
+@keyframes lc-flicker {
+  from {
+    transform: scale(1.03, 0.93);
+  }
+  to {
+    transform: scale(0.97, 1.06);
+  }
+}
+@keyframes lc-fire {
+  from {
+    transform: scale(0.95, 0.9);
+  }
+  to {
+    transform: scale(1.05, 1.1);
+  }
+}
+@keyframes lc-stage-drop {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  20% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(260px) rotate(-10deg);
+  }
+}
+@keyframes lc-jettison {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(40px, -320px) rotate(14deg);
+  }
+}
+@keyframes lc-burn {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes lc-puff {
+  from {
+    opacity: 0.95;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+@keyframes lc-vent-left {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5, 0.4);
+  }
+  20% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-20px, 6px) scale(3.4, 2.2);
+  }
+}
+@keyframes lc-vent-right {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5, 0.4);
+  }
+  20% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(20px, 6px) scale(3.4, 2.2);
+  }
+}
+@keyframes lc-ice {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  10% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(140px);
+  }
+}
+@keyframes lc-shake {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(1.4px, -1px);
+  }
+  50% {
+    transform: translate(-1.2px, 1.3px);
+  }
+  75% {
+    transform: translate(1px, 1px);
+  }
+  100% {
+    transform: translate(-1.3px, -0.6px);
+  }
+}
+@keyframes lc-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(320px); /* one star tile */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-scene * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
