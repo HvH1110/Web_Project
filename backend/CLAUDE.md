@@ -27,8 +27,9 @@ Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
 - `npm install`
 - `npm run dev`: run with auto-restart (`node --watch`) on http://localhost:5000
 - `npm start`: run without auto-restart
+- `npm run lint`: ESLint (flat config in `eslint.config.js`: `js.configs.recommended` + Node globals). Keep it passing.
 - Smoke check: `curl http://localhost:5000/api/health`
-- No test or lint scripts yet.
+- No tests yet.
 
 ## Notes
 - `Dockerfile` / `.dockerignore` in this folder, if they exist, belong to the devops session.
