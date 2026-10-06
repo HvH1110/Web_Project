@@ -23,9 +23,12 @@ Real values go in `backend/.env` (gitignored). Document every variable in `backe
 Whenever you add or change an endpoint, update `../docs/API.md` in the same change: method, path, request body, response, error cases. The frontend session codes against that file.
 
 ## Commands
-Update this section once the app is scaffolded.
-- `npm run dev`: run with auto-restart on http://localhost:5000
-- `npm start`
+Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
+- `npm install`
+- `npm run dev`: run with auto-restart (`node --watch`) on http://localhost:5000
+- `npm start`: run without auto-restart
+- Smoke check: `curl http://localhost:5000/api/health`
+- No test or lint scripts yet.
 
 ## Notes
 - `Dockerfile` / `.dockerignore` in this folder, if they exist, belong to the devops session.
