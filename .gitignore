@@ -9,6 +9,7 @@ coverage/
 # Environment files (secrets). Only the .env.example templates are committed.
 .env
 .env.*
+*.env
 !.env.example
 
 # Logs
