@@ -27,6 +27,10 @@ Maintained by the devops session. **Never write real secret values in this file*
 - **`CLIENT_ORIGIN`**: used for CORS. It must match the frontend's origin exactly: scheme, host and port, with no trailing slash.
 - **`VITE_API_URL`**: anything prefixed `VITE_` is **embedded in the built JavaScript and visible to every visitor**, so never put a secret in a frontend variable. Vite reads it at startup and build time, so restart `npm run dev` or rebuild after changing it.
 
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas.
+
 ## Where the files are
 
 | File                    | Tracked? | Contents                                    | Owner            |
