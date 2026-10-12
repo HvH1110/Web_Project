@@ -1,0 +1,66 @@
+name: Daily crawl
+
+# Manual runs only (Actions tab > Daily crawl > Run workflow) until
+# `npm run crawl` works end to end. Then uncomment `schedule` below.
+#
+# Scheduled runs only happen on the default branch, and GitHub disables them
+# in a public repo after 60 days without commits (re-enable in the Actions tab).
+on:
+  workflow_dispatch:
+  # schedule:
+  #   # 19:17 UTC = 02:17 in Vietnam, 03:17 in Singapore and Hong Kong: quiet
+  #   # hours in every market. Off the hour, because runs at :00 are the most
+  #   # likely to be delayed or dropped by GitHub's scheduler.
+  #   - cron: '17 19 * * *'
+
+permissions:
+  contents: read
+
+# Never crawl twice at the same time (double load on the sites, racing
+# upserts). A new run waits for the current one instead of cancelling it.
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    name: Crawl official prices
+    runs-on: ubuntu-latest
+    # The crawler waits seconds between requests, so a full run is slow. This
+    # only stops a hung run; raise it if real runs need longer (max 360).
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crawler/package-lock.json
+
+      - run: npm ci
+
+      # Some sources need a real browser. Only download one when the crawler
+      # actually depends on Playwright.
+      - name: Install Playwright browser
+        run: |
+          if node -e 'const p = require("./package.json"); const d = { ...p.dependencies, ...p.devDependencies }; process.exit(d.playwright || d["@playwright/test"] ? 0 : 1)'; then
+            npx playwright install --with-deps chromium
+          else
+            echo "Playwright is not a dependency, skipping."
+          fi
+
+      # The only job in the repo that gets a secret. GitHub masks its value in
+      # the log, and the crawler must never print it either.
+      - name: Crawl
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."
+            exit 1
+          fi
+          npm run crawl
