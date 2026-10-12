@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:brands": "node scripts/seed-brands.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

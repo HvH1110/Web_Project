@@ -8,10 +8,11 @@ You are the **backend** session. Your area is `backend/` (this folder) plus `doc
 - Config from environment variables (`dotenv`)
 
 ## Conventions
-- Layout: `src/server.js` (connects DB, starts server), `src/app.js` (Express app), `src/config/db.js`, `src/routes/`, `src/controllers/`, `src/models/`, `src/middleware/`.
+- Layout: `src/server.js` (connects DB, starts server), `src/app.js` (Express app), `src/config/db.js`, `src/routes/`, `src/controllers/`, `src/models/`, `src/middleware/`, `src/services/` (logic shared by controllers), `src/utils/`. Scripts in `scripts/`.
 - All routes are under `/api`.
-- Errors: proper status code with body `{ "error": { "message": "..." } }`, produced by one error-handling middleware.
+- Errors: proper status code with body `{ "error": { "message": "..." } }`, produced by one error-handling middleware. Throw `httpError(status, message)` from `src/utils/http-error.js`.
 - CORS: allow the origin in `CLIENT_ORIGIN`.
+- Crawler collections (`products`, `offers`, `price_points`, `fx_rates`, see `../docs/DATA.md`) are read-only here. Define their models with `readOnlySchema` (`src/models/read-only-schema.js`): no auto-created collections or indexes, and any write throws. The backend owns `brands`.
 
 ## Environment
 Real values go in `backend/.env` (gitignored). Document every variable in `backend/.env.example`.
@@ -27,6 +28,7 @@ Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
 - `npm install`
 - `npm run dev`: run with auto-restart (`node --watch`) on http://localhost:5000
 - `npm start`: run without auto-restart
+- `npm run seed:brands`: upsert the 8 brands from `scripts/data/brands.js` into `brands` (by slug, safe to re-run; the file is the source of truth)
 - `npm run lint`: ESLint (flat config in `eslint.config.js`: `js.configs.recommended` + Node globals). Keep it passing.
 - Smoke check: `curl http://localhost:5000/api/health`
 - No tests yet.
