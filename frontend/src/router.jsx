@@ -9,6 +9,11 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <HomePage /> },
+      // Lazy, so catalog pages and their widgets stay out of the home page bundle.
+      {
+        path: 'brands/:slug',
+        lazy: async () => ({ Component: (await import('@/pages/BrandPage')).default }),
+      },
       // Design system reference, dev builds only.
       ...(import.meta.env.DEV
         ? [

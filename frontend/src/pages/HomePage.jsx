@@ -1,28 +1,20 @@
 import { Link } from 'react-router'
 import { ArrowDown, ArrowRight } from 'lucide-react'
-import BrandFacts from '@/components/brand/BrandFacts'
 import SignatureCard from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
+import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Reveal from '@/components/Reveal'
 import { BRANDS, CATEGORIES, brandsIn } from '@/content/brands'
 import { MARKETS, SITE } from '@/content/site'
+import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-// Each chapter gets its own ground: paper, ivory, then ink.
-const CHAPTER_THEME = {
-  fashion: 'bg-background',
-  jewelry: 'bg-secondary',
-  watches: 'dark bg-background text-foreground',
-}
 
 const STATS = [
   { value: BRANDS.length, label: 'Houses' },
   { value: MARKETS.length, label: 'Markets' },
   { value: 0, label: 'Resellers or grey-market sites' },
 ]
-
-const pad2 = (n) => String(n).padStart(2, '0')
 
 // Home: hero, the idea, an index of the houses, then one section per brand
 // grouped in category chapters. Copy and images are placeholders for now.
@@ -153,7 +145,7 @@ function Chapter({ category, number }) {
   const titleId = `chapter-${category.id}`
 
   return (
-    <section aria-labelledby={titleId} className={CHAPTER_THEME[category.id]}>
+    <section aria-labelledby={titleId} className={category.ground}>
       <div className="page-container pt-section">
         <Reveal className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6">
           <p className="eyebrow">Chapter {pad2(number)}</p>
@@ -208,7 +200,7 @@ function BrandFeature({ brand }) {
           <BrandLink brand={brand} />
         </Reveal>
         <Reveal delay={120} className="lg:col-span-4 lg:col-start-9">
-          <BrandFacts brand={brand} />
+          <FactList items={brandFacts(brand)} />
         </Reveal>
       </div>
 
@@ -266,7 +258,7 @@ function BrandSplit({ brand, flip }) {
           {brand.summary}
         </Reveal>
         <Reveal delay={150}>
-          <BrandFacts brand={brand} />
+          <FactList items={brandFacts(brand)} />
         </Reveal>
         <Reveal delay={200}>
           <p className="eyebrow mb-5">Signature pieces</p>
@@ -283,6 +275,13 @@ function BrandSplit({ brand, flip }) {
     </article>
   )
 }
+
+const brandFacts = (brand) => [
+  ['Founded', `${brand.founded.place}, ${brand.founded.year}`],
+  ['Founder', brand.founder],
+  ['Headquarters', brand.headquarters],
+  ['Group', brand.group],
+]
 
 function BrandLink({ brand }) {
   return (

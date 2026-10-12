@@ -1,4 +1,4 @@
-import { Gem, Handbag, Watch } from 'lucide-react'
+import { Footprints, Gem, Handbag, Shirt, Watch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Studio backdrops in the house neutrals. `ink` is lifted a little so it
@@ -11,7 +11,15 @@ const TONES = {
   ink: 'bg-[#26221d] text-ivory',
 }
 
-const ICONS = { fashion: Handbag, jewelry: Gem, watches: Watch }
+// Brand categories and product categories (see ../docs/API.md).
+const ICONS = {
+  fashion: Handbag,
+  bags: Handbag,
+  clothing: Shirt,
+  shoes: Footprints,
+  jewelry: Gem,
+  watches: Watch,
+}
 
 // Stand-in for a product or campaign photo until real images arrive.
 // Size it with className (e.g. aspect-4/5 or absolute inset-0). Children are

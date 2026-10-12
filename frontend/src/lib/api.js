@@ -46,3 +46,27 @@ async function request(path, { body, headers, ...options } = {}) {
 export function getHealth({ signal } = {}) {
   return request('/health', { signal })
 }
+
+// "?a=1&b=x,y" from { a: 1, b: ['x', 'y'], c: undefined }. Arrays are sent
+// comma-separated; empty values are left out.
+function toQuery(params) {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    const text = Array.isArray(value) ? value.join(',') : value
+    if (text !== undefined && text !== null && text !== '') search.set(key, String(text))
+  }
+  const query = search.toString()
+  return query ? `?${query}` : ''
+}
+
+// GET /api/brands/:slug -> { brand }. 404 when there is no such brand.
+export function getBrand(slug, { signal } = {}) {
+  return request(`/brands/${encodeURIComponent(slug)}`, { signal })
+}
+
+// GET /api/products -> { items, page, limit, total, totalPages, fx }
+// `params`: q, brand, category, collection, market, minPriceVnd, maxPriceVnd,
+// sort, page, limit (see ../docs/API.md).
+export function getProducts(params = {}, { signal } = {}) {
+  return request(`/products${toQuery(params)}`, { signal })
+}

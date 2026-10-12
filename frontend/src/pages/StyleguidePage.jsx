@@ -1,8 +1,8 @@
 import { Link } from 'react-router'
 import { ArrowRight } from 'lucide-react'
-import BrandFacts from '@/components/brand/BrandFacts'
 import SignatureCard from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
+import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { BRANDS } from '@/content/brands'
 import { SITE } from '@/content/site'
@@ -132,7 +132,14 @@ export default function StyleguidePage() {
 
       <Block title="Brand pieces" note="Shared with the brand page: key facts, and signature cards in full and compact sizes. Prices show a dash until real, sourced prices exist.">
         <div className="grid gap-12 lg:grid-cols-12">
-          <BrandFacts brand={lv} className="lg:col-span-4" />
+          <FactList
+            items={[
+              ['Founded', `${lv.founded.place}, ${lv.founded.year}`],
+              ['Founder', lv.founder],
+              ['Group', lv.group],
+            ]}
+            className="lg:col-span-4"
+          />
           <div className="max-w-xs lg:col-span-3 lg:col-start-6">
             <SignatureCard product={lv.signatures[0]} brand={lv} />
           </div>

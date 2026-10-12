@@ -10,7 +10,7 @@ You are the **frontend** session. Your area is `frontend/` (this folder). Shared
 ## Talking to the backend
 - The API base URL comes from `VITE_API_URL` in `frontend/.env` (local default `http://localhost:5000/api`). Document it in `frontend/.env.example`.
 - `../docs/API.md` is the contract. Code against it, not against backend source. If an endpoint you need is missing or unclear, ask the user to get the backend session to add it.
-- Keep API calls in `src/lib/api.js`, not inline in components.
+- Keep API calls in `src/lib/api.js`, not inline in components. Load data in components with `useApi` (one request, with retry) or `useProducts` (product lists with load more) from `src/hooks/`; show failures with `LoadError`.
 
 ## Commands
 Run from `frontend/`. First time: `npm install`, then copy `.env.example` to `.env`.

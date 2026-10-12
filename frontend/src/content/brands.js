@@ -2,10 +2,12 @@
 // (see ../docs/API.md). Keep it to well-known facts and verify before launch.
 // No prices here: the site only shows prices seen on official sources.
 
+// Brand categories. `ground` is each category's section colour, used by the
+// home page chapters and the brand page masthead: paper, ivory, then ink.
 export const CATEGORIES = [
-  { id: 'fashion', name: 'Fashion & Leather Goods' },
-  { id: 'jewelry', name: 'Jewelry' },
-  { id: 'watches', name: 'Watches' },
+  { id: 'fashion', name: 'Fashion & Leather Goods', ground: 'bg-background' },
+  { id: 'jewelry', name: 'Jewelry', ground: 'bg-secondary' },
+  { id: 'watches', name: 'Watches', ground: 'dark bg-background text-foreground' },
 ]
 
 // `tone` picks the placeholder backdrop (see ImagePlaceholder).
