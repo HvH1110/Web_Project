@@ -1,23 +1,28 @@
 # Web_Project
 
-Full-stack web app: React + shadcn/ui frontend, Node.js + Express backend, MongoDB Atlas database.
+Luxury price lookup and price history for Vietnam, Singapore and Hong Kong. See [docs/PRODUCT.md](docs/PRODUCT.md) for the product spec.
+
+React + shadcn/ui frontend, Node.js + Express backend, Node.js crawler, MongoDB Atlas database.
 
 ```
 Web_Project/
-├── CLAUDE.md        shared rules, loaded by every Claude session
-├── docs/API.md      API contract between frontend and backend
-├── frontend/        React (Vite) + Tailwind + shadcn/ui    → frontend session
-├── backend/         Node.js + Express + Mongoose           → backend session
-└── devops/          Atlas, env vars, CI/CD, deployment     → devops session
+├── CLAUDE.md          shared rules, loaded by every Claude session
+├── docs/PRODUCT.md    product spec
+├── docs/API.md        API contract between frontend and backend
+├── docs/DATA.md       data contract between crawler and backend
+├── frontend/          React (Vite) + Tailwind + shadcn/ui        → frontend session
+├── backend/           Node.js + Express + Mongoose               → backend session
+├── crawler/           Node.js crawlers for official price sites  → crawler session
+└── devops/            Atlas, env vars, CI/CD, schedules, deploy  → devops session
 ```
 
-## Working with three Claude Code sessions in parallel
+## Working with four Claude Code sessions in parallel
 
 Each session is started inside its own folder. Claude Code loads the `CLAUDE.md` in that folder plus the root `CLAUDE.md`, so each session knows its role, what it owns, and the shared rules.
 
-### 1. Open three terminals and start one session in each
+### 1. Open four terminals and start one session in each
 
-Windows Terminal: open three tabs, or split panes with `Alt+Shift+=` / `Alt+Shift+-`. The VS Code integrated terminal works too.
+Windows Terminal: open four tabs, or split panes with `Alt+Shift+=` / `Alt+Shift+-`. The VS Code integrated terminal works too.
 
 ```powershell
 # Terminal 1: frontend
@@ -28,12 +33,16 @@ claude --add-dir ..\docs
 cd C:\DAIHOC\Web_Project\backend
 claude --add-dir ..\docs
 
-# Terminal 3: devops
+# Terminal 3: crawler
+cd C:\DAIHOC\Web_Project\crawler
+claude --add-dir ..\docs
+
+# Terminal 4: devops
 cd C:\DAIHOC\Web_Project\devops
 claude --add-dir ..
 ```
 
-`--add-dir` gives a session access to a folder outside the one it started in: frontend and backend need `docs/` for the API contract, devops needs the whole repo.
+`--add-dir` gives a session access to a folder outside the one it started in: frontend, backend and crawler need `docs/` for the spec and contracts, devops needs the whole repo.
 
 To come back to a session later, run `claude --continue` in the same folder.
 

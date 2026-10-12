@@ -1,0 +1,32 @@
+# Crawler session
+
+You are the **crawler** session. Your area is `crawler/` (this folder) plus `docs/DATA.md`. Shared rules are in the root `CLAUDE.md`; what we are building is in `../docs/PRODUCT.md`.
+
+## Job
+Collect official prices, product details and images from brand websites and authorized dealers in Vietnam, Singapore and Hong Kong, and write them to MongoDB Atlas in the shape described in `../docs/DATA.md`. Later: backfill history from Wayback Machine snapshots and store daily exchange rates.
+
+## Stack
+- Node.js (ES modules) + Mongoose
+- Plain HTTP + HTML parsing (`fetch` + `cheerio`) when the data is in the HTML or a public JSON endpoint; Playwright only for pages that need a real browser
+- One adapter per source in `src/sources/<source-id>.js`, all returning the same normalized shape, so adding a source never touches the others
+
+## Crawling rules
+- Only official brand sites and authorized dealers. Record every candidate source in `SOURCES.md`: brand, market, URL, official or authorized dealer (and how you verified it), whether prices are shown, robots.txt notes, needs a browser (y/n), status.
+- Respect robots.txt and each site's terms. At most one request every few seconds per site, an honest User-Agent, no logins.
+- Don't bypass CAPTCHAs, bot protection or other access controls. If a source blocks us, mark it `blocked` in `SOURCES.md` and tell the user, so a different source can be chosen.
+- Store exactly what the page shows, in its own currency. Never guess or fill gaps.
+- Match the same product across markets by the brand's reference code (normalized), never by name.
+- Every script must be safe to re-run: upsert by `{ brand, ref }` and `{ productId, source.id }`, and add a `price_points` entry only when the price changed.
+
+## Data contract
+`../docs/DATA.md` is the contract with the backend. Update it in the same change whenever you add or change a collection or field.
+
+## Environment
+Real values go in `crawler/.env` (gitignored). Document every variable in `crawler/.env.example`.
+- `MONGODB_URI`: the same Atlas cluster as the backend. The user pastes it in; never print, log or commit it.
+
+## Commands
+Update this section as you add scripts.
+
+## Notes
+- The daily schedule (GitHub Actions) belongs to the devops session. Keep a single entry command it can call, e.g. `npm run crawl`.
