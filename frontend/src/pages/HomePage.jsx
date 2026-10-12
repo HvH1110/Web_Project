@@ -1,159 +1,320 @@
 import { Link } from 'react-router'
-import { ArrowRight, ArrowUpRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { CREW, FACTS, GALLERY, HERO_IMAGE, SUMMARY, nasaImageUrl } from '@/content/apollo11'
+import { ArrowDown, ArrowRight } from 'lucide-react'
+import BrandFacts from '@/components/brand/BrandFacts'
+import SignatureCard from '@/components/brand/SignatureCard'
+import CtaButton from '@/components/CtaButton'
+import ImagePlaceholder from '@/components/ImagePlaceholder'
+import Reveal from '@/components/Reveal'
+import { BRANDS, CATEGORIES, brandsIn } from '@/content/brands'
+import { MARKETS, SITE } from '@/content/site'
+import { cn } from '@/lib/utils'
 
-// Home: a short Apollo 11 mission brief with NASA photos.
+// Each chapter gets its own ground: paper, ivory, then ink.
+const CHAPTER_THEME = {
+  fashion: 'bg-background',
+  jewelry: 'bg-secondary',
+  watches: 'dark bg-background text-foreground',
+}
+
+const STATS = [
+  { value: BRANDS.length, label: 'Houses' },
+  { value: MARKETS.length, label: 'Markets' },
+  { value: 0, label: 'Resellers or grey-market sites' },
+]
+
+const pad2 = (n) => String(n).padStart(2, '0')
+
+// Home: hero, the idea, an index of the houses, then one section per brand
+// grouped in category chapters. Copy and images are placeholders for now.
 export default function HomePage() {
   return (
-    <div className="grid gap-6">
-      <Briefing />
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {FACTS.map((fact) => (
-          <li key={fact.label}>
-            <Fact {...fact} />
-          </li>
-        ))}
-      </ul>
-      <Gallery />
-      <p className="text-xs text-muted-foreground">
-        Photos: NASA Image and Video Library (public domain). Their use here does not imply
-        endorsement by NASA.
-      </p>
-    </div>
+    <>
+      <Hero />
+      <Intro />
+      <HouseIndex />
+      {CATEGORIES.map((category, i) => (
+        <Chapter key={category.id} category={category} number={i + 1} />
+      ))}
+      <Closing />
+    </>
   )
 }
 
-function NasaCredit({ nasaId, className }) {
+function Hero() {
   return (
-    <a
-      href={nasaImageUrl(nasaId)}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex items-center gap-1 font-mono text-[11px] tracking-widest text-(--plate) uppercase hover:underline ${className ?? ''}`}
+    // Pulled up under the transparent header; fills the screen below the announcement bar.
+    <section className="dark relative -mt-header h-[calc(100svh-var(--spacing-bar))] min-h-[36rem] text-foreground">
+      <ImagePlaceholder tone="ink" label="Campaign image" className="absolute inset-0">
+        <div className="absolute inset-0 bg-linear-to-b from-black/45 via-transparent to-black/40" />
+      </ImagePlaceholder>
+
+      <div className="page-container relative flex h-full flex-col items-center justify-center gap-8 pt-header text-center">
+        <Reveal as="p" className="eyebrow">
+          Fashion · Jewelry · Watches
+        </Reveal>
+        <Reveal as="h1" delay={150} className="max-w-6xl font-serif text-display-2xl font-light text-balance">
+          {SITE.tagline}
+        </Reveal>
+        <Reveal delay={300} className="mt-2 flex flex-wrap justify-center gap-3">
+          <CtaButton render={<Link to="/search" />} nativeButton={false}>
+            Search prices
+          </CtaButton>
+          <CtaButton
+            variant="outline"
+            render={<a href="#houses" />}
+            nativeButton={false}
+            className="border-foreground/60 bg-transparent hover:bg-foreground hover:text-background dark:border-foreground/60 dark:bg-transparent dark:hover:bg-foreground"
+          >
+            Explore the houses
+          </CtaButton>
+        </Reveal>
+      </div>
+
+      <a
+        href="#intro"
+        className="eyebrow absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 text-[0.625rem]"
+      >
+        Scroll
+        <ArrowDown className="size-3.5 motion-safe:animate-bounce" strokeWidth={1.25} aria-hidden="true" />
+      </a>
+    </section>
+  )
+}
+
+function Intro() {
+  return (
+    <section id="intro" className="page-container grid gap-10 py-section lg:grid-cols-12">
+      <Reveal as="h2" className="eyebrow lg:col-span-3">
+        Why {SITE.name}
+      </Reveal>
+      <div className="lg:col-span-9">
+        <Reveal as="p" className="font-serif text-display-md font-light text-pretty">
+          Many luxury houses don't publish their prices in Vietnam. We collect official prices from
+          brand stores and authorized dealers in Vietnam, Singapore and Hong Kong, set them side by
+          side in VND, and follow how they change over time.
+        </Reveal>
+        <dl className="mt-16 grid gap-10 border-t pt-8 sm:grid-cols-3 sm:gap-6">
+          {STATS.map(({ value, label }, i) => (
+            <Reveal key={label} delay={i * 120} className="flex flex-col gap-3">
+              <dt className="eyebrow order-2 text-muted-foreground">{label}</dt>
+              <dd className="order-1 font-serif text-display-xl font-light">{pad2(value)}</dd>
+            </Reveal>
+          ))}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
+function HouseIndex() {
+  return (
+    <section id="houses" aria-labelledby="houses-title" className="scroll-mt-header border-t">
+      {/* No bottom padding: the first chapter's top padding follows on the same ground. */}
+      <div className="page-container pt-section">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <Reveal as="h2" id="houses-title" className="font-serif text-display-lg">
+            The Houses
+          </Reveal>
+          <Reveal as="p" delay={100} className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Fashion, jewelry and watches. Choose a house to read its story.
+          </Reveal>
+        </div>
+
+        <div className="mt-16 grid gap-14 md:grid-cols-3 md:gap-8 lg:gap-14">
+          {CATEGORIES.map((category, i) => (
+            <Reveal key={category.id} delay={i * 120}>
+              <h3 className="eyebrow border-b pb-4 text-muted-foreground">
+                <span className="mr-4 text-foreground">{pad2(i + 1)}</span>
+                {category.name}
+              </h3>
+              <ul>
+                {brandsIn(category.id).map((brand) => (
+                  <li key={brand.slug} className="border-b">
+                    <a
+                      href={`#${brand.slug}`}
+                      className="group flex items-baseline justify-between gap-4 py-5"
+                    >
+                      <span className="font-serif text-display-sm group-hover:italic">{brand.name}</span>
+                      <span className="eyebrow text-muted-foreground">{brand.founded.year}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Chapter({ category, number }) {
+  const brands = brandsIn(category.id)
+  const titleId = `chapter-${category.id}`
+
+  return (
+    <section aria-labelledby={titleId} className={CHAPTER_THEME[category.id]}>
+      <div className="page-container pt-section">
+        <Reveal className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6">
+          <p className="eyebrow">Chapter {pad2(number)}</p>
+          <p className="eyebrow text-muted-foreground">{brands.map((b) => b.name).join(' · ')}</p>
+        </Reveal>
+        <Reveal as="h2" id={titleId} delay={100} className="mt-10 font-serif text-display-lg">
+          {category.name}
+        </Reveal>
+      </div>
+
+      {brands.map((brand, i) =>
+        i === 0 ? (
+          <BrandFeature key={brand.slug} brand={brand} />
+        ) : (
+          <BrandSplit key={brand.slug} brand={brand} flip={i % 2 === 0} />
+        ),
+      )}
+    </section>
+  )
+}
+
+// Full-bleed image with the name over it, then story, facts and three products.
+function BrandFeature({ brand }) {
+  const nameId = `${brand.slug}-name`
+
+  return (
+    <article id={brand.slug} aria-labelledby={nameId} className="scroll-mt-header pt-16 pb-section">
+      <Reveal>
+        <ImagePlaceholder
+          tone={brand.tone}
+          category={brand.category}
+          label={`${brand.name} campaign image`}
+          captionClassName="top-4 bottom-auto"
+          className="group aspect-4/5 text-ivory sm:aspect-auto sm:h-[80svh] sm:max-h-240 sm:min-h-120"
+        >
+          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 via-black/20 to-transparent pt-32 pb-10 sm:pb-14">
+            <div className="page-container">
+              <p className="eyebrow">
+                {brand.founded.place} · Since {brand.founded.year}
+              </p>
+              <h3 id={nameId} className="mt-4 font-serif text-display-xl">
+                {brand.name}
+              </h3>
+            </div>
+          </div>
+        </ImagePlaceholder>
+      </Reveal>
+
+      <div className="page-container mt-12 grid gap-12 lg:mt-16 lg:grid-cols-12">
+        <Reveal className="grid content-start gap-8 lg:col-span-6">
+          <p className="text-lede text-pretty">{brand.summary}</p>
+          <BrandLink brand={brand} />
+        </Reveal>
+        <Reveal delay={120} className="lg:col-span-4 lg:col-start-9">
+          <BrandFacts brand={brand} />
+        </Reveal>
+      </div>
+
+      <div className="page-container mt-20">
+        <Reveal as="p" className="eyebrow mb-8">
+          Signature pieces
+        </Reveal>
+        {/* A swipeable row on phones, three columns from sm up. */}
+        <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
+          {brand.signatures.map((product, i) => (
+            <Reveal as="li" key={product.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
+              <SignatureCard product={product} brand={brand} />
+            </Reveal>
+          ))}
+        </ul>
+      </div>
+    </article>
+  )
+}
+
+// Image on one side, story on the other; `flip` swaps the sides.
+function BrandSplit({ brand, flip }) {
+  const nameId = `${brand.slug}-name`
+
+  return (
+    <article
+      id={brand.slug}
+      aria-labelledby={nameId}
+      className="page-container grid scroll-mt-header items-center gap-12 pb-section lg:grid-cols-12 lg:gap-x-8"
     >
-      NASA · {nasaId}
-      <ArrowUpRight className="size-3" aria-hidden="true" />
-    </a>
-  )
-}
+      <Reveal className={cn('lg:col-span-6 lg:row-start-1', flip && 'lg:col-start-7')}>
+        <ImagePlaceholder
+          tone={brand.tone}
+          category={brand.category}
+          label={`${brand.name} campaign image`}
+          className="group aspect-4/5"
+        />
+      </Reveal>
 
-function Briefing() {
-  return (
-    <Card className="mc-panel overflow-hidden py-0">
-      <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <figure className="relative min-h-[320px] bg-black">
-          <img
-            src={HERO_IMAGE.src}
-            width={HERO_IMAGE.width}
-            height={HERO_IMAGE.height}
-            alt={HERO_IMAGE.alt}
-            fetchPriority="high"
-            className="absolute inset-0 size-full object-cover object-[50%_40%]"
-          />
-          <figcaption className="absolute inset-x-0 bottom-0 grid gap-1 bg-linear-to-t from-black/85 to-transparent px-4 pt-10 pb-3">
-            <span className="text-sm text-white/90">{HERO_IMAGE.caption}</span>
-            <NasaCredit nasaId={HERO_IMAGE.nasaId} />
-          </figcaption>
-        </figure>
-
-        <div className="grid content-start gap-5 p-6">
-          <div className="grid gap-2">
-            <p className="mc-plate">Mission briefing · July 16–24, 1969</p>
-            <h1 className="mc-glow font-crt text-6xl leading-none tracking-wide sm:text-7xl">APOLLO 11</h1>
-            <p className="font-crt text-2xl leading-none text-(--plate)">
-              First crewed landing on the Moon
-            </p>
-          </div>
-
-          <div className="grid gap-3 text-foreground/85">
-            {SUMMARY.map((paragraph) => (
-              <p key={paragraph.slice(0, 24)}>{paragraph}</p>
-            ))}
-          </div>
-
-          <ul className="mc-crt grid divide-y divide-(--phosphor)/10 overflow-hidden rounded-lg">
-            {CREW.map(({ name, role }) => (
-              <li key={name} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2">
-                <span className="mc-glow font-crt text-xl leading-none">{name}</span>
-                <span className="font-mono text-[10px] tracking-widest text-(--plate) uppercase">{role}</span>
+      <div
+        className={cn(
+          'grid gap-10 lg:col-span-5 lg:row-start-1',
+          flip ? 'lg:col-start-1' : 'lg:col-start-8',
+        )}
+      >
+        <Reveal className="grid gap-4">
+          <p className="eyebrow text-muted-foreground">
+            {brand.founded.place} · Since {brand.founded.year}
+          </p>
+          <h3 id={nameId} className="font-serif text-display-xl">
+            {brand.name}
+          </h3>
+        </Reveal>
+        <Reveal as="p" delay={100} className="text-lede text-pretty">
+          {brand.summary}
+        </Reveal>
+        <Reveal delay={150}>
+          <BrandFacts brand={brand} />
+        </Reveal>
+        <Reveal delay={200}>
+          <p className="eyebrow mb-5">Signature pieces</p>
+          <ul className="grid grid-cols-3 gap-3 sm:gap-5">
+            {brand.signatures.map((product) => (
+              <li key={product.name}>
+                <SignatureCard product={product} brand={brand} compact />
               </li>
             ))}
           </ul>
-
-          <div>
-            <Button
-              size="lg"
-              render={<Link to="/mission-control" />}
-              nativeButton={false}
-              className="shadow-[0_0_18px_rgb(255_255_255/0.35)]"
-            >
-              Enter Mission Control
-              <ArrowRight data-icon="inline-end" />
-            </Button>
-          </div>
-        </div>
+        </Reveal>
+        <BrandLink brand={brand} />
       </div>
-    </Card>
+    </article>
   )
 }
 
-function Fact({ label, value, detail }) {
+function BrandLink({ brand }) {
   return (
-    <Card size="sm" className="mc-panel h-full">
-      <CardContent className="grid gap-1.5">
-        <p className="mc-plate">{label}</p>
-        <p className="mc-crt rounded-md px-2.5 py-1">
-          <span className="mc-glow font-crt text-3xl leading-none whitespace-nowrap">{value}</span>
-        </p>
-        <p className="text-xs text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
+    <Link
+      to={`/brands/${brand.slug}`}
+      className="eyebrow group inline-flex items-center gap-3 justify-self-start"
+    >
+      <span className="link-underline">Discover {brand.name}</span>
+      <ArrowRight
+        className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
+        strokeWidth={1.25}
+        aria-hidden="true"
+      />
+    </Link>
   )
 }
 
-function Gallery() {
+function Closing() {
   return (
-    <section aria-labelledby="gallery-heading" className="grid gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="gallery-heading" className="mc-glow font-crt text-3xl leading-none tracking-wide">
-          MISSION PHOTOS
-        </h2>
-        <p className="mc-plate">From the NASA archive</p>
-      </div>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {GALLERY.map((photo) => (
-          <li key={photo.nasaId}>
-            <figure className="mc-panel group grid h-full grid-rows-[auto_1fr] overflow-hidden rounded-xl">
-              <a
-                href={nasaImageUrl(photo.nasaId)}
-                target="_blank"
-                rel="noreferrer"
-                className="block overflow-hidden bg-black"
-                aria-label={`${photo.title} on the NASA Image and Video Library`}
-              >
-                <img
-                  src={photo.src}
-                  width={photo.width}
-                  height={photo.height}
-                  alt={photo.alt}
-                  loading="lazy"
-                  decoding="async"
-                  style={photo.position && { objectPosition: photo.position }}
-                  className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              </a>
-              <figcaption className="grid content-start gap-1.5 p-4">
-                <span className="mc-plate">{photo.date}</span>
-                <span className="mc-glow font-crt text-2xl leading-none">{photo.title}</span>
-                <span className="text-sm text-muted-foreground">{photo.caption}</span>
-                <NasaCredit nasaId={photo.nasaId} className="mt-1" />
-              </figcaption>
-            </figure>
-          </li>
-        ))}
-      </ul>
+    <section className="page-container grid justify-items-center gap-8 py-section text-center">
+      <Reveal as="p" className="eyebrow text-muted-foreground">
+        Search
+      </Reveal>
+      <Reveal as="h2" delay={100} className="max-w-4xl font-serif text-display-lg text-balance">
+        Every tracked piece, in every market, in one search.
+      </Reveal>
+      <Reveal delay={200}>
+        <CtaButton render={<Link to="/search" />} nativeButton={false}>
+          Search prices
+          <ArrowRight className="size-3.5" strokeWidth={1.25} aria-hidden="true" />
+        </CtaButton>
+      </Reveal>
     </section>
   )
 }

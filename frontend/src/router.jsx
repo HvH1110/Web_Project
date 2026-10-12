@@ -9,16 +9,18 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <HomePage /> },
+      // Design system reference, dev builds only.
+      ...(import.meta.env.DEV
+        ? [
+            {
+              path: 'styleguide',
+              lazy: async () => ({
+                Component: (await import('@/pages/StyleguidePage')).default,
+              }),
+            },
+          ]
+        : []),
       { path: '*', element: <NotFoundPage /> },
     ],
-  },
-  // Full-screen dashboard with its own header, outside the App layout.
-  // Lazy so its chart library stays out of the main bundle.
-  {
-    path: '/mission-control',
-    hydrateFallbackElement: <div className="min-h-svh" />,
-    lazy: async () => ({
-      Component: (await import('@/pages/MissionControlPage')).default,
-    }),
   },
 ])
