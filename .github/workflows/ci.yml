@@ -71,3 +71,43 @@ jobs:
             cat server.log
             exit 1
           fi
+
+  crawler:
+    name: Crawler (install, lint, load check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crawler/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+
+      # Lint doesn't resolve imports, so a missing or uncommitted file (say, an
+      # adapter listed in sources/index.js but never added to git) would first
+      # break the daily crawl. Import every module to catch that here. Entry
+      # scripts (crawl.js, tools/) are skipped: importing them would run them.
+      # CI never crawls a site and never gets MONGODB_URI.
+      - name: Load check
+        run: |
+          node --input-type=module -e '
+            const files = process.argv.slice(1);
+            let failed = 0;
+            for (const f of files) {
+              try {
+                await import(`./${f}`);
+              } catch (err) {
+                failed += 1;
+                console.log(`::error file=crawler/${f}::${err.message}`);
+              }
+            }
+            console.log(`${files.length - failed} of ${files.length} modules loaded`);
+            process.exit(failed ? 1 : 0);
+          ' $(find src -name '*.js' ! -name crawl.js ! -path 'src/tools/*' | sort)

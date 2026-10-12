@@ -58,6 +58,9 @@ jobs:
       - name: Crawl
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          # Added to the User-Agent so site owners can reach us. Not a secret.
+          # CRAWL_DELAY_MS and CARTIER_ROTATION_DAYS keep their defaults.
+          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
         run: |
           if [ -z "$MONGODB_URI" ]; then
             echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."

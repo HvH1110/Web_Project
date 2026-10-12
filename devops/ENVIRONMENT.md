@@ -10,6 +10,9 @@ Maintained by the devops session. **Never write real secret values in this file*
 |-----------------|----------|---------|-----------------------------------------------------------------------|---------------------------------------------------------------|
 | `MONGODB_URI`   | backend  | **Yes** | Atlas connection string for user `webproject-dev`, database `webproject_dev`. You paste it into `backend/.env` yourself. | Atlas connection string for a separate production user and database, set in the backend host's dashboard. Host not chosen yet. |
 | `MONGODB_URI`   | crawler  | **Yes** | The same string as `backend/.env` (user `webproject-dev`, database `webproject_dev`). You paste it into `crawler/.env` yourself. | GitHub Actions repository secret `MONGODB_URI`: user `webproject-crawler`, database `webproject_dev` for now. Only `.github/workflows/crawl.yml` reads it. Setup in `DEPLOY.md`. |
+| `CRAWL_DELAY_MS` | crawler | No | `5000` (the default if unset). Minimum time between two requests to the same site; anything below `3000` is raised to `3000`. | Not set in GitHub Actions, so `5000`. |
+| `CRAWL_CONTACT` | crawler | No | Optional, e.g. `https://github.com/HvH1110/Web_Project`. Added to the User-Agent so site owners can reach us. | Set in `crawl.yml` to this repository's URL. |
+| `CARTIER_ROTATION_DAYS` | crawler | No | `7` (the default if unset). Each run checks 1/N of Cartier's ~1,700 products per market, so each product comes round every N days. `1` crawls everything in one very long run. | Not set in GitHub Actions, so `7`. |
 | `PORT`          | backend  | No      | `5000` (the default if unset)                                         | Usually injected by the host (Render and Railway both set it). Don't set it by hand unless the host asks you to. |
 | `CLIENT_ORIGIN` | backend  | No      | `http://localhost:5173` (the default if unset)                        | The deployed frontend URL, e.g. `https://<app>.vercel.app`     |
 | `VITE_API_URL`  | frontend | No      | `http://localhost:5000/api`                                           | The deployed backend URL plus `/api`                           |
@@ -31,7 +34,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas.
+- **CI** (`.github/workflows/ci.yml`) sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas. The crawler job installs, lints and imports every module. It never crawls a site.
 - **Daily crawl** (`.github/workflows/crawl.yml`) is the only workflow that gets a secret: `MONGODB_URI`, passed only to the step that runs `npm run crawl`. GitHub masks the value in logs and never gives it to workflows started by pull requests from forks.
 
 ## Where the files are
@@ -43,7 +46,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 | `frontend/.env`         | No       | Real local values                           | You              |
 | `frontend/.env.example` | Yes      | Variable names and safe defaults            | Frontend session |
 | `crawler/.env`          | No       | Real local values                           | You              |
-| `crawler/.env.example`  | Yes      | Variable names and placeholders (not created yet) | Crawler session |
+| `crawler/.env.example`  | Yes      | Variable names and safe defaults/placeholders | Crawler session |
 | GitHub secret `MONGODB_URI` | n/a (stored by GitHub) | Crawler connection string for Actions | You (repo Settings) |
 
 The root `.gitignore` ignores `.env`, `.env.*` and `*.env` (e.g. `atlas-credentials.env`) but keeps `.env.example`. Even so, keep credential files outside the project folder.
