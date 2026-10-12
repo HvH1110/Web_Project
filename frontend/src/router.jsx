@@ -14,6 +14,10 @@ export const router = createBrowserRouter([
         path: 'brands/:slug',
         lazy: async () => ({ Component: (await import('@/pages/BrandPage')).default }),
       },
+      {
+        path: 'search',
+        lazy: async () => ({ Component: (await import('@/pages/SearchPage')).default }),
+      },
       // Design system reference, dev builds only.
       ...(import.meta.env.DEV
         ? [

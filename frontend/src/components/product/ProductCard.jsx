@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { MARKETS } from '@/content/site'
-import { leadPrice, productPath } from '@/lib/catalog'
+import { imageCredit, leadPrice, productPath } from '@/lib/catalog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 export default function ProductCard({ product }) {
   const [image, hoverImage] = product.images
   const price = leadPrice(product)
-  const credit = image && sourceName(product, image.sourceId)
+  const credit = image && imageCredit(product, image)
 
   return (
     <article className="group relative grid content-start gap-4">
@@ -98,9 +98,4 @@ function MarketStrip({ offers, lowest }) {
       </p>
     </>
   )
-}
-
-// Images credit the store they came from (Image.sourceId = Offer.source.id).
-function sourceName(product, sourceId) {
-  return product.offers.find((o) => o.source.id === sourceId)?.source.name ?? sourceId
 }

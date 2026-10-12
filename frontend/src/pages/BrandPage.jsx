@@ -4,17 +4,17 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
-import ProductGrid from '@/components/product/ProductGrid'
+import ProductResults from '@/components/product/ProductResults'
+import SortSelect from '@/components/product/SortSelect'
 import Reveal from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES } from '@/content/brands'
 import { SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
 import { getBrand } from '@/lib/api'
-import { DEFAULT_SORT, SORTS, matchCollection } from '@/lib/catalog'
+import { DEFAULT_SORT, matchCollection } from '@/lib/catalog'
 import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -93,7 +93,7 @@ function Brand({ slug }) {
           )}
 
           <div className="mt-12">
-            <ProductGrid
+            <ProductResults
               products={products}
               empty={
                 <EmptyProducts
@@ -246,28 +246,6 @@ function Signatures({ brand }) {
         </ol>
       </div>
     </section>
-  )
-}
-
-function SortSelect({ value, onChange }) {
-  return (
-    <div className="flex items-center gap-4">
-      <span id="sort-label" className="eyebrow text-muted-foreground">
-        Sort
-      </span>
-      <Select items={SORTS} value={value} onValueChange={onChange}>
-        <SelectTrigger aria-labelledby="sort-label" className="h-11 min-w-52 px-4 text-sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false}>
-          {SORTS.map((s) => (
-            <SelectItem key={s.value} value={s.value}>
-              {s.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
   )
 }
 

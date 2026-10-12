@@ -35,3 +35,26 @@ export function matchCollection(name, collections) {
     return target === c || target.startsWith(`${c} `)
   })
 }
+
+// Product categories the crawler uses today; the API may add more.
+export const PRODUCT_CATEGORIES = [
+  { value: 'bags', label: 'Bags' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'shoes', label: 'Shoes' },
+  { value: 'clothing', label: 'Clothing' },
+  { value: 'jewelry', label: 'Jewelry' },
+  { value: 'watches', label: 'Watches' },
+]
+
+// Price filter shortcuts, in VND (null = open-ended).
+export const PRICE_PRESETS = [
+  { label: 'Under 50 million', min: null, max: 50_000_000 },
+  { label: '50 to 200 million', min: 50_000_000, max: 200_000_000 },
+  { label: '200 to 500 million', min: 200_000_000, max: 500_000_000 },
+  { label: '500 million to 1 billion', min: 500_000_000, max: 1_000_000_000 },
+  { label: 'Over 1 billion', min: 1_000_000_000, max: null },
+]
+
+// Images credit the store they came from (Image.sourceId = Offer.source.id).
+export const imageCredit = (product, image) =>
+  product.offers.find((o) => o.source.id === image.sourceId)?.source.name ?? image.sourceId
