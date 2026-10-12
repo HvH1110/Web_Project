@@ -27,6 +27,17 @@ Real values go in `crawler/.env` (gitignored). Document every variable in `crawl
 
 ## Commands
 Update this section as you add scripts.
+- `npm install`: install dependencies (Node >= 20.19)
+- `npm run crawl [source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed.
+- `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
+- `npm run lint`: ESLint
+
+## Layout
+- `src/config.js`: env vars, User-Agent
+- `src/lib/http.js`: `politeFetch`, the only way to make requests: robots.txt check, Crawl-delay, at least `CRAWL_DELAY_MS` between requests per host
+- `src/models/`: Mongoose models for the collections in `../docs/DATA.md`
+- `src/sources/`: one adapter per source, registered in `index.js`
+- `SOURCES.md`: source survey and status per brand and market
 
 ## Notes
 - The daily schedule (GitHub Actions) belongs to the devops session. Keep a single entry command it can call, e.g. `npm run crawl`.
