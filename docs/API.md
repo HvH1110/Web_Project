@@ -10,11 +10,12 @@ The single source of truth between `frontend/` and `backend/`.
 - Paths below include the `/api` prefix.
 - JSON request and response bodies.
 - Errors: non-2xx status with body `{ "error": { "message": "Human-readable message" } }`.
-- Auth: not decided yet.
+- Auth: a session cookie (`sid`, httpOnly, so JavaScript can't read it) set by register and login, and cleared by logout. **Every request must be sent with credentials** (`fetch(url, { credentials: 'include' })`, or `withCredentials: true` in axios), otherwise the cookie is neither stored nor sent. Endpoints marked **(login required)** answer **401** `Log in required` without a valid session.
+- Requests other than GET are refused with **403** `Cross-origin request refused` when their `Origin` header is not the frontend's origin (CSRF protection; browsers set this header themselves).
 - Dates are ISO 8601 strings in UTC, e.g. `"2026-10-12T02:00:00.000Z"`.
 - Prices are numbers in major units, exactly as the source shows them (e.g. `13450` SGD). `priceVnd` values are converted and rounded to whole VND.
 - Markets: `VN`, `SG`, `HK`. Currencies: `VND`, `SGD`, `HKD`.
-- Every catalog endpoint (`/api/brands…`, `/api/products…`, `/api/deals`) answers **503** `Database unavailable` while the backend is not connected to MongoDB.
+- Every endpoint except `/api/health` answers **503** `Database unavailable` while the backend is not connected to MongoDB.
 
 ## Shared types
 
@@ -96,6 +97,20 @@ The exchange rate used for every `priceVnd` in a response. `null` when no rate h
 { "date": "2026-10-12", "vndPer": { "SGD": 19000, "HKD": 3350, "USD": 26300 } }
 ```
 `vndPer.X` is the number of VND for 1 unit of currency X on `date`.
+
+### User
+The logged-in member, as returned to that member only.
+```json
+{
+  "id": "6720f1c2a1b2c3d4e5f60719",
+  "email": "an@example.com",
+  "displayName": "Nguyễn An",
+  "role": "member",
+  "createdAt": "2026-10-21T08:00:00.000Z"
+}
+```
+- `displayName`: shown on the forum. 2 to 30 characters: letters (any language), digits, spaces, `.`, `_` and `-`, starting and ending with a letter or digit. Unique, ignoring case.
+- `role`: `member`, `moderator` or `admin`. New accounts are `member`.
 
 ### Deal
 One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart by `type`. Every deal has `type`, `product` (a ProductSummary) and `savingPct` (percentage saved, rounded to 2 decimals, always > 0).
@@ -313,3 +328,97 @@ Example: `GET /api/deals?period=month&type=drop`
 
 **Errors**
 - 400: `period` or `type` is not an allowed value, `page` is not a positive integer, or `limit` is outside 1 to 60.
+
+## Accounts
+
+A session lasts 30 days from login, then the member has to log in again. Too many attempts from one network or for one email answer **429** `Too many attempts, try again later`, with a `Retry-After` header in seconds.
+
+### `POST /api/auth/register`
+Creates an account and logs it in (sets the session cookie).
+
+**Request**
+```json
+{ "email": "an@example.com", "password": "at least 8 characters", "displayName": "Nguyễn An" }
+```
+- `email`: a valid address, at most 254 characters. Stored in lowercase.
+- `password`: 8 to 128 characters. No other rules.
+- `displayName`: see User.
+
+**Response 201**
+```json
+{ "user": { /* User */ } }
+```
+
+**Errors**
+- 400: a field is missing or invalid (the message says which).
+- 409: `An account with this email already exists`, or `This display name is taken`.
+- 429: more than 10 registrations from one IP address in an hour.
+
+### `POST /api/auth/login`
+Logs in (sets the session cookie, replacing any previous session in this browser).
+
+**Request**
+```json
+{ "email": "an@example.com", "password": "…" }
+```
+
+**Response 200**
+```json
+{ "user": { /* User */ } }
+```
+
+**Errors**
+- 400: `email` or `password` missing.
+- 401: `Email or password is incorrect` (the same message whether or not the email has an account).
+- 429: more than 10 attempts for one email, or 30 from one IP address, in 15 minutes.
+
+### `POST /api/auth/logout`
+Ends the current session and clears the cookie. No request body. Safe to call when not logged in.
+
+**Response 204** (no body)
+
+### `GET /api/me`
+The logged-in member, or `null` (not an error) when not logged in. Call it on page load to know whether to show "Log in" or the member's name.
+
+**Response 200**
+```json
+{ "user": { /* User */ } }
+```
+or
+```json
+{ "user": null }
+```
+
+### `PATCH /api/me` (login required)
+Updates the profile. Only `displayName` can be changed for now.
+
+**Request**
+```json
+{ "displayName": "An Nguyễn" }
+```
+
+**Response 200**
+```json
+{ "user": { /* User */ } }
+```
+
+**Errors**
+- 400: no `displayName`, or it is invalid.
+- 401: not logged in.
+- 409: `This display name is taken`.
+
+### `PUT /api/me/password` (login required)
+Changes the password. Logs out every other session of this member; the current one stays logged in.
+
+**Request**
+```json
+{ "currentPassword": "…", "newPassword": "at least 8 characters" }
+```
+
+**Response 204** (no body)
+
+**Errors**
+- 400: a field is missing, or `newPassword` is not 8 to 128 characters.
+- 401: not logged in.
+- 403: `Current password is incorrect` (still logged in).
+- 429: more than 10 attempts in 15 minutes.

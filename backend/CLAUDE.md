@@ -18,7 +18,14 @@ You are the **backend** session. Your area is `backend/` (this folder) plus `doc
 Real values go in `backend/.env` (gitignored). Document every variable in `backend/.env.example`.
 - `PORT`: default `5000`
 - `MONGODB_URI`: Atlas connection string. The user pastes it in; never print, log or commit it.
-- `CLIENT_ORIGIN`: default `http://localhost:5173`
+- `CLIENT_ORIGIN`: default `http://localhost:5173`. Also the only origin allowed to send non-GET requests (CSRF check).
+- `COOKIE_SECURE` (default `false`), `COOKIE_SAME_SITE` (default `lax`): session cookie flags. Production needs `COOKIE_SECURE=true`.
+- `TRUST_PROXY`: number of proxies in front of the app (default `0`), so rate limits see the client IP.
+
+## Accounts
+- Passwords: scrypt via `src/services/password.service.js`. Never store, log or return a password or `passwordHash`.
+- Sessions: random token in the httpOnly `sid` cookie (path `/api`); the `sessions` collection stores only its SHA-256. Routes that need the user mount `loadUser` (`src/middleware/auth.js`) and use `requireUser`.
+- `role` (`member` / `moderator` / `admin`) is there for forum moderation.
 
 ## API contract
 Whenever you add or change an endpoint, update `../docs/API.md` in the same change: method, path, request body, response, error cases. The frontend session codes against that file.
