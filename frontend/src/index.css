@@ -33,6 +33,12 @@
     --color-paper: #ffffff;
     --color-gain: #2e5a43;
     --color-loss: #8c2f23;
+    /* One colour per market for price history lines, fixed order VN, SG, HK.
+       Validated as a set on white (dataviz validate_palette.js, --pairs all):
+       worst CVD ΔE 10.3, normal-vision ΔE 19.3, all >= 3:1. Light surface only. */
+    --color-market-vn: #c07a35;
+    --color-market-sg: #3a68b8;
+    --color-market-hk: #0f7048;
 
     /* Fluid display sizes: phone → wide desktop. */
     --text-display-2xl: clamp(3.25rem, 1.5rem + 7.5vw, 9.5rem);

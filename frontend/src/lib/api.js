@@ -70,3 +70,17 @@ export function getBrand(slug, { signal } = {}) {
 export function getProducts(params = {}, { signal } = {}) {
   return request(`/products${toQuery(params)}`, { signal })
 }
+
+const productUrl = (brand, ref) =>
+  `/products/${encodeURIComponent(brand)}/${encodeURIComponent(ref)}`
+
+// GET /api/products/:brand/:ref -> { product, fx }. 404 when there is no such product.
+export function getProduct(brand, ref, { signal } = {}) {
+  return request(productUrl(brand, ref), { signal })
+}
+
+// GET /api/products/:brand/:ref/history?range=1y|5y|all
+// -> { range, from, to, series: [{ market, source, currency, lastSeenAt, points, vnd }] }
+export function getProductHistory(brand, ref, range, { signal } = {}) {
+  return request(`${productUrl(brand, ref)}/history${toQuery({ range })}`, { signal })
+}

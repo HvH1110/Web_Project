@@ -7,12 +7,18 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+    // Shown for a moment while a lazy page loads on the first visit.
+    hydrateFallbackElement: <div className="min-h-svh" />,
     children: [
       { index: true, element: <HomePage /> },
       // Lazy, so catalog pages and their widgets stay out of the home page bundle.
       {
         path: 'brands/:slug',
         lazy: async () => ({ Component: (await import('@/pages/BrandPage')).default }),
+      },
+      {
+        path: 'products/:brand/:ref',
+        lazy: async () => ({ Component: (await import('@/pages/ProductPage')).default }),
       },
       {
         path: 'search',

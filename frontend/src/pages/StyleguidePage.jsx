@@ -20,6 +20,9 @@ const PALETTE = [
   { name: 'Paper', className: 'bg-paper', hex: '#FFFFFF', use: 'Page background' },
   { name: 'Gain', className: 'bg-gain', hex: '#2E5A43', use: 'Price drops, savings (deals)' },
   { name: 'Loss', className: 'bg-loss', hex: '#8C2F23', use: 'Price rises, errors' },
+  { name: 'Market VN', className: 'bg-market-vn', hex: '#C07A35', use: 'Vietnam line in price charts' },
+  { name: 'Market SG', className: 'bg-market-sg', hex: '#3A68B8', use: 'Singapore line in price charts' },
+  { name: 'Market HK', className: 'bg-market-hk', hex: '#0F7048', use: 'Hong Kong line in price charts' },
 ]
 
 const TYPE = [

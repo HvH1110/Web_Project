@@ -11,3 +11,15 @@ const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', y
 
 // "12 Oct 2026"
 export const formatDate = (iso) => day.format(new Date(iso))
+
+const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
+
+// Axis labels: 255555000 -> "255.6M", 13450 -> "13.5K"
+export const formatCompact = (value) => compact.format(value)
+
+const monthYear = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+const yearOnly = new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: 'UTC' })
+
+// Time axis ticks: "Oct 26", or "2026" for yearly ticks
+export const formatMonth = (ms) => monthYear.format(ms)
+export const formatYear = (ms) => yearOnly.format(ms)
