@@ -4,7 +4,6 @@ import SignatureCard from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
-import { BRANDS } from '@/content/brands'
 import { SITE } from '@/content/site'
 
 // Design system reference (dev only, /styleguide). Tokens live in index.css.
@@ -44,9 +43,15 @@ const SPACING = [
   { name: 'bar', spec: '32 px · announcement bar (h-bar)', width: 'var(--spacing-bar)' },
 ]
 
-export default function StyleguidePage() {
-  const lv = BRANDS[0]
+// Sample data for the brand pieces, in the API's shapes.
+const SAMPLE_BRAND = { slug: 'rolex', name: 'Rolex', category: 'watches', tone: 'graphite' }
+const SAMPLE_PIECES = [
+  { name: 'Submariner', year: 1953, description: 'Divers\u2019 watch, waterproof to 100 metres at launch.' },
+  { name: 'Datejust', year: 1945, description: 'Shows the date in a window on the dial.' },
+  { name: 'Day-Date', year: 1956, description: 'Spells out the day of the week in full.' },
+]
 
+export default function StyleguidePage() {
   return (
     <div className="pb-section">
       <header className="page-container grid gap-6 py-section">
@@ -133,23 +138,23 @@ export default function StyleguidePage() {
         </ul>
       </Block>
 
-      <Block title="Brand pieces" note="Shared with the brand page: key facts, and signature cards in full and compact sizes. Prices show a dash until real, sourced prices exist.">
+      <Block title="Brand pieces" note="Shared with the brand page: key facts, and signature cards in full and compact sizes. Signature cards link to a search for the piece.">
         <div className="grid gap-12 lg:grid-cols-12">
           <FactList
             items={[
-              ['Founded', `${lv.founded.place}, ${lv.founded.year}`],
-              ['Founder', lv.founder],
-              ['Group', lv.group],
+              ['Founded', 'London, United Kingdom, 1905'],
+              ['Founder', 'Hans Wilsdorf and Alfred Davis'],
+              ['Products tracked', 42],
             ]}
             className="lg:col-span-4"
           />
           <div className="max-w-xs lg:col-span-3 lg:col-start-6">
-            <SignatureCard product={lv.signatures[0]} brand={lv} />
+            <SignatureCard piece={SAMPLE_PIECES[0]} brand={SAMPLE_BRAND} />
           </div>
           <ul className="grid grid-cols-3 content-start gap-3 lg:col-span-4">
-            {lv.signatures.map((p) => (
+            {SAMPLE_PIECES.map((p) => (
               <li key={p.name}>
-                <SignatureCard product={p} brand={lv} compact />
+                <SignatureCard piece={p} brand={SAMPLE_BRAND} compact />
               </li>
             ))}
           </ul>

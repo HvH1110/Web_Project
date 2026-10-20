@@ -5,8 +5,11 @@ import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Reveal from '@/components/Reveal'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES, brandsIn } from '@/content/brands'
 import { MARKETS, SITE } from '@/content/site'
+import { useApi } from '@/hooks/useApi'
+import { getBrands } from '@/lib/api'
 import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -17,15 +20,23 @@ const STATS = [
 ]
 
 // Home: hero, the idea, an index of the houses, then one section per brand
-// grouped in category chapters. Copy and images are placeholders for now.
+// grouped in category chapters. Layout comes from content/brands.js so it
+// renders at once; each house's story, facts and signature pieces fill in from
+// GET /api/brands. Images are placeholders for now.
 export default function HomePage() {
+  const result = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
+  const brands = {
+    ...result,
+    bySlug: Object.fromEntries((result.data ?? []).map((b) => [b.slug, b])),
+  }
+
   return (
     <>
       <Hero />
       <Intro />
-      <HouseIndex />
+      <HouseIndex brands={brands} />
       {CATEGORIES.map((category, i) => (
-        <Chapter key={category.id} category={category} number={i + 1} />
+        <Chapter key={category.id} category={category} number={i + 1} brands={brands} />
       ))}
       <Closing />
     </>
@@ -98,7 +109,8 @@ function Intro() {
   )
 }
 
-function HouseIndex() {
+function HouseIndex({ brands }) {
+  const anyDraft = brands.data?.some((b) => b.contentStatus === 'draft')
   return (
     <section id="houses" aria-labelledby="houses-title" className="scroll-mt-header border-t">
       {/* No bottom padding: the first chapter's top padding follows on the same ground. */}
@@ -127,7 +139,7 @@ function HouseIndex() {
                       className="group flex items-baseline justify-between gap-4 py-5"
                     >
                       <span className="font-serif text-display-sm group-hover:italic">{brand.name}</span>
-                      <span className="eyebrow text-muted-foreground">{brand.founded.year}</span>
+                      <span className="eyebrow text-muted-foreground">{brands.bySlug[brand.slug]?.foundedYear}</span>
                     </a>
                   </li>
                 ))}
@@ -135,13 +147,27 @@ function HouseIndex() {
             </Reveal>
           ))}
         </div>
+
+        {brands.error && (
+          <div role="alert" className="mt-12 flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <p>The houses&rsquo; stories can&rsquo;t be loaded right now.</p>
+            <button type="button" onClick={brands.retry} className="eyebrow link-underline text-foreground">
+              Try again
+            </button>
+          </div>
+        )}
+        {anyDraft && (
+          <p className="mt-12 text-xs text-muted-foreground">
+            Brand texts are drafts: their facts have not been reviewed yet.
+          </p>
+        )}
       </div>
     </section>
   )
 }
 
-function Chapter({ category, number }) {
-  const brands = brandsIn(category.id)
+function Chapter({ category, number, brands }) {
+  const houses = brandsIn(category.id)
   const titleId = `chapter-${category.id}`
 
   return (
@@ -149,27 +175,61 @@ function Chapter({ category, number }) {
       <div className="page-container pt-section">
         <Reveal className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t pt-6">
           <p className="eyebrow">Chapter {pad2(number)}</p>
-          <p className="eyebrow text-muted-foreground">{brands.map((b) => b.name).join(' · ')}</p>
+          <p className="eyebrow text-muted-foreground">{houses.map((b) => b.name).join(' · ')}</p>
         </Reveal>
         <Reveal as="h2" id={titleId} delay={100} className="mt-10 font-serif text-display-lg">
           {category.name}
         </Reveal>
       </div>
 
-      {brands.map((brand, i) =>
-        i === 0 ? (
-          <BrandFeature key={brand.slug} brand={brand} />
-        ) : (
-          <BrandSplit key={brand.slug} brand={brand} flip={i % 2 === 0} />
-        ),
-      )}
+      {houses.map((brand, i) => {
+        const Section = i === 0 ? BrandFeature : BrandSplit
+        return (
+          <Section
+            key={brand.slug}
+            brand={brand}
+            info={brands.bySlug[brand.slug]}
+            loading={brands.loading}
+            flip={i % 2 === 0}
+          />
+        )
+      })}
     </section>
   )
 }
 
-// Full-bleed image with the name over it, then story, facts and three products.
-function BrandFeature({ brand }) {
+// "London · Since 1905" once the API has answered, the category before that.
+function Origin({ brand, info }) {
+  if (!info) return CATEGORIES.find((c) => c.id === brand.category)?.name
+  return `${info.city} · Since ${info.foundedYear}`
+}
+
+// History from the API, skeleton lines while it loads, nothing when it failed
+// (the house index says so once).
+function Story({ info, loading }) {
+  if (info) return <p className="text-lede text-pretty">{info.history}</p>
+  if (!loading) return null
+  return (
+    <div aria-hidden="true" className="grid gap-3">
+      {['w-full', 'w-full', 'w-11/12', 'w-2/3'].map((w, i) => (
+        <Skeleton key={i} className={cn('h-4', w)} />
+      ))}
+    </div>
+  )
+}
+
+const brandFacts = (info) => [
+  ['Founded', `${info.city}, ${info.country}, ${info.foundedYear}`],
+  ['Founder', info.founder],
+  ['Products tracked', info.productCount || 'None yet'],
+]
+
+const signaturesOf = (info) => info?.signatureProducts.slice(0, 3) ?? []
+
+// Full-bleed image with the name over it, then story, facts and three pieces.
+function BrandFeature({ brand, info, loading }) {
   const nameId = `${brand.slug}-name`
+  const pieces = signaturesOf(info)
 
   return (
     <article id={brand.slug} aria-labelledby={nameId} className="scroll-mt-header pt-16 pb-section">
@@ -184,7 +244,7 @@ function BrandFeature({ brand }) {
           <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 via-black/20 to-transparent pt-32 pb-10 sm:pb-14">
             <div className="page-container">
               <p className="eyebrow">
-                {brand.founded.place} · Since {brand.founded.year}
+                <Origin brand={brand} info={info} />
               </p>
               <h3 id={nameId} className="mt-4 font-serif text-display-xl">
                 {brand.name}
@@ -196,34 +256,39 @@ function BrandFeature({ brand }) {
 
       <div className="page-container mt-12 grid gap-12 lg:mt-16 lg:grid-cols-12">
         <Reveal className="grid content-start gap-8 lg:col-span-6">
-          <p className="text-lede text-pretty">{brand.summary}</p>
+          <Story info={info} loading={loading} />
           <BrandLink brand={brand} />
         </Reveal>
-        <Reveal delay={120} className="lg:col-span-4 lg:col-start-9">
-          <FactList items={brandFacts(brand)} />
-        </Reveal>
+        {info && (
+          <Reveal delay={120} className="lg:col-span-4 lg:col-start-9">
+            <FactList items={brandFacts(info)} />
+          </Reveal>
+        )}
       </div>
 
-      <div className="page-container mt-20">
-        <Reveal as="p" className="eyebrow mb-8">
-          Signature pieces
-        </Reveal>
-        {/* A swipeable row on phones, three columns from sm up. */}
-        <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
-          {brand.signatures.map((product, i) => (
-            <Reveal as="li" key={product.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
-              <SignatureCard product={product} brand={brand} />
-            </Reveal>
-          ))}
-        </ul>
-      </div>
+      {pieces.length > 0 && (
+        <div className="page-container mt-20">
+          <Reveal as="p" className="eyebrow mb-8">
+            Signature pieces
+          </Reveal>
+          {/* A swipeable row on phones, three columns from sm up. */}
+          <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
+            {pieces.map((piece, i) => (
+              <Reveal as="li" key={piece.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
+                <SignatureCard piece={piece} brand={brand} />
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   )
 }
 
 // Image on one side, story on the other; `flip` swaps the sides.
-function BrandSplit({ brand, flip }) {
+function BrandSplit({ brand, info, loading, flip }) {
   const nameId = `${brand.slug}-name`
+  const pieces = signaturesOf(info)
 
   return (
     <article
@@ -248,40 +313,37 @@ function BrandSplit({ brand, flip }) {
       >
         <Reveal className="grid gap-4">
           <p className="eyebrow text-muted-foreground">
-            {brand.founded.place} · Since {brand.founded.year}
+            <Origin brand={brand} info={info} />
           </p>
           <h3 id={nameId} className="font-serif text-display-xl">
             {brand.name}
           </h3>
         </Reveal>
-        <Reveal as="p" delay={100} className="text-lede text-pretty">
-          {brand.summary}
+        <Reveal delay={100}>
+          <Story info={info} loading={loading} />
         </Reveal>
-        <Reveal delay={150}>
-          <FactList items={brandFacts(brand)} />
-        </Reveal>
-        <Reveal delay={200}>
-          <p className="eyebrow mb-5">Signature pieces</p>
-          <ul className="grid grid-cols-3 gap-3 sm:gap-5">
-            {brand.signatures.map((product) => (
-              <li key={product.name}>
-                <SignatureCard product={product} brand={brand} compact />
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+        {info && (
+          <Reveal delay={150}>
+            <FactList items={brandFacts(info)} />
+          </Reveal>
+        )}
+        {pieces.length > 0 && (
+          <Reveal delay={200}>
+            <p className="eyebrow mb-5">Signature pieces</p>
+            <ul className="grid grid-cols-3 gap-3 sm:gap-5">
+              {pieces.map((piece) => (
+                <li key={piece.name}>
+                  <SignatureCard piece={piece} brand={brand} compact />
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        )}
         <BrandLink brand={brand} />
       </div>
     </article>
   )
 }
-
-const brandFacts = (brand) => [
-  ['Founded', `${brand.founded.place}, ${brand.founded.year}`],
-  ['Founder', brand.founder],
-  ['Headquarters', brand.headquarters],
-  ['Group', brand.group],
-]
 
 function BrandLink({ brand }) {
   return (

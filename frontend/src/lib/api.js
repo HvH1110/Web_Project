@@ -84,3 +84,8 @@ export function getProduct(brand, ref, { signal } = {}) {
 export function getProductHistory(brand, ref, range, { signal } = {}) {
   return request(`${productUrl(brand, ref)}/history${toQuery({ range })}`, { signal })
 }
+
+// GET /api/brands -> { items: [Brand] }, in home page order.
+export function getBrands({ category, signal } = {}) {
+  return request(`/brands${toQuery({ category })}`, { signal })
+}
