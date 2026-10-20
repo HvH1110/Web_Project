@@ -56,9 +56,9 @@ The root `.gitignore` ignores `.env`, `.env.*` and `*.env` (e.g. `atlas-credenti
 | Item           | Value                                                               |
 |----------------|---------------------------------------------------------------------|
 | Cluster        | `web-project`, Free tier (M0), AWS **Singapore (ap-southeast-1)**    |
-| Database users | `webproject-dev`, role `readWriteAnyDatabase`, used for local development. `webproject-crawler` (**to create**, see `DEPLOY.md`), `readWrite` on `webproject_dev` only, used only by the GitHub Actions crawl. |
+| Database users | `webproject-dev`, role `readWriteAnyDatabase`, used for local development. `webproject-crawler` (set up 2026-10-21, see `DEPLOY.md`), `readWrite` on `webproject_dev` only, used only by the GitHub Actions crawl. |
 | Databases      | `webproject_dev` (local development, and the daily crawl until production exists) |
-| Network access | The current IP of the development machine (added automatically at setup). `0.0.0.0/0` for GitHub Actions (**to add**, see `DEPLOY.md`). |
+| Network access | The current IP of the development machine (added automatically at setup). `0.0.0.0/0` for GitHub Actions (added 2026-10-21, see `DEPLOY.md`). |
 
 Atlas website access is through your Atlas account login. Database users are only for apps connecting to the cluster, so no database user has admin rights.
 
