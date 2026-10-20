@@ -28,7 +28,9 @@ Real values go in `crawler/.env` (gitignored). Document every variable in `crawl
 ## Commands
 Update this section as you add scripts.
 - `npm install`: install dependencies (Node >= 20.19)
-- `npm run crawl [source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed.
+- `npm run crawl [-- source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed. Sources: `dafc-vn`, `cartier-vn`, `cartier-sg`, `cartier-hk`.
+  - `--dry-run`: fetch and parse, print the items, write nothing (no `MONGODB_URI` needed)
+  - `--limit=N`: at most N product pages per source, e.g. `npm run crawl -- cartier-sg --dry-run --limit=3`
 - `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
 - `npm run lint`: ESLint
 
@@ -36,7 +38,9 @@ Update this section as you add scripts.
 - `src/config.js`: env vars, User-Agent
 - `src/lib/http.js`: `politeFetch`, the only way to make requests: robots.txt check, Crawl-delay, at least `CRAWL_DELAY_MS` between requests per host
 - `src/models/`: Mongoose models for the collections in `../docs/DATA.md`
-- `src/sources/`: one adapter per source, registered in `index.js`
+- `src/lib/runner.js`: runs one source (list URLs, fetch, parse, save); stops the source on 403/429/503
+- `src/lib/store.js`: the only code that writes to MongoDB (upserts and price points, safe to re-run)
+- `src/sources/`: one adapter per source, registered in `index.js`. An adapter is `{ id, name, type, market, listUrls(), parse(html, url), select?(urls) }`; `parse` returns `{ brand, ref, name, category, collection, description, specs, images: [{ url, alt }], url, currency, price, available }` or null
 - `SOURCES.md`: source survey and status per brand and market
 
 ## Notes
