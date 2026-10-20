@@ -12,6 +12,8 @@ import {
   DEFAULT_RANGE,
   RANGES,
   currencyRows,
+  justStarted,
+  priceScale,
   seriesStyles,
   timeTicks,
   vndRows,
@@ -91,18 +93,22 @@ export default function PriceHistory({ brand, productRef }) {
             >
               {view === 'table' ? (
                 <HistoryTable series={data.series} />
+              ) : justStarted(data.series) ? (
+                <FirstPrices series={data.series} />
               ) : currency === 'vnd' ? (
                 <VndChart data={data} />
               ) : (
                 <CurrencyCharts data={data} />
               )}
-              <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-                {formatDate(data.from)} to {formatDate(data.to)}.
-                {currency === 'vnd' &&
-                  view === 'chart' &&
-                  " VND values use each day's exchange rate; gaps mean no rate was known."}
-                {' '}Hollow points are Internet Archive snapshots; the table links to each one.
-              </p>
+              {!(view === 'chart' && justStarted(data.series)) && (
+                <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+                  {formatDate(data.from)} to {formatDate(data.to)}.
+                  {currency === 'vnd' &&
+                    view === 'chart' &&
+                    " VND values use each day's exchange rate; gaps mean no rate was known."}
+                  {' '}Hollow points are Internet Archive snapshots; the table links to each one.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -181,9 +187,37 @@ function timeAxis(data) {
 }
 
 // Rounded ticks around the data rather than from zero, so changes show.
-const priceAxis = (width) => (
-  <YAxis domain={['auto', 'auto']} tickCount={5} tickFormatter={formatCompact} width={width} {...axisProps} />
+const priceAxis = (width, values) => (
+  <YAxis {...priceScale(values)} tickFormatter={formatCompact} width={width} {...axisProps} />
 )
+
+// Before there is any line: when tracking began and each store's first price.
+function FirstPrices({ series }) {
+  const started = series.map((s) => s.points[0].date).sort()[0]
+  return (
+    <div className="grid gap-6 bg-secondary px-6 py-12 sm:px-10">
+      <div className="grid gap-2">
+        <p className="eyebrow text-muted-foreground">Tracking started {formatDate(started)}</p>
+        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+          The chart appears once prices have been checked over a few days. First prices recorded:
+        </p>
+      </div>
+      <ul className="grid max-w-2xl border-b">
+        {series.map((s) => {
+          const first = s.points[0]
+          return (
+            <li key={`${s.market}-${s.source.id}`} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t py-3 text-sm">
+              <span>{seriesName(s)}</span>
+              <span className="tabular-nums">
+                {first.price != null ? formatPrice(first.price, s.currency) : '—'}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
 
 function VndChart({ data }) {
   const { series } = data
@@ -198,7 +232,7 @@ function VndChart({ data }) {
         <LineChart data={rows} margin={{ top: 8, right: 40, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--border)" />
           {timeAxis(data)}
-          {priceAxis(56)}
+          {priceAxis(56, rows.flatMap((r) => series.map((_, i) => r[`s${i}`])))}
           <ChartTooltip
             cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeOpacity: 0.3 }}
             content={<VndTooltip series={series} styles={styles} />}
@@ -299,7 +333,7 @@ function CurrencyCharts({ data }) {
               <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 {timeAxis(data)}
-                {priceAxis(48)}
+                {priceAxis(48, rows.map((r) => r.v))}
                 <ChartTooltip
                   cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeOpacity: 0.3 }}
                   content={<CurrencyTooltip series={s} style={styles[i]} />}

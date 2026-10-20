@@ -185,7 +185,7 @@ function Summary({ products, q }) {
             ? `VND prices converted at ${rates
                 .map((c) => `1 ${c} = ${fx.vndPer[c].toLocaleString('en-US')} VND`)
                 .join(', ')} (rates of ${formatDate(fx.date)}).`
-            : 'No exchange rate stored yet, so only prices in VND are shown in VND.'}
+            : 'No exchange rates stored yet, so SGD and HKD prices are not converted to VND.'}
         </p>
       )}
     </div>

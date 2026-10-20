@@ -74,3 +74,25 @@ export function timeTicks(fromIso, toIso) {
   const every = Math.ceil(ticks.length / 7)
   return { ticks: ticks.filter((_, i) => i % every === 0), yearly }
 }
+
+const DAY = 86400000
+
+// True while no series has a line to draw yet: each has a single price,
+// known to hold for less than two days (tracking has only just started).
+export const justStarted = (series) =>
+  series.every((s) => {
+    if (s.points.length > 1) return false
+    const start = time(s.points[0].date)
+    const end = s.lastSeenAt ? time(s.lastSeenAt) : start
+    return end - start < 2 * DAY
+  })
+
+// Y axis props for `values`: rounded automatic ticks, or for a price that
+// never changed in range, room around it and a single tick at the price.
+export function priceScale(values) {
+  const known = values.filter((v) => v != null)
+  const lo = Math.min(...known)
+  const hi = Math.max(...known)
+  if (!known.length || lo !== hi) return { domain: ['auto', 'auto'], tickCount: 5 }
+  return { domain: [lo * 0.9, hi * 1.1], ticks: [lo] }
+}
