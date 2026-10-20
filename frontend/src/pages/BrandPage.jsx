@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import CtaButton from '@/components/CtaButton'
@@ -249,12 +249,26 @@ function Signatures({ brand }) {
   )
 }
 
-// One button per collection, scrolling sideways when there are many.
+// Collections shown before "Show all": enough for one or two lines.
+const COLLAPSED_COLLECTIONS = 10
+
+// One button per collection, wrapping onto lines so the page's own scroll
+// reaches them all. Long lists start collapsed; a chosen collection stays
+// visible either way.
 function CollectionFilter({ collections, total, value, onChange }) {
-  const options = [{ name: '', label: 'All', productCount: total }, ...collections]
+  const [expanded, setExpanded] = useState(false)
+  const collapsible = collections.length > COLLAPSED_COLLECTIONS + 2
+  let shown = collections
+  if (collapsible && !expanded) {
+    shown = collections.slice(0, COLLAPSED_COLLECTIONS)
+    const chosen = collections.find((c) => c.name === value)
+    if (chosen && !shown.includes(chosen)) shown = [...shown, chosen]
+  }
+  const options = [{ name: '', label: 'All', productCount: total }, ...shown]
+
   return (
-    <div role="group" aria-label="Collection" className="-mx-gutter mt-10 overflow-x-auto px-gutter [scrollbar-width:none]">
-      <div className="flex w-max gap-2">
+    <div className="mt-10 grid justify-items-start gap-4">
+      <div role="group" aria-label="Collection" id="collection-filter" className="flex flex-wrap gap-2">
         {options.map((c) => {
           const active = value === c.name
           return (
@@ -274,6 +288,17 @@ function CollectionFilter({ collections, total, value, onChange }) {
           )
         })}
       </div>
+      {collapsible && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls="collection-filter"
+          onClick={() => setExpanded((e) => !e)}
+          className="eyebrow link-underline"
+        >
+          {expanded ? 'Show fewer collections' : `Show all ${collections.length} collections`}
+        </button>
+      )}
     </div>
   )
 }
