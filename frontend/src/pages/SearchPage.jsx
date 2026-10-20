@@ -116,6 +116,7 @@ export default function SearchPage() {
           <Summary products={products} q={filters.q} />
 
           <div className="mt-6">
+            <h2 className="sr-only">Results</h2>
             <ProductResults
               products={products}
               variant="list"

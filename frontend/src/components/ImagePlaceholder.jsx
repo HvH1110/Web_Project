@@ -1,14 +1,14 @@
 import { Footprints, Gem, Handbag, Shirt, Watch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Studio backdrops in the house neutrals. `ink` is lifted a little so it
-// still reads on a dark section.
+// Studio backdrops in the house neutrals, with the ink their caption and
+// icon use. `ink` is lifted a little so it still reads on a dark section.
 const TONES = {
-  stone: 'bg-stone text-ink',
-  sand: 'bg-sand text-ink',
-  taupe: 'bg-taupe text-ink',
-  graphite: 'bg-graphite text-ivory',
-  ink: 'bg-[#26221d] text-ivory',
+  stone: { art: 'bg-stone text-ink', caption: 'text-ink/75' },
+  sand: { art: 'bg-sand text-ink', caption: 'text-ink/75' },
+  taupe: { art: 'bg-taupe text-ink', caption: 'text-ink/85' },
+  graphite: { art: 'bg-graphite text-ivory', caption: 'text-ivory/80' },
+  ink: { art: 'bg-[#26221d] text-ivory', caption: 'text-ivory/80' },
 }
 
 // Brand categories and product categories (see ../docs/API.md).
@@ -42,7 +42,7 @@ export default function ImagePlaceholder({
         aria-label={label ? `Image placeholder: ${label}` : 'Image placeholder'}
         className={cn(
           'placeholder-art absolute inset-0 -z-10 transition-transform duration-1600 ease-lux group-hover:scale-[1.04] motion-reduce:transition-none',
-          TONES[tone],
+          TONES[tone].art,
         )}
       >
         {Icon && (
@@ -55,11 +55,11 @@ export default function ImagePlaceholder({
       </div>
       {children}
       {label && (
-        // Difference blend keeps the caption legible on light art, dark art and overlays.
         <span
           aria-hidden="true"
           className={cn(
-            'eyebrow pointer-events-none absolute right-4 bottom-4 text-[0.625rem] text-white/70 mix-blend-difference',
+            'eyebrow pointer-events-none absolute right-4 bottom-4 text-[0.625rem]',
+            TONES[tone].caption,
             captionClassName,
           )}
         >

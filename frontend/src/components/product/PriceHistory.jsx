@@ -389,7 +389,8 @@ function HistoryTable({ series }) {
     return <p className="text-sm text-muted-foreground">No price changes recorded in this range.</p>
   }
   return (
-    <div className="overflow-x-auto">
+    // Focusable so keyboard users can scroll it sideways on small screens.
+    <div role="region" aria-label="Recorded price changes" tabIndex={0} className="overflow-x-auto">
       <table className="w-full min-w-[40rem] border-b text-sm">
         <caption className="sr-only">Recorded price changes</caption>
         <thead>

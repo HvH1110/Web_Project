@@ -68,8 +68,8 @@ export default function ProductCard({ product }) {
   )
 }
 
-// "VN SG HK", dimmed where the product isn't sold, with a dot on the market
-// the lead price comes from when there is more than one.
+// "VN SG HK", struck through where the product isn't sold, with a dot on
+// the market the lead price comes from when there is more than one.
 function MarketStrip({ offers, lowest }) {
   const sold = new Set(offers.map((o) => o.market))
   const markLowest = lowest && sold.size > 1
@@ -84,7 +84,7 @@ function MarketStrip({ offers, lowest }) {
             key={code}
             className={cn(
               'flex items-center gap-1.5',
-              !sold.has(code) && 'text-muted-foreground/45',
+              !sold.has(code) && 'text-muted-foreground line-through',
             )}
           >
             {markLowest && code === lowest && <span className="size-1 rounded-full bg-gain" />}

@@ -17,12 +17,12 @@ export default function SiteHeader() {
 
   return (
     <>
-      <div className="bg-ink text-ivory">
+      <aside aria-label="Announcement" className="bg-ink text-ivory">
         <p className="page-container eyebrow flex h-bar items-center justify-center text-center text-[0.625rem] tracking-[0.24em]">
           <span className="sm:hidden">Official prices · VN · SG · HK</span>
           <span className="max-sm:hidden">Official prices · Vietnam · Singapore · Hong Kong</span>
         </p>
-      </div>
+      </aside>
 
       <header
         className={cn(

@@ -11,8 +11,14 @@ const scrollKey = (location) => (location.key === 'default' ? location.pathname 
 export default function App() {
   return (
     <div className="flex min-h-svh flex-col">
+      <a
+        href="#main"
+        className="eyebrow sr-only z-50 bg-foreground px-5 py-3 text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
       <SiteFooter />
