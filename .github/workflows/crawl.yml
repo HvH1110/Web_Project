@@ -7,6 +7,11 @@ name: Daily crawl
 # in a public repo after 60 days without commits (re-enable in the Actions tab).
 on:
   workflow_dispatch:
+    inputs:
+      check_only:
+        description: Only check the database connection, don't crawl
+        type: boolean
+        default: false
   # schedule:
   #   # 19:17 UTC = 02:17 in Vietnam, 03:17 in Singapore and Hong Kong: quiet
   #   # hours in every market. Off the hour, because runs at :00 are the most
@@ -54,16 +59,51 @@ jobs:
           fi
 
       # The only job in the repo that gets a secret. GitHub masks its value in
-      # the log, and the crawler must never print it either.
-      - name: Crawl
+      # the log, and nothing here or in the crawler may print it.
+      #
+      # Fail fast, before any site is fetched, if Atlas can't be reached, and
+      # log how much of the 512 MB free tier this database uses.
+      - name: Check database
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          # Added to the User-Agent so site owners can reach us. Not a secret.
-          # CRAWL_DELAY_MS and CARTIER_ROTATION_DAYS keep their defaults.
-          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
         run: |
           if [ -z "$MONGODB_URI" ]; then
             echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."
             exit 1
           fi
-          npm run crawl
+          node --input-type=module -e '
+            import mongoose from "mongoose";
+            const unreachable = "Atlas not reachable: check that Network Access has 0.0.0.0/0 and that it is Active.";
+            const hints = {
+              MongooseServerSelectionError: unreachable,
+              MongoServerSelectionError: unreachable,
+              MongoServerError: "Atlas refused the login: check the user name and password in the secret.",
+              MongoParseError: "The secret is not a valid connection string.",
+            };
+            try {
+              await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 20000 });
+              const db = mongoose.connection.db;
+              await db.command({ ping: 1 });
+              const { dataSize, indexSize, collections } = await db.stats();
+              const mb = (dataSize + indexSize) / 1024 / 1024;
+              console.log(`Connected to database "${db.databaseName}": ${collections} collections, ${mb.toFixed(1)} MB (data + indexes).`);
+              console.log("The 512 MB free-tier limit counts every database on the cluster together.");
+              if (db.databaseName === "test") console.log("::warning::Database is \"test\": the database name is missing from MONGODB_URI.");
+              if (mb > 400) console.log(`::warning::This database alone uses ${mb.toFixed(0)} MB of the 512 MB free tier.`);
+            } catch (err) {
+              // Only the name and message: the error object can carry connection details.
+              console.log(`::error::Database check failed. ${hints[err.name] ?? ""} (${err.name}: ${err.message})`);
+              process.exitCode = 1;
+            } finally {
+              await mongoose.disconnect();
+            }
+          '
+
+      - name: Crawl
+        if: ${{ !inputs.check_only }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          # Added to the User-Agent so site owners can reach us. Not a secret.
+          # CRAWL_DELAY_MS and CARTIER_ROTATION_DAYS keep their defaults.
+          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
+        run: npm run crawl
