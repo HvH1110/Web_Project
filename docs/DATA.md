@@ -28,7 +28,7 @@ One document per real product, shared across markets. The first source that sees
 | `collection` | string? | e.g. `Neverfull`, `Lady Dior`, `LOVE`, `Submariner`, as the source writes it |
 | `description` | string? | may contain `\n` line breaks (one per bullet point) |
 | `specs` | object | free-form key/value: keys as the source labels them, in sentence case (e.g. `Model case`, `Calibre`, `Water resistance`); values are strings |
-| `images` | `[{ url, sourceId, alt }]` | 2 to 4, original URLs plus credit |
+| `images` | `[{ url, sourceId, alt }]` | up to 4, original URLs plus credit. Usually 2 to 4, but can be empty when the source page shows no picture (a few Cartier high-jewellery pieces) |
 | `createdAt`, `updatedAt` | date | |
 
 Indexes: unique `{ brand: 1, ref: 1 }`; text index on `name`, `collection`, `ref`.
