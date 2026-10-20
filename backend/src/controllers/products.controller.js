@@ -4,6 +4,7 @@ import { Product } from '../models/product.model.js';
 import { getLatestFx, loadHistoricalRates, vndRates } from '../services/fx.service.js';
 import { HISTORY_RANGES, buildHistorySeries, rangeStart } from '../services/price-history.service.js';
 import {
+  SUMMARY_FIELDS,
   getBrandNames,
   offerStages,
   productKey,
@@ -24,7 +25,6 @@ const SORTS = {
 const MAX_QUERY_LENGTH = 100;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 60;
-const SUMMARY_FIELDS = { brand: 1, ref: 1, name: 1, category: 1, collection: 1, images: 1, createdAt: 1 };
 
 function parseSearchQuery(query) {
   const q = stringParam(query, 'q');

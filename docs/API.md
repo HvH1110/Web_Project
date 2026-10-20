@@ -14,7 +14,7 @@ The single source of truth between `frontend/` and `backend/`.
 - Dates are ISO 8601 strings in UTC, e.g. `"2026-10-12T02:00:00.000Z"`.
 - Prices are numbers in major units, exactly as the source shows them (e.g. `13450` SGD). `priceVnd` values are converted and rounded to whole VND.
 - Markets: `VN`, `SG`, `HK`. Currencies: `VND`, `SGD`, `HKD`.
-- Every catalog endpoint (`/api/brands…`, `/api/products…`) answers **503** `Database unavailable` while the backend is not connected to MongoDB.
+- Every catalog endpoint (`/api/brands…`, `/api/products…`, `/api/deals`) answers **503** `Database unavailable` while the backend is not connected to MongoDB.
 
 ## Shared types
 
@@ -96,6 +96,46 @@ The exchange rate used for every `priceVnd` in a response. `null` when no rate h
 { "date": "2026-10-12", "vndPer": { "SGD": 19000, "HKD": 3350, "USD": 26300 } }
 ```
 `vndPer.X` is the number of VND for 1 unit of currency X on `date`.
+
+### Deal
+One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart by `type`. Every deal has `type`, `product` (a ProductSummary) and `savingPct` (percentage saved, rounded to 2 decimals, always > 0).
+
+**`market`: cheapest market.** Buying the product in its cheapest market instead of its most expensive one, comparing current prices in VND.
+```json
+{
+  "type": "market",
+  "product": { /* ProductSummary */ },
+  "savingPct": 12.35,
+  "cheapest": { "market": "HK", "priceVnd": 238000000, "offer": { /* Offer */ } },
+  "dearest": { "market": "VN", "priceVnd": 271500000, "offer": { /* Offer */ } }
+}
+```
+- `savingPct` = (dearest − cheapest) / dearest × 100.
+- Each market is represented by its cheapest offer. Needs offers with a `priceVnd` in at least two markets, so SGD and HKD prices only count once exchange rates are stored.
+- Based on current prices, so the same market deals appear for every `period`.
+
+**`drop`: price drop.** The current price is lower than the price in effect at the start of the period, in the source's own currency (rare) or in VND (usually because of exchange-rate moves).
+```json
+{
+  "type": "drop",
+  "product": { /* ProductSummary */ },
+  "savingPct": 1.8,
+  "market": "SG",
+  "currency": "SGD",
+  "priceThen": 13450,
+  "priceNow": 13450,
+  "priceVndThen": 255555000,
+  "priceVndNow": 250955000,
+  "since": "2026-09-30T17:00:00.000Z",
+  "offer": { /* Offer */ }
+}
+```
+- `priceThen` / `priceNow`: in `currency`. `priceThen` is the last recorded price at or before `since`.
+- `priceVndThen` uses the exchange rate at `since` (closest earlier day, at most 7 days back); `priceVndNow` uses the latest rate (see `fx`). Either is `null` when no rate is known.
+- `savingPct`: the larger of the drop in `currency` and the drop in VND.
+- `offer`: the current offer, for the "where to buy" link.
+- At most one drop deal per product and market (if a market has several sources, the one with the biggest drop).
+- A product whose first recorded price is after `since` has nothing to compare against, so it has no drop deal for that period.
 
 ## Endpoints
 
@@ -241,3 +281,35 @@ Price history for the chart: one series per source (normally one source per mark
 **Errors**
 - 400: `range` is not `1y`, `5y` or `all`.
 - 404: no such product.
+
+### `GET /api/deals`
+Deals for the Deals page, ranked by `savingPct`, highest first.
+
+**Query** (all optional)
+| Param | Description |
+|---|---|
+| `period` | `today` (default), `month` or `year`: since the start of the current day, month or year **in Vietnam time (UTC+7)**. Only affects `drop` deals. |
+| `type` | `market` or `drop`. Without it, both kinds share one ranking, and a product can appear once as a `market` deal and once per market as a `drop` deal. |
+| `page` | Page number, integer >= 1. Default `1`. |
+| `limit` | Results per page, integer from 1 to 60. Default `24`. |
+
+Example: `GET /api/deals?period=month&type=drop`
+
+**Response 200**
+```json
+{
+  "period": "month",
+  "since": "2026-09-30T17:00:00.000Z",
+  "items": [ /* Deal */ ],
+  "page": 1,
+  "limit": 24,
+  "total": 18,
+  "totalPages": 1,
+  "fx": { /* Fx */ }
+}
+```
+- `since`: the start of the period (here 1 October 2026, 00:00 in Vietnam).
+- While `fx` is `null` there are no `market` deals across currencies, and SGD and HKD drops are found only in their own currency.
+
+**Errors**
+- 400: `period` or `type` is not an allowed value, `page` is not a positive integer, or `limit` is outside 1 to 60.

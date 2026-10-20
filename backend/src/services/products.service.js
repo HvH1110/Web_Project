@@ -1,6 +1,9 @@
 import { Brand } from '../models/brand.model.js';
 import { MARKETS, Offer } from '../models/offer.model.js';
 
+// The product fields a ProductSummary needs, for $project.
+export const SUMMARY_FIELDS = { brand: 1, ref: 1, name: 1, category: 1, collection: 1, images: 1, createdAt: 1 };
+
 // Aggregation stages for a pipeline over `products`: attach each product's
 // offers, convert every offer price to VND with `rates` (from vndRates()), and
 // set lowestPriceVnd from the offers in `markets` (all offers when not given).
@@ -55,7 +58,8 @@ function compareNullsLast(a, b) {
   return a - b;
 }
 
-function toOfferDto(offer) {
+// Offer in docs/API.md.
+export function toOfferDto(offer) {
   return {
     market: offer.source?.market ?? null,
     source: {
