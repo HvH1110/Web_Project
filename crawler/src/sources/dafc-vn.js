@@ -22,8 +22,10 @@ export default {
     const $ = cheerio.load(html);
     const ld = jsonLdOfType($, 'Product')[0];
     // Rolex model code (RMC), e.g. M126610LN-0001: the ref used across markets.
-    const ref = clean($('.p-rmc').first().text()) ?? clean(ld?.sku);
+    // Accessory pages write it as "RMC A1015".
+    const ref = clean($('.p-rmc').first().text())?.replace(/^RMC\s+/i, '') ?? clean(ld?.sku);
     if (!ref) return null;
+    const isAccessory = new URL(url).pathname.includes('/accessories/');
     const family = clean($('.p-name').first().text()) ?? clean(ld?.category);
     const modelCase = clean($('.p-modelcase').first().text());
     const offer = [].concat(ld?.offers ?? [])[0];
@@ -36,14 +38,23 @@ export default {
       if (label && value) specs[labelCase(label)] = value;
     });
 
-    // Watch shot plus gallery slides, desktop rendition when there is one.
+    // Watches: the watch shot plus gallery slides, desktop rendition when there
+    // is one. Accessories: a packshot plus desktop backgrounds
+    // (.../rolex-accessories-a1015-packshot.webp).
     const pictures = new Map();
     $('img[src*="/uploads/model/"]').each((_, el) => {
       const src = $(el).attr('src');
-      const m = src.match(/\/model\/(watch|gallery)\/(desktop|mobile)\/(?:(slide\d+)\/)?([^/]+)\.\w+$/);
-      if (!m || m[4].toUpperCase() !== ref.toUpperCase()) return;
-      const key = `${m[1]}-${m[3] ?? ''}`;
-      if (!pictures.has(key) || m[2] === 'desktop') pictures.set(key, { url: src, alt: clean($(el).attr('alt')) });
+      const alt = clean($(el).attr('alt'));
+      const watch = src.match(/\/model\/(watch|gallery)\/(desktop|mobile)\/(?:(slide\d+)\/)?([^/]+)\.\w+$/);
+      if (watch && watch[4].toUpperCase() === ref.toUpperCase()) {
+        const key = `${watch[1]}-${watch[3] ?? ''}`;
+        if (!pictures.has(key) || watch[2] === 'desktop') pictures.set(key, { url: src, alt });
+        return;
+      }
+      const accessory = src.match(/\/model\/accessories\/.*\/rolex-accessories-(.+)-[a-z]+\.\w+$/i);
+      if (accessory && accessory[1].toUpperCase() === ref.toUpperCase() && !/\/mobile\//.test(src)) {
+        pictures.set(src, { url: src, alt });
+      }
     });
     const images = [...pictures.values()].slice(0, 4);
 
@@ -51,8 +62,8 @@ export default {
       brand: 'rolex',
       ref,
       name: [family, modelCase].filter(Boolean).join(', '),
-      category: 'watches',
-      collection: family,
+      category: isAccessory ? 'accessories' : 'watches',
+      collection: isAccessory ? undefined : family,
       // The page has no model-specific text besides the main picture's caption.
       description: images[0]?.alt,
       specs,

@@ -99,10 +99,17 @@ export function cartierSource({ market, locale, currency }) {
 
       const name = data('item-name') ?? clean($('h1').first().text());
       const pictures = new Set();
+      // Images are lazy-loaded: the real URLs sit in data-srcset / data-src.
       $('.car-pdp__image-cards').first().find('source, img').each((_, el) => {
-        const m = ($(el).attr('srcset') ?? $(el).attr('src') ?? '').match(/\/dam\/\S+?\.(?:jpe?g|png)(?=\.transform)/);
-        if (m) pictures.add(m[0]);
+        for (const attr of ['data-srcset', 'srcset', 'data-src', 'src']) {
+          const m = ($(el).attr(attr) ?? '').match(/\/dam\/\S+?\.(?:jpe?g|png)(?=\.transform)/);
+          if (m) pictures.add(m[0]);
+        }
       });
+      if (!pictures.size) {
+        const og = $('meta[property="og:image"]').attr('content')?.match(/\/dam\/\S+?\.(?:jpe?g|png)(?=\.transform)/);
+        if (og) pictures.add(og[0]);
+      }
       const images = [...pictures]
         .slice(0, 4)
         .map((path) => ({ url: `https://www.cartier.com${path}.transform.carprodcard.png`, alt: name }));

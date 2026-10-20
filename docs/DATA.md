@@ -22,7 +22,7 @@ One document per real product, shared across markets. The first source that sees
 | Field | Type | Notes |
 |---|---|---|
 | `brand` | string | brand slug |
-| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product). Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). |
+| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product); accessories (cufflinks, desk clocks, category `accessories`) use their own code, e.g. `A1015`, `C909010LN-0001`. Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). |
 | `name` | string | |
 | `category` | string | `bags`, `accessories`, `shoes`, `clothing`, `jewelry`, `watches` (extend here if needed) |
 | `collection` | string? | e.g. `Neverfull`, `Lady Dior`, `LOVE`, `Submariner`, as the source writes it |
