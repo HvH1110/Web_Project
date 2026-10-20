@@ -23,3 +23,8 @@ const yearOnly = new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: '
 // Time axis ticks: "Oct 26", or "2026" for yearly ticks
 export const formatMonth = (ms) => monthYear.format(ms)
 export const formatYear = (ms) => yearOnly.format(ms)
+
+const percent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
+
+// 12.35 -> "12.35%"
+export const formatPercent = (value) => `${percent.format(value)}%`

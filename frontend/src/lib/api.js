@@ -89,3 +89,9 @@ export function getProductHistory(brand, ref, range, { signal } = {}) {
 export function getBrands({ category, signal } = {}) {
   return request(`/brands${toQuery({ category })}`, { signal })
 }
+
+// GET /api/deals?period=today|month|year&type=market|drop&page&limit
+// -> { period, since, items: [Deal], page, limit, total, totalPages, fx }
+export function getDeals(params = {}, { signal } = {}) {
+  return request(`/deals${toQuery(params)}`, { signal })
+}

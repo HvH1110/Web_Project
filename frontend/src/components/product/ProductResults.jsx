@@ -10,11 +10,19 @@ const LAYOUT = {
   list: 'grid border-b',
 }
 
-// Results from useProducts as a card grid (variant="grid") or as rows with
-// prices per market (variant="list"): skeletons, error, `empty` when there is
-// nothing, otherwise the products with a "load more" footer. `error` replaces
-// the default error panel when given.
-export default function ProductResults({ products, variant = 'grid', empty, error: errorView }) {
+// Results from usePaged (e.g. useProducts) as a card grid (variant="grid") or
+// as rows with prices per market (variant="list"): skeletons, error, `empty`
+// when there is nothing, otherwise the items with a "load more" footer.
+// `renderItem` / `getKey` render other rows in the list layout (e.g. deals).
+// `error` replaces the default error panel when given.
+export default function ProductResults({
+  products,
+  variant = 'grid',
+  empty,
+  error: errorView,
+  renderItem,
+  getKey = (item) => item.id,
+}) {
   const { items, total, loading, refreshing, error, retry } = products
 
   if (error) return errorView ?? <LoadError error={error} onRetry={retry} />
@@ -46,6 +54,7 @@ export default function ProductResults({ products, variant = 'grid', empty, erro
   if (!items.length && !refreshing) return empty
 
   const Item = variant === 'grid' ? ProductCard : ProductRow
+  const render = renderItem ?? ((product) => <Item product={product} />)
   return (
     <div aria-busy={refreshing || undefined}>
       <ul
@@ -55,9 +64,9 @@ export default function ProductResults({ products, variant = 'grid', empty, erro
           refreshing && 'pointer-events-none opacity-40',
         )}
       >
-        {items.map((product) => (
-          <li key={product.id} className={variant === 'list' ? 'border-t' : undefined}>
-            <Item product={product} />
+        {items.map((item) => (
+          <li key={getKey(item)} className={variant === 'list' ? 'border-t' : undefined}>
+            {render(item)}
           </li>
         ))}
       </ul>
@@ -84,7 +93,7 @@ function MoreFooter({ products, shown, total }) {
       )}
       {loadMoreError && (
         <p role="alert" className="text-sm text-destructive">
-          Couldn't load more products. Please try again.
+          Couldn't load more. Please try again.
         </p>
       )}
     </div>

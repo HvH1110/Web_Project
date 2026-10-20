@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import LoadError from '@/components/LoadError'
+import Segmented from '@/components/Segmented'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MARKETS } from '@/content/site'
@@ -114,32 +115,6 @@ export default function PriceHistory({ brand, productRef }) {
         </div>
       </div>
     </section>
-  )
-}
-
-function Segmented({ label, options, value, onChange }) {
-  return (
-    <div role="group" aria-label={label} className="flex">
-      {options.map((o) => {
-        const active = o.value === value
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              'eyebrow -ml-px h-10 border px-4 text-[0.625rem] tracking-[0.16em] transition-colors first:ml-0',
-              active
-                ? 'relative z-10 border-foreground bg-foreground text-background'
-                : 'border-border hover:border-foreground',
-            )}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 
