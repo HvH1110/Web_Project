@@ -28,9 +28,11 @@ Real values go in `crawler/.env` (gitignored). Document every variable in `crawl
 ## Commands
 Update this section as you add scripts.
 - `npm install`: install dependencies (Node >= 20.19)
-- `npm run crawl [-- source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed. Sources: `dafc-vn`, `cartier-vn`, `cartier-sg`, `cartier-hk`.
+- `npm run crawl [-- source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed. Sources: `dafc-vn`, `thehourglass-sg`, `cartier-vn`, `cartier-sg`, `cartier-hk`.
   - `--dry-run`: fetch and parse, print the items, write nothing (no `MONGODB_URI` needed)
   - `--limit=N`: at most N product pages per source, e.g. `npm run crawl -- cartier-sg --dry-run --limit=3`
+- `npm run backfill [-- archive-id ...]`: price history from Wayback Machine snapshots of official pages that block crawlers. Queues new captures (one per page per month, the index asked one year at a time), then fetches up to `--limit` queued snapshots (default 500, about 45 min) and saves products and `wayback` price points, no offers. Resumes where the last run stopped. Archives: `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`.
+  - `--dry-run`: no database; fetch the newest `--limit` (default 3) archived product pages per source and print the items
 - `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
 - `npm run lint`: ESLint
 
@@ -41,6 +43,9 @@ Update this section as you add scripts.
 - `src/lib/runner.js`: runs one source (list URLs, fetch, parse, save); stops the source on 403/429/503
 - `src/lib/store.js`: the only code that writes to MongoDB (upserts and price points, safe to re-run)
 - `src/sources/`: one adapter per source, registered in `index.js`. An adapter is `{ id, name, type, market, listUrls(), parse(html, url), select?(urls) }`; `parse` returns `{ brand, ref, name, category, collection, description, specs, images: [{ url, alt }], url, currency, price, available }` or null
+- `src/lib/wayback.js`: Wayback index (CDX) and snapshot URLs; stops on 429/503 from web.archive.org
+- `src/archives/`: one adapter per archived site, registered in `index.js`: `{ id, name, type, market, prefixes, isProductUrl(url), parse(html, url) }`, `parse` returning the same item as a live source
+- `src/backfill.js`: the backfill entry point (queue in the crawler-internal `wayback_snapshots` collection)
 - `SOURCES.md`: source survey and status per brand and market
 
 ## Notes

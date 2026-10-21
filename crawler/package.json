@@ -9,6 +9,7 @@
   },
   "scripts": {
     "crawl": "node src/crawl.js",
+    "backfill": "node src/backfill.js",
     "probe": "node src/tools/probe.js",
     "lint": "eslint ."
   },

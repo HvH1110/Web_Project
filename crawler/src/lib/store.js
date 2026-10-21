@@ -27,36 +27,7 @@ export function validateItem(source, item) {
 //   the last point of this source.
 export async function saveItem(source, item, observedAt = new Date()) {
   validateItem(source, item);
-  const ref = normalizeRef(item.ref);
-  const images = (item.images ?? []).slice(0, 4).map((img) => ({ ...img, sourceId: source.id }));
-  const details = {
-    name: item.name,
-    category: item.category,
-    collection: item.collection,
-    description: item.description,
-    specs: item.specs ?? {},
-    images,
-  };
-
-  // $setOnInsert never touches an existing product, so `value` is also the
-  // product as it was before this call.
-  const result = await Product.findOneAndUpdate(
-    { brand: item.brand, ref },
-    { $setOnInsert: { brand: item.brand, ref, ...details } },
-    { upsert: true, returnDocument: 'after', lean: true, includeResultMetadata: true },
-  );
-  const product = result.value;
-  const created = !result.lastErrorObject?.updatedExisting;
-
-  if (!created) {
-    const missing = {};
-    for (const key of ['collection', 'description']) {
-      if (!product[key] && details[key]) missing[key] = details[key];
-    }
-    if (!Object.keys(product.specs ?? {}).length && Object.keys(details.specs).length) missing.specs = details.specs;
-    if ((product.images?.length ?? 0) < 2 && images.length > (product.images?.length ?? 0)) missing.images = images;
-    if (Object.keys(missing).length) await Product.updateOne({ _id: product._id }, { $set: missing });
-  }
+  const { product, created } = await upsertProduct(source, item);
 
   await Offer.updateOne(
     { productId: product._id, 'source.id': source.id },
@@ -92,4 +63,71 @@ export async function saveItem(source, item, observedAt = new Date()) {
     }
   }
   return { created, priceChanged };
+}
+
+// Writes the price an archived (Wayback) snapshot of a source's page showed.
+// No offer: an old snapshot is history, not a current price. Snapshots come in
+// any date order, so a point is added only when it differs from the point just
+// before it, and a later archived point that now repeats it is removed.
+export async function saveArchivedItem(source, item, observedAt, archiveUrl) {
+  validateItem(source, item);
+  if (item.price == null) throw new Error('saveArchivedItem needs a price');
+  const { product, created } = await upsertProduct(source, item);
+  const key = { productId: product._id, sourceId: source.id };
+  const same = (p) => p && p.price === item.price && p.currency === item.currency;
+
+  const before = await PricePoint.findOne({ ...key, observedAt: { $lte: observedAt } })
+    .sort({ observedAt: -1 })
+    .lean();
+  if (same(before)) return { created, priceChanged: false };
+  await PricePoint.create({
+    ...key,
+    market: source.market,
+    currency: item.currency,
+    price: item.price,
+    observedAt,
+    origin: 'wayback',
+    archiveUrl,
+  });
+  const after = await PricePoint.findOne({ ...key, observedAt: { $gt: observedAt } })
+    .sort({ observedAt: 1 })
+    .lean();
+  if (same(after) && after.origin === 'wayback') await PricePoint.deleteOne({ _id: after._id });
+  return { created, priceChanged: true };
+}
+
+// products: upsert by { brand, ref }. The first source to see a product sets
+// its details; later sources only fill fields that are still empty.
+async function upsertProduct(source, item) {
+  const ref = normalizeRef(item.ref);
+  const images = (item.images ?? []).slice(0, 4).map((img) => ({ ...img, sourceId: source.id }));
+  const details = {
+    name: item.name,
+    category: item.category,
+    collection: item.collection,
+    description: item.description,
+    specs: item.specs ?? {},
+    images,
+  };
+
+  // $setOnInsert never touches an existing product, so `value` is also the
+  // product as it was before this call.
+  const result = await Product.findOneAndUpdate(
+    { brand: item.brand, ref },
+    { $setOnInsert: { brand: item.brand, ref, ...details } },
+    { upsert: true, returnDocument: 'after', lean: true, includeResultMetadata: true },
+  );
+  const product = result.value;
+  const created = !result.lastErrorObject?.updatedExisting;
+
+  if (!created) {
+    const missing = {};
+    for (const key of ['collection', 'description']) {
+      if (!product[key] && details[key]) missing[key] = details[key];
+    }
+    if (!Object.keys(product.specs ?? {}).length && Object.keys(details.specs).length) missing.specs = details.specs;
+    if ((product.images?.length ?? 0) < 2 && images.length > (product.images?.length ?? 0)) missing.images = images;
+    if (Object.keys(missing).length) await Product.updateOne({ _id: product._id }, { $set: missing });
+  }
+  return { product, created };
 }

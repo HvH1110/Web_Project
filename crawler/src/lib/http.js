@@ -5,8 +5,9 @@ const lastRequestAt = new Map(); // host -> timestamp of the last request
 const robotsCache = new Map(); // origin -> Promise<{ status, text }>
 
 export class RobotsDisallowedError extends Error {
-  constructor(url) {
-    super(`robots.txt disallows ${url}`);
+  constructor(url, robotsStatus) {
+    const why = robotsStatus >= 200 && robotsStatus < 300 ? '' : ` (robots.txt unreadable: ${robotsStatus ? `HTTP ${robotsStatus}` : 'request failed'})`;
+    super(`robots.txt disallows ${url}${why}`);
     this.name = 'RobotsDisallowedError';
   }
 }
@@ -36,16 +37,30 @@ async function rawFetch(url, { minDelayMs = config.crawlDelayMs, headers = {}, t
   });
 }
 
+const ROBOTS_RETRY_MS = 30000;
+
+async function fetchRobotsTxt(origin) {
+  try {
+    const res = await rawFetch(`${origin}/robots.txt`);
+    return { status: res.status, text: res.ok ? await res.text() : '' };
+  } catch {
+    return { status: 0, text: '' };
+  }
+}
+
 // Fetches robots.txt once per origin: { status, text }. status is the HTTP
-// status, or 0 when the request itself failed.
+// status, or 0 when the request itself failed. A network error or 5xx is
+// retried once after a pause, so one glitch doesn't cost a whole run.
 export function getRobotsTxt(url) {
   const { origin } = new URL(url);
   if (!robotsCache.has(origin)) {
     robotsCache.set(
       origin,
-      rawFetch(`${origin}/robots.txt`)
-        .then(async (res) => ({ status: res.status, text: res.ok ? await res.text() : '' }))
-        .catch(() => ({ status: 0, text: '' })),
+      fetchRobotsTxt(origin).then(async (first) => {
+        if (first.status !== 0 && first.status < 500) return first;
+        await sleep(ROBOTS_RETRY_MS);
+        return fetchRobotsTxt(origin);
+      }),
     );
   }
   return robotsCache.get(origin);
@@ -66,7 +81,7 @@ export async function getRobots(url) {
 export async function politeFetch(url, options = {}) {
   const robots = await getRobots(url);
   if (robots && robots.isAllowed(url, config.robotsAgent) === false) {
-    throw new RobotsDisallowedError(url);
+    throw new RobotsDisallowedError(url, (await getRobotsTxt(url)).status);
   }
   const crawlDelayMs = (robots?.getCrawlDelay(config.robotsAgent) ?? 0) * 1000;
   return rawFetch(url, { ...options, minDelayMs: Math.max(config.crawlDelayMs, crawlDelayMs) });
