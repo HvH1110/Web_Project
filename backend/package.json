@@ -11,14 +11,18 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "lint": "eslint .",
-    "seed:brands": "node scripts/seed-brands.js"
+    "seed:brands": "node scripts/seed-brands.js",
+    "set-role": "node scripts/set-role.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1154.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
-    "mongoose": "^9.11.0"
+    "mongoose": "^9.11.0",
+    "multer": "^2.4.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

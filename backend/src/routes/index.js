@@ -7,6 +7,7 @@ import productRoutes from './products.routes.js';
 import dealRoutes from './deals.routes.js';
 import authRoutes from './auth.routes.js';
 import meRoutes from './me.routes.js';
+import forumRoutes from './forum.routes.js';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/products', requireDb, productRoutes);
 router.use('/deals', requireDb, dealRoutes);
 router.use('/auth', requireDb, authRoutes);
 router.use('/me', requireDb, loadUser, meRoutes);
+router.use('/forum', requireDb, loadUser, forumRoutes);
 
 export default router;

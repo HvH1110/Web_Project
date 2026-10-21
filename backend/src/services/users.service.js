@@ -1,5 +1,15 @@
 import { httpError } from '../utils/http-error.js';
 
+export const BANNED_MESSAGE = 'Your account is banned from posting';
+
+export function isModerator(user) {
+  return user.role === 'moderator' || user.role === 'admin';
+}
+
+export function isBanned(user) {
+  return Boolean(user.bannedAt);
+}
+
 // User in docs/API.md. Only ever sent to that user (it includes the email).
 export function toUserDto(user) {
   return {
@@ -7,6 +17,7 @@ export function toUserDto(user) {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    banned: isBanned(user),
     createdAt: user.createdAt,
   };
 }

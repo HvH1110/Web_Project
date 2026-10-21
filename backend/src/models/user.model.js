@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     displayName: { type: String, required: true, trim: true },
     role: { type: String, enum: USER_ROLES, default: 'member' },
+    // Set by a moderator: the member can still log in and read, but not post.
+    bannedAt: { type: Date, default: null },
+    banReason: { type: String, default: null },
   },
   { timestamps: true },
 );

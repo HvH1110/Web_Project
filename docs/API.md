@@ -106,11 +106,13 @@ The logged-in member, as returned to that member only.
   "email": "an@example.com",
   "displayName": "Nguyễn An",
   "role": "member",
+  "banned": false,
   "createdAt": "2026-10-21T08:00:00.000Z"
 }
 ```
 - `displayName`: shown on the forum. 2 to 30 characters: letters (any language), digits, spaces, `.`, `_` and `-`, starting and ending with a letter or digit. Unique, ignoring case.
-- `role`: `member`, `moderator` or `admin`. New accounts are `member`.
+- `role`: `member`, `moderator` or `admin`. New accounts are `member`. Roles are set by the site owner (`npm run set-role` in `backend/`), not through the API.
+- `banned`: `true` when a moderator banned the member from posting. They can still log in and read the forum; hide the "new topic", "reply" and "upload" buttons.
 
 ### Deal
 One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart by `type`. Every deal has `type`, `product` (a ProductSummary) and `savingPct` (percentage saved, rounded to 2 decimals, always > 0).
@@ -422,3 +424,320 @@ Changes the password. Logs out every other session of this member; the current o
 - 401: not logged in.
 - 403: `Current password is incorrect` (still logged in).
 - 429: more than 10 attempts in 15 minutes.
+
+## Forum
+
+Members only: **every forum endpoint is (login required)**, reading included, and answers **401** `Log in required` without a session.
+
+- Text is plain text: no HTML or Markdown. Render it as text (never as HTML) and keep newlines (e.g. `white-space: pre-wrap`). The server normalizes it: trims, turns `\r\n` into `\n`, collapses 3+ blank lines into one, and drops control characters.
+- Lengths count characters, not bytes.
+- IDs are 24-character hex strings. A malformed ID answers 404, like an unknown one.
+- **Images:** upload each file first with `POST /api/forum/uploads`, then send the returned `id`s in a post's `images` list (at most 4, in display order). An upload can be used by one post only. Uploads not used in a post within 24 hours are deleted.
+- **Hidden posts:** a moderator can hide a topic or reply. Only moderators and the post's author still see it, with `hidden` set; for everyone else it is gone (404 or left out of lists).
+- **Banned members** can read but not post: creating topics, replies or uploads, and editing, answer **403** `Your account is banned from posting`. They can still delete their own posts.
+- Too many posts answer **429** `Too many attempts, try again later` with `Retry-After` (limits per member: 10 topics an hour, 30 replies in 15 minutes, 40 uploads an hour).
+- Each topic and reply has `permissions`, so the frontend shows only the buttons that will work. The server checks again on every request.
+
+### Forum types
+
+#### ForumAuthor
+```json
+{ "id": "6720f1c2a1b2c3d4e5f60719", "displayName": "Nguyễn An", "role": "member" }
+```
+Show a "Moderator" or "Admin" badge from `role`. `author` is `null` when the account no longer exists.
+
+#### ForumImage
+```json
+{ "id": "6720f2aa0b1c2d3e4f506172", "url": "http://localhost:5000/api/uploads/forum/9f2c4e0b7a1d3c5e8f6a2b4c6d8e0f1a.webp", "width": 1600, "height": 1200 }
+```
+- Always WebP, at most 2048 px on its longest side. Photo metadata (camera, GPS location) is removed.
+- `url` is absolute; use it as is. Image URLs are public (anyone with the link can load them), but unguessable.
+- `width` / `height`: use them to reserve space (`aspect-ratio`) before the image loads.
+
+#### Hidden
+`null` for visible posts, otherwise:
+```json
+{ "at": "2026-10-21T09:00:00.000Z", "reason": "Off-topic" }
+```
+`reason` may be `null`.
+
+#### TopicSummary
+An item of the topic list.
+```json
+{
+  "id": "6720f3b10c1d2e3f40516273",
+  "title": "Rolex Submariner: buy in Hong Kong or Singapore?",
+  "excerpt": "The SG price looks lower after the latest rate change, but…",
+  "brand": { "slug": "rolex", "name": "Rolex" },
+  "author": { /* ForumAuthor */ },
+  "thumbnail": { /* ForumImage */ },
+  "imageCount": 2,
+  "replyCount": 5,
+  "pinned": false,
+  "locked": false,
+  "hidden": null,
+  "createdAt": "2026-10-21T08:30:00.000Z",
+  "lastActivityAt": "2026-10-21T10:12:00.000Z"
+}
+```
+- `excerpt`: the start of the body on one line, at most 200 characters (ending with `…` when cut).
+- `brand`: the brand the topic is about, or `null`.
+- `thumbnail`: the first image, or `null`.
+- `replyCount`: visible replies (hidden ones are not counted).
+- `lastActivityAt`: when the topic or its latest reply was posted.
+
+#### Topic
+```json
+{
+  "id": "6720f3b10c1d2e3f40516273",
+  "title": "Rolex Submariner: buy in Hong Kong or Singapore?",
+  "body": "The SG price looks lower after the latest rate change, but…\n\nAnyone bought there recently?",
+  "brand": { "slug": "rolex", "name": "Rolex" },
+  "author": { /* ForumAuthor */ },
+  "images": [ /* ForumImage */ ],
+  "replyCount": 5,
+  "pinned": false,
+  "locked": false,
+  "hidden": null,
+  "createdAt": "2026-10-21T08:30:00.000Z",
+  "editedAt": null,
+  "lastActivityAt": "2026-10-21T10:12:00.000Z",
+  "permissions": { "edit": true, "delete": true, "reply": true, "moderate": false }
+}
+```
+- `editedAt`: when the author last edited it, or `null`. Show "edited".
+- `locked`: no new replies or edits, except by moderators.
+- `permissions.edit`: the viewer is the author, is not banned, and the topic is neither locked nor hidden (moderators can still edit their own).
+- `permissions.delete`: the viewer is the author or a moderator.
+- `permissions.reply`: the viewer is not banned, and the topic is neither locked nor hidden (moderators can always reply).
+- `permissions.moderate`: the viewer is a moderator or admin (show pin, lock and hide controls).
+
+#### Reply
+```json
+{
+  "id": "6720f4c20d1e2f3041526374",
+  "topicId": "6720f3b10c1d2e3f40516273",
+  "body": "Bought mine at the Pacific Place boutique in August.",
+  "author": { /* ForumAuthor */ },
+  "images": [ /* ForumImage */ ],
+  "hidden": null,
+  "createdAt": "2026-10-21T10:12:00.000Z",
+  "editedAt": null,
+  "permissions": { "edit": true, "delete": true, "moderate": false }
+}
+```
+- `body` can be `""` when the reply has images.
+- `permissions` as for Topic (edit also needs the reply itself not hidden).
+
+### `GET /api/forum/topics` (login required)
+The topic list.
+
+**Query** (all optional)
+| Param | Description |
+|---|---|
+| `q` | Search words. Every word must appear in the title or body, ignoring case and accents. |
+| `brand` | Brand slug, e.g. `rolex`. |
+| `author` | Member ID: only that member's topics (e.g. "My topics" with the logged-in User's `id`). |
+| `sort` | `activity` (default): pinned topics first, then latest activity first. `newest`: newest topics first, pinned ones not lifted. |
+| `page` | Integer >= 1. Default `1`. |
+| `limit` | Integer from 1 to 50. Default `20`. |
+
+**Response 200**
+```json
+{ "items": [ /* TopicSummary */ ], "page": 1, "limit": 20, "total": 42, "totalPages": 3 }
+```
+
+**Errors**
+- 400: `sort` is not an allowed value, `author` is not an ID, `page` is not a positive integer, or `limit` is outside 1 to 50.
+
+### `POST /api/forum/topics` (login required)
+Creates a topic.
+
+**Request**
+```json
+{ "title": "Rolex Submariner: buy in Hong Kong or Singapore?", "body": "…", "brand": "rolex", "images": ["6720f2aa0b1c2d3e4f506172"] }
+```
+- `title`: 5 to 120 characters, one line (newlines become spaces).
+- `body`: 1 to 10,000 characters.
+- `brand`: optional brand slug.
+- `images`: optional, at most 4 upload IDs of the member's own unused uploads.
+
+**Response 201**
+```json
+{ "topic": { /* Topic */ } }
+```
+
+**Errors**
+- 400: a field is missing or invalid; `brand is not a known brand slug`; `An image was not found, is not yours, or is already used in another post`.
+- 403: banned.
+- 429: more than 10 topics in an hour.
+
+### `GET /api/forum/topics/:id` (login required)
+**Response 200**
+```json
+{ "topic": { /* Topic */ } }
+```
+
+**Errors**
+- 404: `Topic not found` (also when hidden and the viewer is neither its author nor a moderator).
+
+### `PATCH /api/forum/topics/:id` (login required)
+The author edits the topic. Send only the fields to change, at least one.
+
+**Request**
+```json
+{ "title": "…", "body": "…", "brand": null, "images": ["6720f2aa0b1c2d3e4f506172", "6720f2ab0b1c2d3e4f506173"] }
+```
+- Same rules as when creating. `brand: null` removes the brand.
+- `images` replaces the whole list: keep the IDs of current images to keep, add new upload IDs, leave out the ones to remove. Removed images are deleted.
+
+**Response 200**
+```json
+{ "topic": { /* Topic */ } }
+```
+
+**Errors**
+- 400: nothing to update, or a field is invalid.
+- 403: `Only the author can edit this post`, `This topic is locked`, `This post was hidden by a moderator`, or banned.
+- 404: `Topic not found`.
+
+### `DELETE /api/forum/topics/:id` (login required)
+The author or a moderator deletes the topic, **with all its replies and images**. Permanent.
+
+**Response 204** (no body)
+
+**Errors**
+- 403: `Only the author or a moderator can delete this topic`.
+- 404: `Topic not found`.
+
+### `GET /api/forum/topics/:id/replies` (login required)
+The topic's replies, oldest first.
+
+**Query** (optional): `page` (default `1`), `limit` (1 to 100, default `50`).
+
+**Response 200**
+```json
+{ "items": [ /* Reply */ ], "page": 1, "limit": 50, "total": 5, "totalPages": 1 }
+```
+`total` counts the replies this viewer sees, so for moderators it can be higher than the topic's `replyCount`.
+
+**Errors**
+- 400: bad `page` or `limit`.
+- 404: `Topic not found`.
+
+### `POST /api/forum/topics/:id/replies` (login required)
+Replies to a topic.
+
+**Request**
+```json
+{ "body": "Bought mine at the Pacific Place boutique in August.", "images": [] }
+```
+- `body`: up to 5,000 characters. Optional when `images` has at least one ID.
+- `images`: optional, as for topics.
+
+**Response 201**
+```json
+{ "reply": { /* Reply */ } }
+```
+
+**Errors**
+- 400: `A reply needs body text or at least one image`, or a field is invalid.
+- 403: `This topic is locked`, `This topic was hidden by a moderator`, or banned.
+- 404: `Topic not found`.
+- 429: more than 30 replies in 15 minutes.
+
+### `PATCH /api/forum/replies/:id` (login required)
+The author edits a reply. Send `body`, `images` or both (same rules as when replying; `images` replaces the list as for topics). The reply must still have text or an image.
+
+**Response 200**
+```json
+{ "reply": { /* Reply */ } }
+```
+
+**Errors**
+- 400: nothing to update, the reply would be empty, or a field is invalid.
+- 403: as for editing a topic.
+- 404: `Reply not found`.
+
+### `DELETE /api/forum/replies/:id` (login required)
+The author or a moderator deletes a reply and its images. Permanent.
+
+**Response 204** (no body)
+
+**Errors**
+- 403: `Only the author or a moderator can delete this reply`.
+- 404: `Reply not found`.
+
+### `POST /api/forum/uploads` (login required)
+Uploads one image for a later topic or reply.
+
+**Request:** `multipart/form-data` with the file in the field **`image`**, and no other fields. Don't set the `Content-Type` header yourself; the browser adds the boundary:
+```js
+const form = new FormData();
+form.append('image', file);
+await fetch(`${API_URL}/forum/uploads`, { method: 'POST', body: form, credentials: 'include' });
+```
+- JPEG, PNG, WebP, GIF (first frame only) or AVIF; at most 10 MB and 50 megapixels. HEIC (iPhone photos) is refused. Use `<input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif">`: with it, Safari on iPhone usually converts HEIC photos to JPEG before uploading.
+
+**Response 201**
+```json
+{ "upload": { /* ForumImage */ } }
+```
+Show it as a preview, and send its `id` in the post's `images`.
+
+**Errors**
+- 400: no file, more than one file, or `image must be a JPEG, PNG, WebP, GIF or AVIF file` / `HEIC images are not supported; send a JPEG or PNG` / `image must be at most 50 megapixels` / `image could not be read`.
+- 403: banned.
+- 413: `image must be at most 10 MB`.
+- 429: more than 40 uploads in an hour.
+
+### Moderation (moderator or admin)
+These answer **403** `Moderators only` for other members.
+
+#### `PATCH /api/forum/topics/:id/moderation`
+**Request:** any of these, at least one of `pinned`, `locked`, `hidden`:
+```json
+{ "pinned": true, "locked": true, "hidden": true, "reason": "Off-topic" }
+```
+- `reason`: optional, up to 200 characters, stored when hiding and shown to the author.
+
+**Response 200:** `{ "topic": { /* Topic */ } }`
+
+**Errors:** 400 (nothing to change, or not a boolean), 404 `Topic not found`.
+
+#### `PATCH /api/forum/replies/:id/moderation`
+**Request**
+```json
+{ "hidden": true, "reason": "Personal information" }
+```
+
+**Response 200:** `{ "reply": { /* Reply */ } }`
+
+**Errors:** 400 (`hidden` missing or not a boolean), 404 `Reply not found`.
+
+#### `PATCH /api/forum/members/:id/moderation`
+Bans a member from posting, or lifts the ban (`banned: false`). `:id` is the ForumAuthor `id`.
+
+**Request**
+```json
+{ "banned": true, "reason": "Spam" }
+```
+
+**Response 200**
+```json
+{
+  "member": {
+    "id": "6720f1c2a1b2c3d4e5f60719",
+    "displayName": "Nguyễn An",
+    "role": "member",
+    "banned": true,
+    "bannedAt": "2026-10-21T11:00:00.000Z",
+    "banReason": "Spam"
+  }
+}
+```
+
+**Errors**
+- 400: `banned` missing or not a boolean.
+- 403: `You cannot moderate your own account`, `Admins cannot be banned`, or `Only an admin can ban a moderator`.
+- 404: `Member not found`.

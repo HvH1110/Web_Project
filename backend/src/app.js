@@ -5,6 +5,7 @@ import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { checkOrigin } from './middleware/check-origin.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { localUploadsDir } from './services/storage/local.js';
 
 const app = express();
 
@@ -18,6 +19,21 @@ app.use(cors({ origin: env.clientOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(checkOrigin);
+
+// Uploaded images, when stored on this server's disk (development). Keys are
+// random and never reused, so files can be cached forever.
+if (env.uploadStorage === 'local') {
+  app.use(
+    '/api/uploads',
+    express.static(localUploadsDir, {
+      index: false,
+      dotfiles: 'deny',
+      immutable: true,
+      maxAge: '365d',
+      setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff'),
+    }),
+  );
+}
 
 app.use('/api', routes);
 

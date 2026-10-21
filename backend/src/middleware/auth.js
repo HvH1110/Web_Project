@@ -1,4 +1,5 @@
 import { SESSION_COOKIE, clearSessionCookie, findSession } from '../services/session.service.js';
+import { BANNED_MESSAGE, isBanned, isModerator } from '../services/users.service.js';
 import { httpError } from '../utils/http-error.js';
 
 // Sets req.user and req.sessionId from the session cookie (both null when not
@@ -22,4 +23,14 @@ export async function loadUser(req, res, next) {
 // After loadUser: 401 unless logged in.
 export function requireUser(req, res, next) {
   next(req.user ? undefined : httpError(401, 'Log in required'));
+}
+
+// After requireUser: 403 for members banned from posting.
+export function requireNotBanned(req, res, next) {
+  next(isBanned(req.user) ? httpError(403, BANNED_MESSAGE) : undefined);
+}
+
+// After requireUser: 403 unless moderator or admin.
+export function requireModerator(req, res, next) {
+  next(isModerator(req.user) ? undefined : httpError(403, 'Moderators only'));
 }
