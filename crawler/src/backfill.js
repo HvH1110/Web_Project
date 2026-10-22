@@ -2,7 +2,7 @@
 //   npm run backfill [-- [archive-id ...] [--limit=N] [--dry-run]]
 // With no ids it runs every adapter in src/archives/index.js. Each run:
 //   1. asks the Wayback index for captures of each source's product pages
-//      newer than the last run, and queues at most one per page per month;
+//      newer than the last run, and queues at most one per page per quarter;
 //   2. fetches up to --limit queued snapshots (default 500, newest first,
 //      taking turns between sources) and saves the products and the prices
 //      the archived pages showed (price_points with origin "wayback").
@@ -16,6 +16,7 @@ import { saveArchivedItem, validateItem } from './lib/store.js';
 import {
   ArchiveBusyError,
   archiveUrl,
+  captureQuarter,
   checkArchiveStatus,
   listCaptures,
   snapshotUrl,
@@ -58,14 +59,18 @@ function normalizeUrl(raw) {
   }
 }
 
-// Brand product pages show up in the archive from about this year.
-const FIRST_YEAR = 2014;
+// Oldest year of history we index. Product pages exist in the archive from
+// about 2014, but older ones are mostly products no longer sold, and every
+// year adds tens of thousands of pages to the queue.
+const FIRST_YEAR = 2020;
 // Past years indexed per URL prefix per run (newest first), so the first runs
 // don't spend all their time on the index. Later runs fill in older years.
 const PAST_YEARS_PER_RUN = 3;
 
-// Step 1: queue new captures, one per product page per month. The index is
-// asked one year at a time: a whole-history query times out on its side.
+// Step 1: queue new captures, one per product page per quarter (the first one
+// the index lists). The index is asked one year at a time (a whole-history
+// query times out on its side), and a year that times out too is asked again
+// one quarter at a time.
 async function indexSource(source) {
   let queued = 0;
   const thisYear = new Date().getUTCFullYear();
@@ -83,7 +88,7 @@ async function indexSource(source) {
         if (timestamp > newest) newest = timestamp;
         ops.push({
           updateOne: {
-            filter: { _id: `${source.id}|${url}|${timestamp.slice(0, 6)}` },
+            filter: { _id: `${source.id}|${url}|${captureQuarter(timestamp)}` },
             update: { $setOnInsert: { sourceId: source.id, url, original, timestamp, status: 'pending' } },
             upsert: true,
           },
@@ -97,18 +102,35 @@ async function indexSource(source) {
     for (let year = thisYear - 1; year >= FIRST_YEAR && slices.length <= PAST_YEARS_PER_RUN; year -= 1) {
       if (!yearsDone.has(year)) slices.push({ year, from: String(year), to: String(year) });
     }
-    for (const slice of slices) {
+    // true when the whole range was listed. A range that fails halfway is
+    // listed again next time (the upserts make that harmless).
+    const list = async (from, to, label) => {
       try {
-        await listCaptures(prefix, { from: slice.from, to: slice.to, onPage });
-        // Recorded only once a slice is complete: a slice that fails halfway
-        // is listed again next time (the upserts make that harmless).
-        const update = slice.year
-          ? { $addToSet: { yearsDone: slice.year }, $set: { indexedAt: new Date() } }
-          : { $set: { lastTimestamp: newest, indexedAt: new Date() } };
-        await WaybackIndex.updateOne({ _id: stateId }, update, { upsert: true });
+        await listCaptures(prefix, { from, to, onPage });
+        return true;
       } catch (err) {
         if (err instanceof ArchiveBusyError) throw err;
-        console.error(`[${source.id}] index of ${prefix} (${slice.year ?? `since ${slice.from}`}) failed: ${err.message}`);
+        console.error(`[${source.id}] index of ${prefix} (${label}) failed: ${err.message}`);
+        return false;
+      }
+    };
+    for (const slice of slices) {
+      if (!slice.year) {
+        if (await list(slice.from, undefined, `since ${slice.from}`)) {
+          await WaybackIndex.updateOne({ _id: stateId }, { $set: { lastTimestamp: newest, indexedAt: new Date() } }, { upsert: true });
+        }
+        continue;
+      }
+      let complete = await list(slice.from, slice.to, String(slice.year));
+      if (!complete) {
+        complete = true;
+        for (const q of [1, 2, 3, 4]) {
+          const month = (m) => `${slice.year}${String(m).padStart(2, '0')}`;
+          if (!(await list(month(q * 3 - 2), month(q * 3), `${slice.year}Q${q}`))) complete = false;
+        }
+      }
+      if (complete) {
+        await WaybackIndex.updateOne({ _id: stateId }, { $addToSet: { yearsDone: slice.year }, $set: { indexedAt: new Date() } }, { upsert: true });
       }
     }
   }

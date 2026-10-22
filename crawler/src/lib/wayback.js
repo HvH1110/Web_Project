@@ -75,6 +75,11 @@ export function archiveUrl(timestamp, url) {
   return `https://web.archive.org/web/${timestamp}/${url}`;
 }
 
+// Wayback timestamp -> its quarter, e.g. "20240517..." -> "2024Q2".
+export function captureQuarter(ts) {
+  return `${ts.slice(0, 4)}Q${Math.ceil(Number(ts.slice(4, 6)) / 3)}`;
+}
+
 // Wayback timestamp (UTC) -> Date.
 export function timestampToDate(ts) {
   const [, y, mo, d, h = '00', mi = '00', s = '00'] = ts.match(/^(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?/);

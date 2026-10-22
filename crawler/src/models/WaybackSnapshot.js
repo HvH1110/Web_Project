@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 
 // Crawler-internal (the backend ignores it): which archived snapshots the
 // Wayback backfill has found and processed, so each run picks up where the
-// last one stopped. At most one snapshot per page per month.
+// last one stopped. At most one snapshot per page per quarter.
 const waybackSnapshotSchema = new mongoose.Schema(
   {
-    _id: String, // `${sourceId}|${url}|${YYYYMM}`
+    _id: String, // `${sourceId}|${url}|${YYYY}Q${1-4}`
     sourceId: { type: String, required: true },
     url: { type: String, required: true }, // the product page URL, normalized
     original: { type: String, required: true }, // the URL exactly as archived

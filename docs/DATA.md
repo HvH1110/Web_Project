@@ -16,7 +16,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - All dates are UTC.
 - Source ids are `<site>-<market>`. In use:
   - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk` (official).
-  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive).
+  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on).
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
 ## `products`
@@ -78,5 +78,5 @@ One document per day.
 
 ## Crawler-internal collections
 Used only by the crawler to resume the Wayback backfill between runs. The backend ignores them.
-- `wayback_snapshots`: one document per archived product page per month (queued, then `saved`, `no-price`, `no-data`, `missing` or `error`).
-- `wayback_index`: per archive source and URL prefix, the newest capture already queued.
+- `wayback_snapshots`: one document per archived product page per quarter (queued, then `saved`, `no-price`, `no-data`, `missing` or `error`).
+- `wayback_index`: per archive source and URL prefix, the past years already indexed and the newest capture already queued.
