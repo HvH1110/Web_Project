@@ -66,11 +66,13 @@ const FIRST_YEAR = 2020;
 // Past years indexed per URL prefix per run (newest first), so the first runs
 // don't spend all their time on the index. Later runs fill in older years.
 const PAST_YEARS_PER_RUN = 3;
+// Index page size when a year is asked again by quarter (the default is 5000).
+const FALLBACK_PAGE_SIZE = 1000;
 
 // Step 1: queue new captures, one per product page per quarter (the first one
 // the index lists). The index is asked one year at a time (a whole-history
 // query times out on its side), and a year that times out too is asked again
-// one quarter at a time.
+// one quarter at a time, in smaller pages.
 async function indexSource(source) {
   let queued = 0;
   const thisYear = new Date().getUTCFullYear();
@@ -104,9 +106,9 @@ async function indexSource(source) {
     }
     // true when the whole range was listed. A range that fails halfway is
     // listed again next time (the upserts make that harmless).
-    const list = async (from, to, label) => {
+    const list = async (from, to, label, pageSize) => {
       try {
-        await listCaptures(prefix, { from, to, onPage });
+        await listCaptures(prefix, { from, to, onPage, pageSize });
         return true;
       } catch (err) {
         if (err instanceof ArchiveBusyError) throw err;
@@ -126,7 +128,7 @@ async function indexSource(source) {
         complete = true;
         for (const q of [1, 2, 3, 4]) {
           const month = (m) => `${slice.year}${String(m).padStart(2, '0')}`;
-          if (!(await list(month(q * 3 - 2), month(q * 3), `${slice.year}Q${q}`))) complete = false;
+          if (!(await list(month(q * 3 - 2), month(q * 3), `${slice.year}Q${q}`, FALLBACK_PAGE_SIZE))) complete = false;
         }
       }
       if (complete) {

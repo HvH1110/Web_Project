@@ -24,8 +24,9 @@ export function checkArchiveStatus(res) {
 // Captures of every URL under `prefix` (e.g. "sg.louisvuitton.com/eng-sg/products/"),
 // HTTP 200 HTML only, between `from` and `to` (Wayback timestamps or
 // prefixes of one, e.g. "2019") when given.
-// Calls onPage([{ timestamp, url }]) for each page of the index.
-export async function listCaptures(prefix, { from, to, onPage }) {
+// Calls onPage([{ timestamp, url }]) for each page of the index. A smaller
+// pageSize means more requests, but each is quicker for the index to answer.
+export async function listCaptures(prefix, { from, to, onPage, pageSize = PAGE_SIZE }) {
   let resumeKey;
   do {
     const params = new URLSearchParams({
@@ -33,7 +34,7 @@ export async function listCaptures(prefix, { from, to, onPage }) {
       matchType: 'prefix',
       output: 'json',
       fl: 'timestamp,original',
-      limit: String(PAGE_SIZE),
+      limit: String(pageSize),
       showResumeKey: 'true',
     });
     params.append('filter', 'statuscode:200');
