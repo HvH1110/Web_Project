@@ -250,8 +250,16 @@ try {
     for (const source of selected) await dryRunSource(source);
   } else {
     for (const source of selected) {
-      const queued = await indexSource(source);
-      console.log(`[${source.id}] ${queued} new snapshots queued`);
+      try {
+        const queued = await indexSource(source);
+        console.log(`[${source.id}] ${queued} new snapshots queued`);
+      } catch (err) {
+        if (!(err instanceof ArchiveBusyError)) throw err;
+        // The index is a separate service from the snapshots: still work
+        // through what is already queued.
+        console.error(`${err.message.replace(/ Stopping;.*$/, '')} Skipping the rest of the index this run.`);
+        break;
+      }
     }
     await processQueues(selected, queues);
   }
