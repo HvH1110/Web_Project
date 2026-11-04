@@ -1,0 +1,48 @@
+# Render Blueprint for the backend. Setup and reasons: devops/DEPLOY.md.
+# Set the Blueprint Path to backend/render.yaml when creating it on Render.
+services:
+  - type: web
+    name: maison-prix-api
+    runtime: node
+    plan: free
+    # Same region as the Atlas cluster. Can't be changed after creation.
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # Deploy only commits that pass CI.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Vercel proxies /api, so the browser sees one site: Lax cookies work.
+      - key: CLIENT_ORIGIN
+        value: https://maison-prix.vercel.app
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: lax
+      # Deliberately higher than the real number of proxies: the leftmost
+      # X-Forwarded-For entry is the visitor, because Vercel overwrites it.
+      - key: TRUST_PROXY
+        value: "10"
+      # Free instances lose their disk on every restart, so images go to R2.
+      - key: UPLOAD_STORAGE
+        value: s3
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        value: maison-prix-forum
+      # Render asks for these once, when the Blueprint is created. Later syncs
+      # ignore them; change them on the service's Environment page.
+      - key: MONGODB_URI
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: UPLOADS_PUBLIC_URL
+        sync: false

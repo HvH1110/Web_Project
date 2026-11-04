@@ -2,8 +2,193 @@
 
 Maintained by the devops session. Variables and Atlas details are in `ENVIRONMENT.md`.
 
-- **Frontend and backend hosting:** not chosen yet (see "Production" in `ENVIRONMENT.md`).
-- **Daily crawl:** GitHub Actions, described below.
+| Part | Service | Config | Address |
+|---|---|---|---|
+| Frontend | Vercel (Hobby, free) | `frontend/vercel.json` | `https://maison-prix.vercel.app` |
+| Backend | Render (free web service, Singapore) | `backend/render.yaml` | `https://maison-prix-api.onrender.com` |
+| Forum images | Cloudflare R2 (free tier) | bucket `maison-prix-forum` | `https://pub-<id>.r2.dev` |
+| Database | MongoDB Atlas (M0, Singapore) | `ENVIRONMENT.md` | database `webproject_prod` |
+| Daily crawl | GitHub Actions | `.github/workflows/crawl.yml` | see "Daily crawl" below |
+
+Browsers only ever talk to `maison-prix.vercel.app` (and R2 for images). Vercel forwards `/api/*` to Render.
+
+**Status:** the config files are written, and nothing is deployed yet. The setup steps below are yours to do.
+
+## Why `/api` goes through Vercel
+
+`vercel.app` and `onrender.com` are different sites, and the backend logs people in with an httpOnly cookie. There were two ways to make that work. **We use the proxy.**
+
+| | Proxy `/api` through Vercel (chosen) | Cross-site cookie (`COOKIE_SAME_SITE=none`) |
+|---|---|---|
+| What the browser sees | One site, so the cookie is first-party | The cookie belongs to another site, so it is third-party |
+| Blocked by browser privacy settings | No | Yes (see the results below) |
+| Code changes | None: `VITE_API_URL=/api` works as is | None |
+| Vercel usage | API traffic counts against Vercel's free limits | None |
+| Extra limits | 120 s per request; the upload size limit is unconfirmed (check 6 below) | None |
+| CSRF protection | The cookie is `SameSite=Lax` and the Origin check still runs | Only the Origin check, because `SameSite=None` allows cross-site sending |
+
+Real browsers ran the real frontend and backend on this machine, on the real hostnames (resolved locally, so `vercel.app` and `onrender.com` counted as separate sites). Each one registered through the form, reloaded, and logged out:
+
+| Browser setup | Proxy | Cross-site cookie |
+|---|---|---|
+| Chromium, default settings | Works | Works |
+| Chromium, third-party cookies blocked | Works | **Logged out straight away** |
+| Firefox, default settings | Works | Works |
+| Firefox, third-party cookies blocked | Works | **Logged out straight away** |
+| WebKit (Playwright's build, not real Safari) | Works | **Logged out straight away** |
+
+The cross-site failure is silent: registering returns 201, then the person is simply not logged in. WebKit's own documentation says Safari blocks cross-site cookies by default, which would include iPhones.
+
+This local test did not involve Vercel or Render themselves, so "Check that it works" below confirms it on the real services.
+
+The same test also passed: refreshing deep links, a backend 404 staying a JSON 404, a duplicate email getting 409, a 9.2 MB image uploading through the proxy, and a POST from another origin getting 403.
+
+A custom domain would remove the need for the proxy (`www.example.com` and `api.example.com` are the same site), and is worth revisiting in the launch phase.
+
+## What doesn't fit on the free plans
+
+Checked on 2026-11-04. These plans change, so re-check before relying on them.
+
+| Limit | What it means for us | What to do |
+|---|---|---|
+| **Render sleeps after 15 minutes idle**, and takes about a minute to wake | The first visitor after a quiet spell waits about a minute. Vercel's 120 s limit is enough for that. | Accept it. For a demo, open the site a couple of minutes early. |
+| **Render: 5 GB outbound a month** on Hobby workspaces. With no payment method on file, services stop until the next month. | **The tightest limit.** All API responses count: 5 GB is about 50,000 responses of 100 KB. | Watch it on Render's Metrics page. Compressing API responses would help (backend request below). |
+| **Render's disk is wiped** on every restart and spin-down | Local uploads would vanish, so production uses R2 | Set up by `backend/render.yaml` |
+| Render: 750 free hours a month, shared by the workspace, 512 MB RAM | One service fits. A worst-case upload peaked at 200 MB here. Render doesn't publish the free plan's CPU share, so image processing may be slower. | Keep one free service in the workspace |
+| **Render: restarts lose in-memory state** | Rate-limit counters reset on each spin-down. | Accept it for this project |
+| **Vercel Hobby: non-commercial use only** | Fine as a university project. Ads, paid links or payments would break the rules. | Keep the site non-commercial |
+| Vercel Hobby: 100 GB transfer, 10 GB origin transfer, 1,000,000 CDN requests a month | Vercel's pages don't say whether proxied traffic counts toward origin transfer, so assume it does. Going over usually pauses the feature for up to 30 days. | Watch the Usage page |
+| **Vercel: upload size through a proxy is unconfirmed.** Its documented 4.5 MB limit is for Functions, and nothing says whether it applies to rewrites. | Images between 4.5 and 10 MB may fail | Check 6 below |
+| **Vercel previews:** POST requests are refused | A preview's address isn't `CLIENT_ORIGIN`, so logging in there gets a 403. Reading works. | Test logins on the production address only. It also keeps previews from changing production data. |
+| **R2 asks for a payment method**, according to several recent guides, even on the free tier. Cloudflare's pricing page doesn't say. | You may need a card or PayPal on file. Free usage (10 GB, 1 million writes, 10 million reads a month, free egress) isn't charged. | Your decision. If it's a problem, tell the devops session: the backend works with any S3-compatible storage. |
+| **R2's `r2.dev` address** is rate-limited, without caching, and "intended for non-production traffic" | Fine for a small members-only forum. Could be slow or limited if the forum gets busy. | Connect a custom domain in the launch phase. Image URLs are built when read, so changing `UPLOADS_PUBLIC_URL` updates old posts too. |
+| **Atlas: 512 MB shared** by dev and production | Only one full catalog fits safely | Step 1 and step 6 below |
+
+**Keeping Render awake:** an uptime monitor pinging `https://maison-prix-api.onrender.com/api/health` every 14 minutes would stop the sleeping. 750 hours covers one service all month if nothing else in the workspace is awake. Render's docs neither offer nor forbid this. I'd leave it off and only use it around a demo.
+
+**Direct access to Render:** `onrender.com` stays public. Someone calling it directly can fake `X-Forwarded-For` and dodge the per-IP limits. The per-email login limit, the per-member forum limits and the Origin check still apply. Vercel can add a secret header that the backend checks, if this ever matters. It needs a backend change, and `routes` instead of `rewrites` in `vercel.json`.
+
+## Backend and frontend changes needed
+
+These belong to the other sessions. Pass them on before going live:
+
+**Backend session:**
+1. **Needed: don't answer 503 while the database is connecting after a wake-up.** `server.js` opens the port before MongoDB is connected, and `requireDb` answers 503 until then. With a database 3 s away, every route except health answered `503 Database unavailable` from 0.8 s to 6.9 s after start. On Render, that's the request that woke the service, and the frontend only retries when the visitor clicks. Fix: connect before `app.listen`, with a timeout, or have `requireDb` wait while Mongoose is still connecting.
+2. **Needed: purge unused uploads at startup too.** The purge only runs on a one-hour timer, and Render sleeps after 15 idle minutes, so on a quiet site it may never fire.
+3. **Recommended: in `storage/s3.js`, set `requestChecksumCalculation: 'WHEN_REQUIRED'` and `responseChecksumValidation: 'WHEN_REQUIRED'`.** The SDK sends `x-amz-checksum-crc32` on every upload. R2's docs don't list that header for PutObject, and it has failed with this SDK in the past. Tested: this setting removes the header on both PUT and DELETE. Without it, check 5 below may fail with a 501.
+4. **Recommended: compress API responses** (for example the `compression` middleware), to stretch Render's 5 GB.
+
+**Frontend session:**
+5. **Depends on check 7:** `request()` in `src/lib/api.js` returns `null` when a 2xx response isn't JSON. Render shows browsers a loading page while waking. If that page reaches `fetch`, pages would break instead of retrying. Treat a non-JSON 2xx (other than 204) as an error that can be retried.
+
+## Setup
+
+You create the accounts and paste the secrets. Never paste a password, key or connection string into a chat or a tracked file.
+
+Do step 1 only after the first full crawl has finished, with no crawl running. Steps 2 to 4 can happen any time before that, but the site has no catalog until step 1 is done.
+
+### Step 1: Production database
+
+1. **Install the [MongoDB Database Tools](https://www.mongodb.com/try/download/database-tools)**, if `mongodump --version` doesn't work.
+2. **Create the backend's user.** In Atlas, under **Security**, open **Database Access** (newer layout: **Database & Network Access → Database Users**). Click **Add New Database User**.
+   - Username `webproject-prod`, **Autogenerate Secure Password**, then **Copy**. Keep it in a password manager for step 3 of Render.
+   - **Specific Privileges → Add Specific Privilege**: role `readWrite`, database `webproject_prod`, collection empty. Click **Add User**.
+3. **Check there's room.** The crawl log's `Check database` step shows how big `webproject_dev` is, or see **Data Explorer**. Copying needs that much free again. If it's over about 240 MB, tell the devops session before copying.
+4. **Copy the catalog** to `webproject_prod`, leaving out development accounts and forum posts. In PowerShell, in your own terminal rather than a Claude session:
+   ```powershell
+   # The webproject-dev connection string from backend/.env (it ends in /webproject_dev?...)
+   $env:DEV_URI = Read-Host "webproject-dev connection string"
+   $rootUri = $env:DEV_URI -replace '/webproject_dev\b', '/'
+
+   mongodump "--uri=$env:DEV_URI" --excludeCollection=users --excludeCollection=sessions --excludeCollection=forum_topics --excludeCollection=forum_replies --excludeCollection=uploads "--archive=$HOME\catalog.archive" --gzip
+
+   mongorestore "--uri=$rootUri" "--archive=$HOME\catalog.archive" --gzip "--nsInclude=webproject_dev.*" "--nsFrom=webproject_dev.*" "--nsTo=webproject_prod.*"
+
+   Remove-Item Env:DEV_URI; $rootUri = $null
+   ```
+   Tested on a throwaway local database, not on Atlas: collections and indexes arrived, text search worked, and no user or forum data was copied. In Atlas **Data Explorer**, check that `webproject_prod` has `products`, `offers`, `price_points`, `fx_rates` and `brands`.
+5. **Move the daily crawl to production.** `crawl.yml` doesn't change.
+   - In **Database Access**, edit `webproject-crawler`: change its privilege to `readWrite` on `webproject_prod`.
+   - In its connection string, change the database name to `webproject_prod`. Update the [`MONGODB_URI` secret](https://github.com/HvH1110/Web_Project/settings/secrets/actions).
+   - Run **Actions → Daily crawl → Run workflow** with **check only** ticked. The log should say `Connected to database "webproject_prod"`.
+6. **History backfill:** `npm run backfill` uses `crawler/.env`, which points at development. From now on, run it against production by setting the variable just for that terminal (a real variable wins over `.env`):
+   ```powershell
+   $env:MONGODB_URI = Read-Host "webproject-crawler connection string"
+   npm run backfill
+   Remove-Item Env:MONGODB_URI
+   ```
+
+Network Access needs no change: `0.0.0.0/0` is already there, and Render's free plan has no fixed IP either.
+
+### Step 2: Cloudflare R2
+
+1. In the Cloudflare dashboard, open **R2 Object Storage**. Add a payment method if it asks.
+2. **Create bucket**: name `maison-prix-forum`, location hint **Asia-Pacific**, storage class **Standard** (the free tier doesn't cover the other class).
+3. In the bucket's **Settings**, under **Public Development URL**, click **Enable** and type `allow`. Keep the `https://pub-….r2.dev` address for step 3.
+4. Back on the R2 page, open **Manage API Tokens → Create API Token**. Permission **Object Read & Write**, applied to **only** `maison-prix-forum`. Keep the **Access Key ID**, the **Secret Access Key** (shown once) and the **S3 endpoint** (`https://<account-id>.r2.cloudflarestorage.com`) for step 3.
+
+### Step 3: Render
+
+1. Sign up at Render with GitHub, and allow access to `HvH1110/Web_Project`.
+2. Click **New → Blueprint** and pick the repo. Set **Blueprint Path** to `backend/render.yaml`.
+3. Render asks for the values marked `sync: false`:
+
+   | Variable | Value |
+   |---|---|
+   | `MONGODB_URI` | The `webproject-prod` connection string, with `webproject_prod` as the database |
+   | `S3_ENDPOINT` | R2's S3 endpoint |
+   | `S3_ACCESS_KEY_ID` | R2's Access Key ID |
+   | `S3_SECRET_ACCESS_KEY` | R2's Secret Access Key |
+   | `UPLOADS_PUBLIC_URL` | The `https://pub-….r2.dev` address, with no trailing slash |
+
+4. Click **Apply**, and wait for the first deploy.
+5. Open `https://maison-prix-api.onrender.com/api/health`. It should show `"status":"ok","db":"connected"`.
+
+Later deploys run on their own when a commit changing `backend/` passes CI.
+
+### Step 4: Vercel
+
+1. Sign up at Vercel with GitHub, on the **Hobby** plan. Click **Add New → Project** and import `HvH1110/Web_Project`.
+2. Set **Project Name** to `maison-prix` and **Root Directory** to `frontend`. Leave everything else as is: no environment variables are needed, because `vercel.json` sets `VITE_API_URL=/api` for the build.
+3. Click **Deploy**.
+4. In the project's **Settings → Git**, turn on skipping deployments when nothing changed in the root directory, so other areas' commits don't use up deployments.
+
+**If you get different addresses** (the name may be taken by the time you do this):
+- Render address differs: change `destination` in `frontend/vercel.json`.
+- Vercel address differs: change `CLIENT_ORIGIN` in `backend/render.yaml`.
+
+Then commit and push. `CLIENT_ORIGIN` must match the address people use exactly. A POST from any other address gets a 403.
+
+### Step 5: Check that it works
+
+1. **Proxy:** `https://maison-prix.vercel.app/api/health` shows `"db":"connected"`.
+2. **Pages:** open `https://maison-prix.vercel.app/community` directly and refresh. The site should load, not a Vercel 404.
+3. **Login:** register, refresh, and stay logged in. In the browser's developer tools, the `sid` cookie should be on `maison-prix.vercel.app`. **Try it on an iPhone too**, since real Safari wasn't part of the local test.
+4. **No shared caching:** run `curl.exe -sI https://maison-prix.vercel.app/api/me`. `x-vercel-cache` should not say `HIT`.
+5. **Small image:** post a forum image under 1 MB. It should appear, with an address on `r2.dev`. A 501 or `NotImplemented` in Render's logs means backend request 3 is needed.
+6. **Large image:** post a JPEG between 5 and 10 MB. If it fails with 413, Vercel's limit applies to the proxy. Then ask the backend session to lower `MAX_UPLOAD_MB` to 4, and the frontend session to shrink images in the browser before upload.
+7. **Waking up:** leave the site idle for 20 minutes, then run this from PowerShell:
+   ```powershell
+   curl.exe -s -i -m 130 -H "Accept: application/json" https://maison-prix.vercel.app/api/brands
+   ```
+   Expect JSON within about a minute. A 503 means backend request 1 isn't in yet. HTML means frontend request 5 is needed.
+8. **Rate limits see the real visitor:** this sends 11 empty sign-ups, each with a different fake IP. Expect the last ones to answer 429 (10 are allowed per hour):
+   ```powershell
+   1..11 | % { curl.exe -s -o NUL -w "%{http_code} " -X POST -H "Content-Type: application/json" -H "X-Forwarded-For: 203.0.113.$_" -d "{}" https://maison-prix.vercel.app/api/auth/register }
+   ```
+   All 400s would mean the fake IP got through. Then, from a phone on mobile data, register a test account: that should succeed, showing that other visitors aren't affected. Your own network stays limited for an hour, or until Render next restarts.
+
+### Step 6: Finish up
+
+1. **Make yourself an admin.** After registering on the live site, run this from `backend/`:
+   ```powershell
+   $env:MONGODB_URI = Read-Host "webproject-prod connection string"
+   npm run set-role -- <your-email> admin
+   Remove-Item Env:MONGODB_URI
+   ```
+2. **Free the space.** Once the live site shows the catalog, go to Atlas **Data Explorer**, open `webproject_dev`, and drop `products`, `offers`, `price_points`, `fx_rates`, `wayback_index` and `wayback_snapshots`. This cannot be undone, so only do it after checking `webproject_prod`. Delete `catalog.archive` from your home folder too.
+3. **Restrict the development user.** In **Database Access**, change `webproject-dev` to **Specific Privileges**: `readWrite` on `webproject_dev` only.
+4. **Sample data for local work.** Local development now has no catalog. From `crawler/`, run `npm run crawl -- cartier-sg --limit=20`.
 
 ## Daily crawl (GitHub Actions)
 
@@ -18,13 +203,13 @@ A GitHub-hosted runner gets a different IP address on every run, from a shared p
 - a long auto-generated password, stored only as a GitHub secret;
 - TLS, which Atlas always enforces.
 
-The backend host will most likely need the same entry anyway (see "Production" in `ENVIRONMENT.md`).
+Render's free plan has no fixed IP either, so the backend relies on the same entry.
 
 Not used: adding the runner's own IP before each run and removing it afterwards (`atlas accessLists create --currentIp --deleteAfter <time>`). That would need an Atlas API key with permission to change the access list stored in GitHub, which is a stronger credential than the database password it protects.
 
 ### One-time setup
 
-You do these steps. Never paste the password or the connection string into a chat, or into a file inside the project.
+You do these steps. Never paste the password or the connection string into a chat, or into a file inside the project. Done on 2026-10-21 for `webproject_dev`. Step 1 of "Setup" above moves it to `webproject_prod`.
 
 1. **Create the crawl database user.** In Atlas, open the project. In the sidebar under **Security**, open **Database Access** (in the newer layout: **Database & Network Access → Database Users**).
    1. Click **Add New Database User**. Authentication method: **Password**.
@@ -41,9 +226,9 @@ You do these steps. Never paste the password or the connection string into a cha
 
 ### Run it by hand
 
-On GitHub, open **Actions → Daily crawl → Run workflow**, select branch `main`, then **Run workflow**. The log is on the run's page. Possible errors:
+On GitHub, open **Actions → Daily crawl → Run workflow**, select branch `main`, then **Run workflow**. Tick **check only** to test the database connection without crawling. The log is on the run's page. Possible errors:
 - `Repository secret MONGODB_URI is not set`: step 4 is missing.
-- `MongoServerSelectionError` or a timeout: step 2 is missing or still `Pending`.
+- `Atlas not reachable`: step 2 is missing or still `Pending`.
 - `bad auth`: the user or password in the secret is wrong.
 
 ### Turn on the daily schedule
