@@ -1,4 +1,4 @@
-// The end of an account form: the request error, if any, then the submit
+// The end of a form: the request error, if any, then the submit
 // button with a polite live region beside it for success notices. The
 // region is always rendered so screen readers announce text that appears.
 export default function FormFooter({ error, notice, children }) {

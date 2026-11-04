@@ -1,12 +1,14 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import OfferTable from '@/components/product/OfferTable'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { imageCredit, productPath } from '@/lib/catalog'
 
 // A search result: image, name and reference, then the price in every market
 // with where-to-buy links. Not one big link, since the offers link out.
 export default function ProductRow({ product }) {
-  const [image] = product.images
+  const [images, markFailed] = useWorkingImages(product.images)
+  const [image] = images
   const path = productPath(product)
 
   return (
@@ -24,6 +26,7 @@ export default function ProductRow({ product }) {
             alt=""
             loading="lazy"
             decoding="async"
+            onError={() => markFailed(image)}
             className="absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition-transform duration-700 ease-lux group-hover:scale-[1.04]"
           />
         ) : (

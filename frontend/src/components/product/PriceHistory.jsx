@@ -13,6 +13,7 @@ import {
   DEFAULT_RANGE,
   RANGES,
   currencyRows,
+  hasVndValues,
   justStarted,
   priceScale,
   seriesStyles,
@@ -36,16 +37,20 @@ const seriesName = (s) => [marketName(s.market), s.source.name].filter(Boolean).
 // Price history, one step line per source (normally one per market).
 // In VND all markets share one axis; in their own currencies they can't, so
 // each gets its own small chart. Range, currency and view live in the URL
-// (?range=5y&currency=original&view=table).
-export default function PriceHistory({ brand, productRef }) {
+// (?range=5y&currency=original&view=table). `defaultRange` is `all` for a
+// product with no current offer, whose last price can be years old.
+export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT_RANGE }) {
   const [params, setParams] = useSearchParams()
-  const range = params.get('range') ?? DEFAULT_RANGE
-  const currency = params.get('currency') ?? 'vnd'
+  const range = params.get('range') ?? defaultRange
+  const asked = params.get('currency') ?? 'vnd'
   const view = params.get('view') ?? 'chart'
   const history = useApi(`${brand}/${productRef}/${range}`, (signal) =>
     getProductHistory(brand, productRef, range, { signal }),
   )
   const data = history.data ?? (history.loading ? history.previous : undefined)
+  // With no exchange rate for any date, VND has nothing to show.
+  const noVnd = Boolean(data?.series.length) && !hasVndValues(data.series)
+  const currency = noVnd ? 'original' : asked
 
   const set = (name, value, fallback) => {
     const next = new URLSearchParams(params)
@@ -68,8 +73,10 @@ export default function PriceHistory({ brand, productRef }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Segmented label="Range" options={RANGES} value={range} onChange={(v) => set('range', v, DEFAULT_RANGE)} />
-            <Segmented label="Currency" options={CURRENCIES} value={currency} onChange={(v) => set('currency', v, 'vnd')} />
+            <Segmented label="Range" options={RANGES} value={range} onChange={(v) => set('range', v, defaultRange)} />
+            {!noVnd && (
+              <Segmented label="Currency" options={CURRENCIES} value={currency} onChange={(v) => set('currency', v, 'vnd')} />
+            )}
             <Segmented label="View" options={VIEWS} value={view} onChange={(v) => set('view', v, 'chart')} />
           </div>
         </div>
@@ -81,10 +88,13 @@ export default function PriceHistory({ brand, productRef }) {
             <Skeleton className="h-96" aria-label="Loading price history" />
           ) : !data.series.length ? (
             <div className="grid justify-items-center gap-3 bg-secondary px-6 py-16 text-center">
-              <p className="eyebrow text-muted-foreground">No history yet</p>
+              <p className="eyebrow text-muted-foreground">
+                {range === 'all' ? 'No history yet' : 'No prices in this range'}
+              </p>
               <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                History starts with the first daily crawl of this product, and older prices are
-                added from the Internet Archive where it captured them.
+                {range === 'all'
+                  ? 'History starts with the first daily crawl of this product, and older prices are added from the Internet Archive where it captured them.'
+                  : 'No price was recorded for this product in this range. Try a longer one.'}
               </p>
             </div>
           ) : (
@@ -107,6 +117,7 @@ export default function PriceHistory({ brand, productRef }) {
                   {currency === 'vnd' &&
                     view === 'chart' &&
                     " VND values use each day's exchange rate; gaps mean no rate was known."}
+                  {noVnd && ' Prices are in their original currency because no exchange rates are stored for these dates.'}
                   {' '}Hollow points are Internet Archive snapshots; the table links to each one.
                 </p>
               )}
@@ -166,15 +177,21 @@ const priceAxis = (width, values) => (
   <YAxis {...priceScale(values)} tickFormatter={formatCompact} width={width} {...axisProps} />
 )
 
-// Before there is any line: when tracking began and each store's first price.
+// Before there is any line: each store's only price so far, either the start
+// of daily tracking or a single Internet Archive snapshot.
 function FirstPrices({ series }) {
   const started = series.map((s) => s.points[0].date).sort()[0]
+  const archived = series.every((s) => s.points[0].origin === 'wayback')
   return (
     <div className="grid gap-6 bg-secondary px-6 py-12 sm:px-10">
       <div className="grid gap-2">
-        <p className="eyebrow text-muted-foreground">Tracking started {formatDate(started)}</p>
+        <p className="eyebrow text-muted-foreground">
+          {archived ? 'One archived price per store so far' : `Tracking started ${formatDate(started)}`}
+        </p>
         <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-          The chart appears once prices have been checked over a few days. First prices recorded:
+          {archived
+            ? 'A line appears once the Internet Archive has captured a store at more than one date. Captured so far:'
+            : 'The chart appears once prices have been checked over a few days. First prices recorded:'}
         </p>
       </div>
       <ul className="grid max-w-2xl border-b">
@@ -185,6 +202,7 @@ function FirstPrices({ series }) {
               <span>{seriesName(s)}</span>
               <span className="tabular-nums">
                 {first.price != null ? formatPrice(first.price, s.currency) : '—'}
+                <span className="ml-3 text-xs text-muted-foreground">{formatDate(first.date)}</span>
               </span>
             </li>
           )

@@ -1,5 +1,7 @@
+import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { MARKETS } from '@/content/site'
+import { NO_CURRENT_PRICE, productPath } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +15,17 @@ export default function OfferTable({ product, className }) {
   const lowest =
     priced.length > 1 ? priced.find((o) => o.priceVnd === product.lowestPriceVnd) : undefined
   const lastSeen = product.offers.map((o) => o.lastSeenAt).sort().at(-1)
+
+  if (!product.offers.length) {
+    return (
+      <p className={cn('self-start border-y py-4 text-sm', className)}>
+        {NO_CURRENT_PRICE}.{' '}
+        <Link to={`${productPath(product)}#history`} className="text-muted-foreground underline underline-offset-4">
+          See past prices
+        </Link>
+      </p>
+    )
+  }
 
   return (
     <div className={className}>

@@ -55,6 +55,21 @@ export function currencyRows(s) {
   return rows
 }
 
+// The last price each source showed, for products with no current offer:
+// [{ market, sourceId, currency, price, date, origin, archiveUrl }], in series
+// order (VN, SG, HK). Expects the range `all`, so nothing is carried.
+export function lastKnownPrices(series) {
+  return series.flatMap((s) => {
+    const point = s.points.findLast((p) => p.price != null)
+    if (!point) return []
+    const { price, date, origin, archiveUrl } = point
+    return [{ market: s.market, sourceId: s.source.id, currency: s.currency, price, date, origin, archiveUrl }]
+  })
+}
+
+// Whether any sample has a VND value: none does when no exchange rate is known.
+export const hasVndValues = (series) => series.some((s) => s.vnd.some((v) => v.priceVnd != null))
+
 // Time axis ticks on calendar boundaries: the 1st of every second month for a
 // range up to about a year, else every 1 January (thinned to at most ~7).
 // `yearly` says which label format fits.

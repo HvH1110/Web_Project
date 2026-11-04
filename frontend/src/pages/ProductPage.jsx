@@ -11,9 +11,10 @@ import ProductGallery from '@/components/product/ProductGallery'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MARKETS, SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
-import { getProduct, getProducts } from '@/lib/api'
-import { leadPrice } from '@/lib/catalog'
+import { getProduct, getProductHistory, getProducts } from '@/lib/api'
+import { NO_CURRENT_PRICE, leadPrice } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
+import { lastKnownPrices } from '@/lib/history'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 // /products/:brand/:ref: gallery, price in every market with where to buy,
@@ -26,6 +27,12 @@ export default function ProductPage() {
 
 function Product({ brand, productRef }) {
   const result = useApi(`${brand}/${productRef}`, (signal) => getProduct(brand, productRef, { signal }))
+  // With no current offer, the last prices come from the full history.
+  const noOffers = result.data?.product.offers.length === 0
+  const history = useApi(noOffers ? `${brand}/${productRef}` : 'not-needed', (signal) =>
+    noOffers ? getProductHistory(brand, productRef, 'all', { signal }) : Promise.resolve(null),
+  )
+  const archived = noOffers && history.data ? lastKnownPrices(history.data.series) : []
 
   // A link like …#history arrives before its section exists.
   const { hash } = useLocation()
@@ -75,7 +82,7 @@ function Product({ brand, productRef }) {
 
         <div className="grid gap-12 pt-10 pb-section lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-7">
-            <ProductGallery product={product} />
+            <ProductGallery product={product} archived={archived} />
           </div>
           <div className="grid content-start gap-10 lg:sticky lg:top-[calc(var(--spacing-header)+2rem)] lg:col-span-5 lg:self-start lg:pl-8">
             <div className="grid gap-3">
@@ -85,14 +92,20 @@ function Product({ brand, productRef }) {
               <h1 className="font-serif text-display-lg text-balance">{product.name}</h1>
               <p className="text-xs text-muted-foreground tabular-nums">Ref. {product.ref}</p>
             </div>
-            <LeadPrice product={product} />
-            <div className="grid gap-4">
-              <OfferTable product={product} />
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {fx ? `VND equivalents use the rates of ${formatDate(fx.date)}. ` : ''}
-                Prices are indicative: always confirm with the store before you buy.
-              </p>
-            </div>
+            {noOffers ? (
+              <ArchivedPrices prices={archived} history={history} />
+            ) : (
+              <>
+                <LeadPrice product={product} />
+                <div className="grid gap-4">
+                  <OfferTable product={product} />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {fx ? `VND equivalents use the rates of ${formatDate(fx.date)}. ` : ''}
+                    Prices are indicative: always confirm with the store before you buy.
+                  </p>
+                </div>
+              </>
+            )}
             <a href="#history" className="eyebrow group inline-flex items-center gap-2 justify-self-start">
               <span className="link-underline">Price history</span>
               <ArrowDown className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-y-0.5" strokeWidth={1.25} aria-hidden="true" />
@@ -121,7 +134,7 @@ function Product({ brand, productRef }) {
         </section>
       )}
 
-      <PriceHistory brand={product.brand} productRef={product.ref} />
+      <PriceHistory brand={product.brand} productRef={product.ref} defaultRange={noOffers ? 'all' : undefined} />
       <MoreFrom product={product} brandName={brandName} />
     </>
   )
@@ -166,6 +179,81 @@ function LeadPrice({ product }) {
           <ArrowUpRight className="size-3.5" strokeWidth={1.25} aria-hidden="true" />
           <span className="sr-only">(opens in a new tab)</span>
         </CtaButton>
+      )}
+    </div>
+  )
+}
+
+// For a product no store currently lists online: says so first, then the last
+// price seen in each market with its date and where it was seen. These are
+// past prices, so they are never shown as the product's price.
+function ArchivedPrices({ prices, history }) {
+  const archivedOnly = prices.every((p) => p.origin === 'wayback')
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-2">
+        <p className="eyebrow text-muted-foreground">Price</p>
+        <p className="font-serif text-display-sm">{NO_CURRENT_PRICE}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          We can’t check this house’s website daily, so we don’t know today’s price. Ask the
+          boutique for it.
+        </p>
+      </div>
+
+      {history.error ? (
+        <LoadError error={history.error} onRetry={history.retry} />
+      ) : history.loading ? (
+        <Skeleton className="h-24" aria-label="Loading past prices" />
+      ) : prices.length ? (
+        <div className="grid gap-3">
+          <table className="w-full border-b text-sm">
+            <caption className="eyebrow pb-3 text-left text-muted-foreground">
+              {archivedOnly ? 'Last archived price' : 'Last recorded price'}
+            </caption>
+            <thead className="sr-only">
+              <tr>
+                <th scope="col">Market</th>
+                <th scope="col">Price</th>
+                <th scope="col">Date and source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prices.map((p) => (
+                <tr key={`${p.market}-${p.sourceId}`} className="border-t">
+                  <th scope="row" className="eyebrow w-12 py-4 pr-4 text-left align-top font-medium sm:w-32">
+                    <span className="sm:hidden" aria-hidden="true">
+                      {p.market}
+                    </span>
+                    <span className="max-sm:sr-only">{MARKETS.find((m) => m.code === p.market)?.name ?? p.market}</span>
+                  </th>
+                  <td className="py-3.5 pr-4 align-top tabular-nums">{formatPrice(p.price, p.currency)}</td>
+                  <td className="py-3.5 text-right align-top">
+                    <p className="tabular-nums">{formatDate(p.date)}</p>
+                    {p.origin === 'wayback' && p.archiveUrl ? (
+                      <a
+                        href={p.archiveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        <span className="link-underline">Internet Archive</span>
+                        <ArrowUpRight className="size-3" strokeWidth={1.5} aria-hidden="true" />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">Daily crawl</p>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            What the official page showed on that date. The price may have changed since.
+          </p>
+        </div>
+      ) : (
+        <p className="border-y py-4 text-sm text-muted-foreground">No past price has been captured for this product.</p>
       )}
     </div>
   )

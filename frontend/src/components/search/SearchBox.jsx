@@ -4,7 +4,12 @@ import { Input } from '@/components/ui/input'
 
 // Large text search on a hairline. Calls onSearch(text) 350 ms after typing
 // stops, on Enter, or with '' when cleared. `value` is the search in the URL.
-export default function SearchBox({ value, onSearch }) {
+export default function SearchBox({
+  value,
+  onSearch,
+  label = 'Search products',
+  placeholder = 'Name, collection or reference',
+}) {
   const [text, setText] = useState(value)
   const [shown, setShown] = useState(value)
   // The URL changed from elsewhere (back button, a removed chip): follow it,
@@ -33,7 +38,7 @@ export default function SearchBox({ value, onSearch }) {
     >
       <Search className="size-5 shrink-0" strokeWidth={1.25} aria-hidden="true" />
       <label htmlFor="search-q" className="sr-only">
-        Search products
+        {label}
       </label>
       <Input
         id="search-q"
@@ -43,7 +48,7 @@ export default function SearchBox({ value, onSearch }) {
         maxLength={100}
         autoComplete="off"
         enterKeyHint="search"
-        placeholder="Name, collection or reference"
+        placeholder={placeholder}
         className="h-auto rounded-none border-0 bg-transparent p-0 font-serif text-[length:var(--text-display-sm)] leading-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-[length:var(--text-display-sm)] dark:bg-transparent [&::-webkit-search-cancel-button]:appearance-none"
       />
       {text && (

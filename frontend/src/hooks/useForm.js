@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { describeError, validate } from '@/lib/account'
+import { describeError, validate } from '@/lib/forms'
 
-// State for one account form: values, per-field errors, a form-level error
+// State for one form: values, per-field errors, a form-level error
 // and a success notice. On submit it checks `rules` ({ field: check }) and
 // focuses the first field that fails; otherwise it awaits
 // `onSubmit(values, { reset })`, whose return value (a string) becomes the
 // notice. A failed request goes on the field `fieldFor(error)` names, or
 // above the button when it names none.
-export function useAccountForm({ initial, rules, onSubmit, fieldFor }) {
+export function useForm({ initial, rules, onSubmit, fieldFor }) {
   const [values, setValues] = useState(initial)
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState(null)

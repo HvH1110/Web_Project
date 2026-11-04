@@ -14,6 +14,7 @@ export class ApiError extends Error {
 }
 
 async function request(path, { body, headers, ...options } = {}) {
+  const isForm = body instanceof FormData
   let res
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -23,10 +24,11 @@ async function request(path, { body, headers, ...options } = {}) {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        // A FormData body sets its own Content-Type, with the boundary.
+        ...(body !== undefined && !isForm && { 'Content-Type': 'application/json' }),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined || isForm ? body : JSON.stringify(body),
     })
   } catch (err) {
     // Cancelled or timed out by the caller's signal: let the caller handle it.
@@ -130,4 +132,78 @@ export function updateMe(fields) {
 // member's other sessions; this one stays logged in.
 export function changePassword(fields) {
   return request('/me/password', { method: 'PUT', body: fields })
+}
+
+// Forum (members only). Shapes in "Forum" in ../docs/API.md.
+
+// GET /api/forum/topics?q&brand&author&sort=activity|newest&page&limit
+// -> { items: [TopicSummary], page, limit, total, totalPages }
+export function getForumTopics(params = {}, { signal } = {}) {
+  return request(`/forum/topics${toQuery(params)}`, { signal })
+}
+
+// POST /api/forum/topics { title, body, brand?, images? } -> { topic }
+export function createForumTopic(fields) {
+  return request('/forum/topics', { method: 'POST', body: fields })
+}
+
+const topicUrl = (id) => `/forum/topics/${encodeURIComponent(id)}`
+const replyUrl = (id) => `/forum/replies/${encodeURIComponent(id)}`
+
+// GET /api/forum/topics/:id -> { topic }
+export function getForumTopic(id, { signal } = {}) {
+  return request(topicUrl(id), { signal })
+}
+
+// PATCH /api/forum/topics/:id { title?, body?, brand?, images? } -> { topic }
+export function updateForumTopic(id, fields) {
+  return request(topicUrl(id), { method: 'PATCH', body: fields })
+}
+
+// DELETE /api/forum/topics/:id -> 204, with its replies and images.
+export function deleteForumTopic(id) {
+  return request(topicUrl(id), { method: 'DELETE' })
+}
+
+// GET /api/forum/topics/:id/replies?page&limit
+// -> { items: [Reply], page, limit, total, totalPages }, oldest first.
+export function getForumReplies(id, params = {}, { signal } = {}) {
+  return request(`${topicUrl(id)}/replies${toQuery(params)}`, { signal })
+}
+
+// POST /api/forum/topics/:id/replies { body?, images? } -> { reply }
+export function createForumReply(id, fields) {
+  return request(`${topicUrl(id)}/replies`, { method: 'POST', body: fields })
+}
+
+// PATCH /api/forum/replies/:id { body?, images? } -> { reply }
+export function updateForumReply(id, fields) {
+  return request(replyUrl(id), { method: 'PATCH', body: fields })
+}
+
+// DELETE /api/forum/replies/:id -> 204
+export function deleteForumReply(id) {
+  return request(replyUrl(id), { method: 'DELETE' })
+}
+
+// POST /api/forum/uploads, multipart with the file in `image` -> { upload }
+export function uploadForumImage(file) {
+  const body = new FormData()
+  body.append('image', file)
+  return request('/forum/uploads', { method: 'POST', body })
+}
+
+// PATCH /api/forum/topics/:id/moderation { pinned?, locked?, hidden?, reason? } -> { topic }
+export function moderateForumTopic(id, fields) {
+  return request(`${topicUrl(id)}/moderation`, { method: 'PATCH', body: fields })
+}
+
+// PATCH /api/forum/replies/:id/moderation { hidden, reason? } -> { reply }
+export function moderateForumReply(id, fields) {
+  return request(`${replyUrl(id)}/moderation`, { method: 'PATCH', body: fields })
+}
+
+// PATCH /api/forum/members/:id/moderation { banned, reason? } -> { member }
+export function moderateForumMember(id, fields) {
+  return request(`/forum/members/${encodeURIComponent(id)}/moderation`, { method: 'PATCH', body: fields })
 }

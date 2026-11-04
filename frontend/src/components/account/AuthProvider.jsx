@@ -47,6 +47,7 @@ export default function AuthProvider({ children }) {
         await api.logout()
         signedOut('logout')
       },
+      loginRequired,
       updateProfile: (fields) => loginRequired(async () => signedIn((await api.updateMe(fields)).user)),
       changePassword: (fields) => loginRequired(() => api.changePassword(fields)),
     }

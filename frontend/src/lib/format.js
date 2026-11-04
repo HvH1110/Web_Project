@@ -12,6 +12,17 @@ const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', y
 // "12 Oct 2026"
 export const formatDate = (iso) => day.format(new Date(iso))
 
+const dayTime = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+// "12 Oct 2026, 09:30", in the viewer's time zone.
+export const formatDateTime = (iso) => dayTime.format(new Date(iso))
+
 const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
 
 // Axis labels: 255555000 -> "255.6M", 13450 -> "13.5K"

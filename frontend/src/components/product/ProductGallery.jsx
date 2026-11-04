@@ -1,21 +1,25 @@
 import { useState } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { imageCredit } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
 // Main image with up to three thumbnails. Every image credits and links the
-// store page it came from (Image.sourceId = Offer.source.id).
-export default function ProductGallery({ product }) {
-  const { images } = product
+// store page it came from (Image.sourceId = Offer.source.id), or for a product
+// with no current offer the archived page in `archived` (lastKnownPrices).
+export default function ProductGallery({ product, archived = [] }) {
+  const [images, markFailed] = useWorkingImages(product.images)
   const [index, setIndex] = useState(0)
-  const image = images[index]
+  const image = images[index] ?? images[0]
 
   if (!image) {
     return <ImagePlaceholder category={product.category} label="No image yet" className="aspect-4/5" />
   }
 
   const offer = product.offers.find((o) => o.source.id === image.sourceId)
+  const archiveUrl = (archived.find((a) => a.sourceId === image.sourceId) ?? archived[0])?.archiveUrl
+  const creditUrl = offer?.url ?? archiveUrl
   return (
     <div className="grid gap-4">
       <div className="relative aspect-4/5 overflow-hidden bg-secondary">
@@ -24,6 +28,7 @@ export default function ProductGallery({ product }) {
           src={image.url}
           alt={image.alt || product.name}
           fetchPriority="high"
+          onError={() => markFailed(image)}
           className="absolute inset-0 size-full object-contain p-[6%] mix-blend-multiply animate-in fade-in duration-500"
         />
       </div>
@@ -37,13 +42,13 @@ export default function ProductGallery({ product }) {
                   type="button"
                   onClick={() => setIndex(i)}
                   aria-label={`Show image ${i + 1} of ${images.length}`}
-                  aria-current={i === index || undefined}
+                  aria-current={img === image || undefined}
                   className={cn(
                     'relative block size-16 overflow-hidden border bg-secondary transition-colors sm:size-20',
-                    i === index ? 'border-foreground' : 'border-transparent hover:border-border',
+                    img === image ? 'border-foreground' : 'border-transparent hover:border-border',
                   )}
                 >
-                  <img src={img.url} alt="" loading="lazy" className="absolute inset-0 size-full object-contain p-1.5 mix-blend-multiply" />
+                  <img src={img.url} alt="" loading="lazy" onError={() => markFailed(img)} className="absolute inset-0 size-full object-contain p-1.5 mix-blend-multiply" />
                 </button>
               </li>
             ))}
@@ -51,9 +56,12 @@ export default function ProductGallery({ product }) {
         )}
         <p className="ml-auto text-[0.6875rem] text-muted-foreground">
           Image:{' '}
-          {offer ? (
-            <a href={offer.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
-              <span className="link-underline">{imageCredit(product, image)}</span>
+          {creditUrl ? (
+            <a href={creditUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
+              <span className="link-underline">
+                {imageCredit(product, image)}
+                {!offer && ', via Internet Archive'}
+              </span>
               <ArrowUpRight className="size-3" strokeWidth={1.5} aria-hidden="true" />
               <span className="sr-only">(opens in a new tab)</span>
             </a>

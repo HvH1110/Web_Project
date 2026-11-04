@@ -14,12 +14,14 @@ const LAYOUT = {
 // as rows with prices per market (variant="list"): skeletons, error, `empty`
 // when there is nothing, otherwise the items with a "load more" footer.
 // `renderItem` / `getKey` render other rows in the list layout (e.g. deals).
-// `error` replaces the default error panel when given.
+// `error` replaces the default error panel when given, `loadingLabel` names
+// the skeletons for screen readers.
 export default function ProductResults({
   products,
   variant = 'grid',
   empty,
   error: errorView,
+  loadingLabel = 'Loading products',
   renderItem,
   getKey = (item) => item.id,
 }) {
@@ -28,7 +30,7 @@ export default function ProductResults({
   if (error) return errorView ?? <LoadError error={error} onRetry={retry} />
   if (loading) {
     return (
-      <ul aria-busy="true" aria-label="Loading products" className={LAYOUT[variant]}>
+      <ul aria-busy="true" aria-label={loadingLabel} className={LAYOUT[variant]}>
         {Array.from({ length: variant === 'grid' ? 8 : 4 }, (_, i) =>
           variant === 'grid' ? (
             <li key={i} className="grid gap-4">

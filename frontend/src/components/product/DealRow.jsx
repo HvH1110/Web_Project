@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { MARKETS } from '@/content/site'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { productPath } from '@/lib/catalog'
 import { formatDate, formatPercent, formatPrice } from '@/lib/format'
 
@@ -11,7 +12,8 @@ const marketName = (code) => MARKETS.find((m) => m.code === code)?.name ?? code
 // prices that make it a deal, and a link to buy where it is cheaper.
 export default function DealRow({ deal }) {
   const { product } = deal
-  const [image] = product.images
+  const [images, markFailed] = useWorkingImages(product.images)
+  const [image] = images
   const path = productPath(product)
   const offer = deal.type === 'market' ? deal.cheapest.offer : deal.offer
 
@@ -30,6 +32,7 @@ export default function DealRow({ deal }) {
             alt=""
             loading="lazy"
             decoding="async"
+            onError={() => markFailed(image)}
             className="absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition-transform duration-700 ease-lux group-hover:scale-[1.04]"
           />
         ) : (

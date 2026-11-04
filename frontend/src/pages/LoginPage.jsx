@@ -1,12 +1,13 @@
 import { Link, Navigate, useSearchParams } from 'react-router'
-import AccountField from '@/components/account/AccountField'
+import FormField from '@/components/FormField'
 import AccountShell from '@/components/account/AccountShell'
-import FormFooter from '@/components/account/FormFooter'
+import FormFooter from '@/components/FormFooter'
 import CtaButton from '@/components/CtaButton'
 import { SITE } from '@/content/site'
-import { useAccountForm } from '@/hooks/useAccountForm'
+import { useForm } from '@/hooks/useForm'
 import { useAuth } from '@/hooks/useAuth'
-import { accountPath, checkEmail, checkRequired, safeNext } from '@/lib/account'
+import { accountPath, checkEmail, safeNext } from '@/lib/account'
+import { checkRequired } from '@/lib/forms'
 
 const ENDED = {
   logout: 'You’ve logged out.',
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const auth = useAuth()
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
-  const form = useAccountForm({
+  const form = useForm({
     initial: { email: '', password: '' },
     rules: { email: checkEmail, password: checkRequired('Enter your password.') },
     onSubmit: ({ email, password }) => auth.login({ email: email.trim(), password }),
@@ -53,7 +54,7 @@ export default function LoginPage() {
           </p>
         )}
         <form noValidate onSubmit={form.handleSubmit} className="grid gap-6">
-          <AccountField
+          <FormField
             label="Email"
             type="email"
             autoComplete="email"
@@ -61,7 +62,7 @@ export default function LoginPage() {
             spellCheck={false}
             {...form.field('email')}
           />
-          <AccountField label="Password" type="password" autoComplete="current-password" {...form.field('password')} />
+          <FormField label="Password" type="password" autoComplete="current-password" {...form.field('password')} />
           <FormFooter error={form.formError}>
             <CtaButton type="submit" className="w-full">
               {form.submitting ? 'Logging in…' : 'Log in'}

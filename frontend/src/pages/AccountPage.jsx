@@ -1,23 +1,21 @@
 import { useId, useState } from 'react'
 import { Navigate, useLocation } from 'react-router'
-import AccountField from '@/components/account/AccountField'
-import FormFooter from '@/components/account/FormFooter'
+import FormField from '@/components/FormField'
+import FormFooter from '@/components/FormFooter'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SITE } from '@/content/site'
-import { useAccountForm } from '@/hooks/useAccountForm'
+import { useForm } from '@/hooks/useForm'
 import { useAuth } from '@/hooks/useAuth'
 import {
   accountPath,
   checkDisplayName,
   checkNewPassword,
-  checkRequired,
-  describeError,
-  fieldFromMessage,
   normalizeName,
 } from '@/lib/account'
+import { checkRequired, describeError, fieldFromMessage } from '@/lib/forms'
 import { formatDate } from '@/lib/format'
 
 const ROLES = { moderator: 'Moderator', admin: 'Administrator' }
@@ -101,7 +99,7 @@ function AccountSection({ title, intro, children }) {
 }
 
 function ProfileForm({ user, updateProfile }) {
-  const form = useAccountForm({
+  const form = useForm({
     initial: { displayName: user.displayName },
     rules: { displayName: checkDisplayName },
     onSubmit: async ({ displayName }, { reset }) => {
@@ -115,7 +113,7 @@ function ProfileForm({ user, updateProfile }) {
 
   return (
     <form noValidate onSubmit={form.handleSubmit} className="grid gap-6">
-      <AccountField
+      <FormField
         label="Display name"
         description="2 to 30 letters, digits, spaces, “.”, “_” or “-”."
         autoComplete="nickname"
@@ -132,7 +130,7 @@ function ProfileForm({ user, updateProfile }) {
 }
 
 function PasswordForm({ email, changePassword }) {
-  const form = useAccountForm({
+  const form = useForm({
     initial: { currentPassword: '', newPassword: '' },
     rules: {
       currentPassword: checkRequired('Enter your current password.'),
@@ -151,13 +149,13 @@ function PasswordForm({ email, changePassword }) {
     <form noValidate onSubmit={form.handleSubmit} className="grid gap-6">
       {/* Tells password managers which account the new password is for. */}
       <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
-      <AccountField
+      <FormField
         label="Current password"
         type="password"
         autoComplete="current-password"
         {...form.field('currentPassword')}
       />
-      <AccountField
+      <FormField
         label="New password"
         description="At least 8 characters."
         type="password"

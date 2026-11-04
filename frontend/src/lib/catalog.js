@@ -55,6 +55,11 @@ export const PRICE_PRESETS = [
   { label: 'Over 1 billion', min: 1_000_000_000, max: null },
 ]
 
-// Images credit the store they came from (Image.sourceId = Offer.source.id).
+// Images credit the store they came from (Image.sourceId = Offer.source.id),
+// or the brand when no store has a current offer.
 export const imageCredit = (product, image) =>
-  product.offers.find((o) => o.source.id === image.sourceId)?.source.name ?? image.sourceId
+  product.offers.find((o) => o.source.id === image.sourceId)?.source.name ??
+  product.brandName ??
+  product.brand
+
+export const NO_CURRENT_PRICE = 'No current online price'

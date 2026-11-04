@@ -1,20 +1,20 @@
 import { Link, Navigate, useSearchParams } from 'react-router'
-import AccountField from '@/components/account/AccountField'
+import FormField from '@/components/FormField'
 import AccountShell from '@/components/account/AccountShell'
-import FormFooter from '@/components/account/FormFooter'
+import FormFooter from '@/components/FormFooter'
 import CtaButton from '@/components/CtaButton'
 import { SITE } from '@/content/site'
-import { useAccountForm } from '@/hooks/useAccountForm'
+import { useForm } from '@/hooks/useForm'
 import { useAuth } from '@/hooks/useAuth'
 import {
   accountPath,
   checkDisplayName,
   checkEmail,
   checkNewPassword,
-  fieldFromMessage,
   normalizeName,
   safeNext,
 } from '@/lib/account'
+import { fieldFromMessage } from '@/lib/forms'
 
 const FIELDS = [
   [/display ?name/i, 'displayName'],
@@ -28,7 +28,7 @@ export default function RegisterPage() {
   const auth = useAuth()
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
-  const form = useAccountForm({
+  const form = useForm({
     initial: { displayName: '', email: '', password: '' },
     rules: { displayName: checkDisplayName, email: checkEmail, password: checkNewPassword },
     onSubmit: ({ displayName, email, password }) =>
@@ -59,14 +59,14 @@ export default function RegisterPage() {
         }
       >
         <form noValidate onSubmit={form.handleSubmit} className="grid gap-6">
-          <AccountField
+          <FormField
             label="Display name"
             description="Shown on the forum. 2 to 30 letters, digits, spaces, “.”, “_” or “-”."
             autoComplete="nickname"
             maxLength={30}
             {...form.field('displayName')}
           />
-          <AccountField
+          <FormField
             label="Email"
             description="Only you see it. Use it to log in."
             type="email"
@@ -76,7 +76,7 @@ export default function RegisterPage() {
             maxLength={254}
             {...form.field('email')}
           />
-          <AccountField
+          <FormField
             label="Password"
             description="At least 8 characters."
             type="password"

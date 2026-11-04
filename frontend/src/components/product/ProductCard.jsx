@@ -1,7 +1,8 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { MARKETS } from '@/content/site'
-import { imageCredit, leadPrice, productPath } from '@/lib/catalog'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
+import { NO_CURRENT_PRICE, imageCredit, leadPrice, productPath } from '@/lib/catalog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -9,7 +10,8 @@ import { cn } from '@/lib/utils'
 // reference, lead price and the markets that sell it. The whole card links to
 // the product page.
 export default function ProductCard({ product }) {
-  const [image, hoverImage] = product.images
+  const [images, markFailed] = useWorkingImages(product.images)
+  const [image, hoverImage] = images
   const price = leadPrice(product)
   const credit = image && imageCredit(product, image)
 
@@ -23,6 +25,7 @@ export default function ProductCard({ product }) {
               alt={image.alt || product.name}
               loading="lazy"
               decoding="async"
+              onError={() => markFailed(image)}
               className={cn(
                 'absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition duration-700 ease-lux',
                 hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-[1.03]',
@@ -34,6 +37,7 @@ export default function ProductCard({ product }) {
                 alt=""
                 loading="lazy"
                 decoding="async"
+                onError={() => markFailed(hoverImage)}
                 className="absolute inset-0 size-full object-contain p-[8%] opacity-0 mix-blend-multiply transition-opacity duration-700 ease-lux group-hover:opacity-100"
               />
             )}
@@ -58,9 +62,13 @@ export default function ProductCard({ product }) {
 
       <div className="grid gap-2">
         <p className="text-sm tabular-nums">
-          {price ? formatPrice(price.value, price.currency) : 'Price on request'}
+          {price
+            ? formatPrice(price.value, price.currency)
+            : product.offers.length
+              ? 'Price on request'
+              : NO_CURRENT_PRICE}
         </p>
-        <MarketStrip offers={product.offers} lowest={price?.market} />
+        {product.offers.length > 0 && <MarketStrip offers={product.offers} lowest={price?.market} />}
       </div>
 
       {credit && <p className="text-[0.625rem] text-muted-foreground">Image: {credit}</p>}
@@ -93,7 +101,7 @@ function MarketStrip({ offers, lowest }) {
         ))}
       </p>
       <p className="sr-only">
-        {soldNames.length ? `Sold in ${soldNames.join(', ')}.` : 'Not sold in our markets.'}
+        Sold in {soldNames.join(', ')}.
         {markLowest && ` Lowest price in ${lowestName}.`}
       </p>
     </>
