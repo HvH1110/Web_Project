@@ -1,8 +1,10 @@
 // DAFC, Official Rolex Retailer in Vietnam (Hanoi and Ho Chi Minh City).
 // WordPress + WooCommerce. Prices are "suggested retail price inclusive of VAT".
+// The sitemaps no longer list products, so pages come from the shop's public
+// Store API, which the WooCommerce storefront itself uses (no login).
 import * as cheerio from 'cheerio';
+import { politeFetch } from '../lib/http.js';
 import { clean, jsonLdOfType, labelCase, parsePrice } from '../lib/parse.js';
-import { fetchSitemapUrls } from '../lib/sitemap.js';
 
 const BASE = 'https://rolex.dafc.com.vn/rolex/';
 
@@ -13,7 +15,16 @@ export default {
   market: 'VN',
 
   async listUrls() {
-    const urls = await fetchSitemapUrls(`${BASE}product-sitemap.xml`);
+    const urls = [];
+    let totalPages = 1;
+    for (let page = 1; page <= totalPages; page += 1) {
+      const res = await politeFetch(`${BASE}wp-json/wc/store/v1/products?per_page=100&page=${page}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`Store API answered HTTP ${res.status}`);
+      totalPages = Number(res.headers.get('x-wp-totalpages')) || 1;
+      for (const { permalink } of await res.json()) urls.push(permalink);
+    }
     // English pages only: /rolex/vi/ has the same watches in Vietnamese.
     return urls.filter((u) => u.startsWith(BASE) && !u.startsWith(`${BASE}vi/`));
   },

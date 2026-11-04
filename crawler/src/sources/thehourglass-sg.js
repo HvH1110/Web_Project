@@ -21,6 +21,8 @@ export default {
   name: 'The Hour Glass (Official Rolex Retailer)',
   type: 'authorized-dealer',
   market: 'SG',
+  // Pages not in its cache can take over 40 s to render.
+  timeoutMs: 90000,
 
   async listUrls() {
     const urls = await fetchSitemapUrls(`${BASE}sitemap/rolex.xml`);
