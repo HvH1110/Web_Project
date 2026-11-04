@@ -5,7 +5,7 @@ export const SITE = {
   tagline: 'Know the price before you step inside.',
 }
 
-// Top-level pages from the product spec. Most are not built yet.
+// Top-level pages from the product spec. Community is not built yet.
 export const PAGES = [
   { to: '/search', label: 'Search' },
   { to: '/deals', label: 'Deals' },

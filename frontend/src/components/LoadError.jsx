@@ -8,14 +8,14 @@ function describe(error) {
   return 'Something went wrong while loading.'
 }
 
-// A failed load, with a retry button.
-export default function LoadError({ error, onRetry, className }) {
+// A failed load, with a retry button. `message` replaces the default line.
+export default function LoadError({ error, onRetry, message, className }) {
   return (
     <div role="alert" className={cn('grid justify-items-start gap-4 border-y py-12', className)}>
       <p className="eyebrow text-muted-foreground">
         {error?.status ? `Error ${error.status}` : 'Connection error'}
       </p>
-      <p className="font-serif text-display-sm">{describe(error)}</p>
+      <p className="font-serif text-display-sm">{message ?? describe(error)}</p>
       <p className="text-sm text-muted-foreground">Please try again in a moment.</p>
       {onRetry && (
         <CtaButton variant="outline" onClick={onRetry} className="mt-2">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import { Search, User } from 'lucide-react'
 import SiteMenu from '@/components/layout/SiteMenu'
+import { useAuth } from '@/hooks/useAuth'
 import { useScrolled } from '@/hooks/useScrolled'
 import { cn } from '@/lib/utils'
 import { SITE } from '@/content/site'
@@ -13,6 +14,7 @@ export default function SiteHeader() {
   const { pathname } = useLocation()
   const scrolled = useScrolled(24)
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user } = useAuth()
   const overHero = pathname === '/' && !scrolled && !menuOpen
 
   return (
@@ -49,7 +51,20 @@ export default function SiteHeader() {
           <nav aria-label="Quick links" className="flex items-center justify-end gap-8">
             <HeaderLink to="/deals" label="Deals" className="hidden lg:flex" />
             <HeaderLink to="/community" label="Community" className="hidden lg:flex" />
-            <HeaderLink to="/account" icon={User} label="Account" />
+            <HeaderLink
+              to="/account"
+              icon={User}
+              label={
+                user ? (
+                  <>
+                    <span className="sr-only">Account: </span>
+                    <span className="inline-block max-w-[14ch] truncate align-bottom">{user.displayName}</span>
+                  </>
+                ) : (
+                  'Account'
+                )
+              }
+            />
           </nav>
         </div>
       </header>

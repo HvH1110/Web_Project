@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react'
 import { Outlet, ScrollRestoration, useLocation } from 'react-router'
+import AuthProvider from '@/components/account/AuthProvider'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
 
@@ -8,23 +9,26 @@ import SiteHeader from '@/components/layout/SiteHeader'
 const scrollKey = (location) => (location.key === 'default' ? location.pathname : location.key)
 
 // Root layout: announcement bar and sticky header, the matched page, footer.
+// AuthProvider makes the logged-in member available everywhere (useAuth).
 export default function App() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <a
-        href="#main"
-        className="eyebrow sr-only z-50 bg-foreground px-5 py-3 text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
-      >
-        Skip to content
-      </a>
-      <SiteHeader />
-      <main id="main" tabIndex={-1} className="flex-1 outline-none">
-        <Outlet />
-      </main>
-      <SiteFooter />
-      <InstantPageScroll />
-      <ScrollRestoration getKey={scrollKey} />
-    </div>
+    <AuthProvider>
+      <div className="flex min-h-svh flex-col">
+        <a
+          href="#main"
+          className="eyebrow sr-only z-50 bg-foreground px-5 py-3 text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          Skip to content
+        </a>
+        <SiteHeader />
+        <main id="main" tabIndex={-1} className="flex-1 outline-none">
+          <Outlet />
+        </main>
+        <SiteFooter />
+        <InstantPageScroll />
+        <ScrollRestoration getKey={scrollKey} />
+      </div>
+    </AuthProvider>
   )
 }
 

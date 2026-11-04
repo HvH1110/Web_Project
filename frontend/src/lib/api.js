@@ -18,6 +18,9 @@ async function request(path, { body, headers, ...options } = {}) {
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...options,
+      // The session cookie (see Auth in ../docs/API.md) is only stored and
+      // sent with credentials, so every request includes them.
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
@@ -94,4 +97,37 @@ export function getBrands({ category, signal } = {}) {
 // -> { period, since, items: [Deal], page, limit, total, totalPages, fx }
 export function getDeals(params = {}, { signal } = {}) {
   return request(`/deals${toQuery(params)}`, { signal })
+}
+
+// Accounts. Register and login set the httpOnly session cookie; logout clears it.
+
+// POST /api/auth/register { email, password, displayName } -> { user }
+export function register(fields) {
+  return request('/auth/register', { method: 'POST', body: fields })
+}
+
+// POST /api/auth/login { email, password } -> { user }
+export function login(fields) {
+  return request('/auth/login', { method: 'POST', body: fields })
+}
+
+// POST /api/auth/logout -> 204. Safe to call when not logged in.
+export function logout() {
+  return request('/auth/logout', { method: 'POST' })
+}
+
+// GET /api/me -> { user }, with user null when not logged in.
+export function getMe({ signal } = {}) {
+  return request('/me', { signal })
+}
+
+// PATCH /api/me { displayName } -> { user }
+export function updateMe(fields) {
+  return request('/me', { method: 'PATCH', body: fields })
+}
+
+// PUT /api/me/password { currentPassword, newPassword } -> 204. Ends the
+// member's other sessions; this one stays logged in.
+export function changePassword(fields) {
+  return request('/me/password', { method: 'PUT', body: fields })
 }

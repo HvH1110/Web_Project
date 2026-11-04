@@ -11,6 +11,7 @@ You are the **frontend** session. Your area is `frontend/` (this folder). Shared
 - The API base URL comes from `VITE_API_URL` in `frontend/.env` (local default `http://localhost:5000/api`). Document it in `frontend/.env.example`.
 - `../docs/API.md` is the contract. Code against it, not against backend source. If an endpoint you need is missing or unclear, ask the user to get the backend session to add it.
 - Keep API calls in `src/lib/api.js`, not inline in components. Load data in components with `useApi` (one request, with retry), `usePaged` (any paged list with load more) or `useProducts` (its product-list wrapper) from `src/hooks/`; render lists with `ProductResults` and show failures with `LoadError`.
+- Accounts use the backend's httpOnly session cookie, so `request()` sends every call with `credentials: 'include'`. The logged-in member and the account actions come from `useAuth()` (provided by `components/account/AuthProvider.jsx`, which asks `GET /api/me` once per visit and treats a 401 as the session ending). A members-only page redirects logged-out visitors to `accountPath('login', currentPath)` from `src/lib/account.js`, which sends them back after logging in. Build account forms from `useAccountForm`, `AccountField` and `FormFooter`.
 
 ## Commands
 Run from `frontend/`. First time: `npm install`, then copy `.env.example` to `.env`.
