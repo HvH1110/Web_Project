@@ -11,6 +11,7 @@ const pricePointSchema = new mongoose.Schema(
     observedAt: { type: Date, required: true },
     origin: { type: String, required: true, enum: ORIGINS },
     archiveUrl: String,
+    sourceUrl: String,
   },
   { collection: 'price_points', versionKey: false },
 );

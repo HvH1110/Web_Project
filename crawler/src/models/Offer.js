@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { CURRENCIES, MARKETS, SOURCE_TYPES } from './constants.js';
+import { CURRENCIES, MARKETS, OFFER_ORIGINS, SOURCE_TYPES } from './constants.js';
 
 const offerSchema = new mongoose.Schema(
   {
@@ -15,6 +15,7 @@ const offerSchema = new mongoose.Schema(
     price: { type: Number, default: null },
     available: { type: Boolean, default: null },
     lastSeenAt: { type: Date, required: true },
+    origin: { type: String, required: true, enum: OFFER_ORIGINS, default: 'crawl' },
   },
   { collection: 'offers', versionKey: false },
 );

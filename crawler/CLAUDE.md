@@ -33,6 +33,8 @@ Update this section as you add scripts.
   - `--limit=N`: at most N product pages per source, N past days of exchange rates (default 60), e.g. `npm run crawl -- cartier-sg --dry-run --limit=3`
 - `npm run backfill [-- archive-id ...]`: price history from Wayback Machine snapshots of official pages that block crawlers. Queues new captures (one per page per quarter, from 2020; the index is asked one year at a time, or one quarter at a time in smaller pages when a year times out), then fetches up to `--limit` queued snapshots (default 500, about 45 min) and saves products and `wayback` price points, no offers. Resumes where the last run stopped. Archives: `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`.
   - `--dry-run`: no database; fetch the newest `--limit` (default 3) archived product pages per source and print the items
+- `npm run import-prices [-- file]`: imports prices a person read from official sites that block crawlers (default file `manual/prices.csv`, instructions in `manual/README.md`). All or nothing: one bad row and it lists every problem and writes nothing. Safe to re-run. Writes products, `offers` and `price_points` with origin `manual`. Only Chanel, Van Cleef & Arpels, Louis Vuitton, Dior and IWC: never a brand the daily crawl covers.
+  - `--dry-run`: check the file and print the rows; no database
 - `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
 - `npm run lint`: ESLint
 
@@ -47,6 +49,8 @@ Update this section as you add scripts.
 - `src/lib/wayback.js`: Wayback index (CDX) and snapshot URLs; stops on 429/503 from web.archive.org
 - `src/archives/`: one adapter per archived site, registered in `index.js`: `{ id, name, type, market, prefixes, isProductUrl(url), parse(html, url) }`, `parse` returning the same item as a live source
 - `src/backfill.js`: the backfill entry point (queue in the crawler-internal `wayback_snapshots` collection)
+- `src/lib/manual.js`: reads and validates the hand-entered CSV; `src/tools/import-prices.js` runs it
+- `manual/`: the CSV template and the instructions for filling it in
 - `SOURCES.md`: source survey and status per brand and market
 
 ## Notes

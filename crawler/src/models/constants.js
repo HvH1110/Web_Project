@@ -13,4 +13,5 @@ export const MARKETS = ['VN', 'SG', 'HK'];
 export const CURRENCIES = ['VND', 'SGD', 'HKD'];
 export const CATEGORIES = ['bags', 'accessories', 'shoes', 'clothing', 'jewelry', 'watches'];
 export const SOURCE_TYPES = ['official', 'authorized-dealer'];
-export const ORIGINS = ['crawl', 'wayback'];
+export const ORIGINS = ['crawl', 'wayback', 'manual'];
+export const OFFER_ORIGINS = ['crawl', 'manual'];

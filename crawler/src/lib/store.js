@@ -44,6 +44,7 @@ export async function saveItem(source, item, observedAt = new Date()) {
         price: item.price ?? null,
         available: item.available ?? null,
         lastSeenAt: observedAt,
+        origin: 'crawl',
       },
     },
     { upsert: true },
@@ -99,6 +100,64 @@ export async function saveArchivedItem(source, item, observedAt, archiveUrl) {
     .lean();
   if (same(after) && after.origin === 'wayback') await PricePoint.deleteOne({ _id: after._id });
   return { created, priceChanged: true };
+}
+
+// Writes one price a person read from the official site (origin "manual").
+// `observedAt` is the day they saw it, so it never looks freshly crawled. Safe
+// to re-run; rows may come in any order:
+// - price_points: one per date. A row seen before with another price corrects
+//   that point. A later date adds a point only when the price differs from the
+//   point before it, unless that point isn't manual: then this one records the
+//   check, so history shows who confirmed the price and where.
+// - offers: set only from the newest date, so an old row can't replace a newer
+//   price. Sources here are never crawled (lib/manual.js), so the crawl leaves
+//   these offers alone, and the backfill never removes a manual point.
+export async function saveManualPrice(source, item, observedAt) {
+  validateItem(source, item);
+  const { product, created } = await upsertProduct(source, item);
+  const key = { productId: product._id, sourceId: source.id };
+
+  let point = 'unchanged';
+  const sameDay = await PricePoint.findOne({ ...key, observedAt, origin: 'manual' }).lean();
+  if (sameDay) {
+    if (sameDay.price !== item.price) point = 'corrected';
+    await PricePoint.updateOne({ _id: sameDay._id }, { $set: { price: item.price, sourceUrl: item.url } });
+  } else {
+    const before = await PricePoint.findOne({ ...key, observedAt: { $lte: observedAt } }).sort({ observedAt: -1 }).lean();
+    if (!(before?.origin === 'manual' && before.price === item.price)) {
+      await PricePoint.create({
+        ...key,
+        market: source.market,
+        currency: item.currency,
+        price: item.price,
+        observedAt,
+        origin: 'manual',
+        sourceUrl: item.url,
+      });
+      point = 'added';
+    }
+  }
+
+  const offer = await Offer.findOne({ productId: product._id, 'source.id': source.id }).lean();
+  const offerUpdated = !offer || observedAt >= offer.lastSeenAt;
+  if (offerUpdated) {
+    await Offer.updateOne(
+      { productId: product._id, 'source.id': source.id },
+      {
+        $set: {
+          source: { id: source.id, name: source.name, type: source.type, market: source.market },
+          url: item.url,
+          currency: item.currency,
+          price: item.price,
+          available: null,
+          lastSeenAt: observedAt,
+          origin: 'manual',
+        },
+      },
+      { upsert: true },
+    );
+  }
+  return { created, point, offerUpdated };
 }
 
 // products: upsert by { brand, ref }. The first source to see a product sets

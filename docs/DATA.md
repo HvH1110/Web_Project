@@ -17,6 +17,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - Source ids are `<site>-<market>`. In use:
   - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
   - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on).
+  - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`, `vancleefarpels-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
 ## `products`
@@ -47,12 +48,13 @@ The current price of a product at one source. One document per product per sourc
 | `currency` | string | |
 | `price` | number \| null | null when the page shows no price |
 | `available` | boolean \| null | the source's own stock flag, only where it sells online (Cartier SG/HK, Omega HK). `null` when the page shows no stock (DAFC, Cartier VN) |
-| `lastSeenAt` | date | last successful crawl of this page. Cartier pages are re-checked once every 7 days, so this can be up to 7 days old |
+| `lastSeenAt` | date | last successful crawl of this page. Cartier pages are re-checked once every 7 days, so this can be up to 7 days old. For `origin: manual`: the day a person read the price, which can be much older |
+| `origin` | `crawl` \| `manual` | how the price got here. `manual`: read from the official site by a person and imported from a CSV; show it as checked by hand, with the `lastSeenAt` date, not as a live price. The crawl never writes to these offers |
 
 Indexes: unique `{ productId: 1, "source.id": 1 }`; `{ "source.market": 1 }`.
 
 ## `price_points`
-Price history. A new point is added only when the price changes (or the first time a price is seen). Wayback snapshots are processed in any date order, so for them "changes" means: differs from the point just before it in time.
+Price history. A new point is added only when the price changes (or the first time a price is seen). Wayback snapshots are processed in any date order, so for them "changes" means: differs from the point just before it in time. A `manual` point is added when the price differs from the point before it or that point isn't `manual`, so one source's series can mix `wayback` and `manual` points.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -62,8 +64,9 @@ Price history. A new point is added only when the price changes (or the first ti
 | `currency` | string | |
 | `price` | number | |
 | `observedAt` | date | |
-| `origin` | `crawl` \| `wayback` | `wayback`: the price an archived snapshot of the official page showed, at the snapshot's date |
+| `origin` | `crawl` \| `wayback` \| `manual` | `wayback`: the price an archived snapshot of the official page showed, at the snapshot's date. `manual`: the price a person read from the official page, on `observedAt` (a date with no time, midnight UTC) |
 | `archiveUrl` | string? | for `wayback` only: the snapshot on web.archive.org (link it as the source of that point) |
+| `sourceUrl` | string? | for `manual` only: the official page the price was read from (link it as the source of that point) |
 
 Index: `{ productId: 1, market: 1, observedAt: 1 }`.
 
