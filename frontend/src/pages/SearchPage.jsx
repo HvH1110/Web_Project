@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { useProducts } from '@/hooks/useProducts'
+import { RATE_SOURCE } from '@/lib/catalog'
 import { formatDate } from '@/lib/format'
 import {
   CLEAR_ALL,
@@ -186,9 +187,9 @@ function Summary({ products, q }) {
       {!busy && (
         <p className="text-xs text-muted-foreground">
           {rates?.length
-            ? `VND prices converted at ${rates
+            ? `VND prices are converted at ${RATE_SOURCE}: ${rates
                 .map((c) => `1 ${c} = ${fx.vndPer[c].toLocaleString('en-US')} VND`)
-                .join(', ')} (rates of ${formatDate(fx.date)}).`
+                .join(', ')} (${formatDate(fx.date)}).`
             : 'No exchange rates stored yet, so SGD and HKD prices are not converted to VND.'}
         </p>
       )}

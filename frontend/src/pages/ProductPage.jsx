@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MARKETS } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { getProduct, getProductHistory, getProducts } from '@/lib/api'
-import { NO_CURRENT_PRICE, leadPrice } from '@/lib/catalog'
+import { NO_CURRENT_PRICE, RATE_SOURCE, leadPrice } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
 import { lastKnownPrices } from '@/lib/history'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -107,7 +107,9 @@ function Product({ brand, productRef }) {
                 <div className="grid gap-4">
                   <OfferTable product={product} />
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    {fx ? `VND equivalents use the rates of ${formatDate(fx.date)}. ` : ''}
+                    {fx && product.offers.some((o) => o.currency !== 'VND' && o.priceVnd != null)
+                      ? `VND prices are converted at ${RATE_SOURCE} of ${formatDate(fx.date)}. `
+                      : ''}
                     Prices are indicative: always confirm with the store before you buy.
                   </p>
                 </div>

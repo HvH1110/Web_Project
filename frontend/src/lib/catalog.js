@@ -63,3 +63,9 @@ export const imageCredit = (product, image) =>
   product.brand
 
 export const NO_CURRENT_PRICE = 'No current online price'
+
+// The stock flag only covers online stock: the boutique may still have the piece.
+export const OUT_OF_STOCK = 'Out of stock online'
+
+// Where every converted VND price comes from (fx_rates in ../docs/DATA.md).
+export const RATE_SOURCE = 'Vietcombank’s sell rate'

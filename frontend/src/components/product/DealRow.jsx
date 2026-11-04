@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
-import { productPath } from '@/lib/catalog'
+import { OUT_OF_STOCK, productPath } from '@/lib/catalog'
 import { formatDate, formatPercent, formatPrice } from '@/lib/format'
 
 const marketName = (code) => MARKETS.find((m) => m.code === code)?.name ?? code
@@ -68,7 +68,9 @@ export default function DealRow({ deal }) {
             rel="noopener noreferrer"
             className="eyebrow inline-flex items-center gap-1.5 justify-self-start"
           >
-            <span className="link-underline">Buy at {offer.source.name}</span>
+            <span className="link-underline">
+              {offer.available === false ? 'View at' : 'Buy at'} {offer.source.name}
+            </span>
             <ArrowUpRight className="size-3" strokeWidth={1.5} aria-hidden="true" />
             <span className="sr-only">(opens in a new tab)</span>
           </a>
@@ -89,7 +91,10 @@ function MarketDetail({ deal }) {
       {rows.map((r) => (
         <div key={r.label} className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-0.5 border-t py-3 sm:grid-cols-[9rem_1fr_auto]">
           <dt className="eyebrow text-muted-foreground">{r.label}</dt>
-          <dd className="max-sm:order-3">{marketName(r.market)}</dd>
+          <dd className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 max-sm:order-3">
+            {marketName(r.market)}
+            <StockLabel offer={r.offer} />
+          </dd>
           <dd className="text-right tabular-nums">
             {r.offer.currency !== 'VND' && r.offer.price != null && (
               <span className="mr-2 text-muted-foreground">{formatPrice(r.offer.price, r.offer.currency)} ≈</span>
@@ -114,6 +119,7 @@ function DropDetail({ deal }) {
           ? `price cut in ${deal.currency}`
           : `same ${deal.currency} price, cheaper in VND after exchange-rate moves`}
       </p>
+      <StockLabel offer={deal.offer} />
       <dl className="grid border-b">
         <PriceChange label={deal.currency} then={deal.priceThen} now={deal.priceNow} currency={deal.currency} />
         {vnd && deal.currency !== 'VND' && (
@@ -122,6 +128,12 @@ function DropDetail({ deal }) {
       </dl>
     </div>
   )
+}
+
+// The deal stays listed: the boutique may still have the piece.
+function StockLabel({ offer }) {
+  if (offer?.available !== false) return null
+  return <span className="eyebrow text-[0.625rem] text-muted-foreground">{OUT_OF_STOCK}</span>
 }
 
 function PriceChange({ label, then, now, currency }) {

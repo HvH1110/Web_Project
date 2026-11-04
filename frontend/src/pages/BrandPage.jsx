@@ -14,8 +14,8 @@ import { BRANDS, CATEGORIES } from '@/content/brands'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
 import { getBrand } from '@/lib/api'
-import { DEFAULT_SORT, matchCollection } from '@/lib/catalog'
-import { pad2 } from '@/lib/format'
+import { DEFAULT_SORT, RATE_SOURCE, matchCollection } from '@/lib/catalog'
+import { formatDate, pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import NotFoundPage from '@/pages/NotFoundPage'
 
@@ -82,6 +82,11 @@ function Brand({ slug }) {
                 {b.productCount} {b.productCount === 1 ? 'piece' : 'pieces'} tracked across Vietnam,
                 Singapore and Hong Kong
               </p>
+              {products.fx && (
+                <p className="text-xs text-muted-foreground">
+                  VND prices are converted at {RATE_SOURCE} of {formatDate(products.fx.date)}.
+                </p>
+              )}
             </div>
             <SortSelect value={sort} onChange={(value) => setFilter('sort', value, DEFAULT_SORT)} />
           </div>

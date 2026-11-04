@@ -1,10 +1,13 @@
 import { useSearchParams } from 'react-router'
+import CtaButton from '@/components/CtaButton'
 import DealRow from '@/components/product/DealRow'
 import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
 import Segmented from '@/components/Segmented'
+import { useApi } from '@/hooks/useApi'
 import { usePaged } from '@/hooks/usePaged'
 import { getDeals } from '@/lib/api'
+import { RATE_SOURCE } from '@/lib/catalog'
 import { formatDate } from '@/lib/format'
 
 const PERIODS = [
@@ -17,6 +20,10 @@ const TYPES = [
   { value: 'market', label: 'Cheapest market' },
   { value: 'drop', label: 'Price drops' },
 ]
+
+// When daily tracking began. A period that starts earlier has no price from
+// its start to compare with, so it can't have drops yet.
+const TRACKING_STARTED = Date.parse('2026-10-20T00:00:00.000Z')
 
 const dealKey = (d) => `${d.type}-${d.product.id}-${d.market ?? ''}`
 
@@ -32,6 +39,9 @@ export default function DealsPage() {
     (page, signal) => getDeals({ ...query, page, limit: 24 }, { signal }),
     dealKey,
   )
+  // Drops rank by saving among market deals, so the first page can't show
+  // whether any exist in this period: ask for them directly.
+  const drops = useApi(`drops/${period}`, (signal) => getDeals({ period, type: 'drop', limit: 1 }, { signal }))
 
   const set = (name, value, fallback) => {
     const next = new URLSearchParams(params)
@@ -41,7 +51,12 @@ export default function DealsPage() {
   }
 
   const latest = deals.latest
-  const busy = deals.loading || deals.refreshing
+  const busy = deals.loading || deals.refreshing || (type === 'all' && drops.loading)
+  const noStartPrices = latest?.since && Date.parse(latest.since) < TRACKING_STARTED
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label.toLowerCase()
+  const noDrops = drops.data?.total === 0
+  // Cheapest-market deals compare today's prices, so no period applies to them.
+  const marketOnly = type === 'market' || (type === 'all' && noDrops)
 
   return (
     <>
@@ -63,8 +78,8 @@ export default function DealsPage() {
           <p>
             <span className="text-foreground">Cheapest market:</span> the same piece costs less in
             one market than another, compared in VND.{' '}
-            <span className="text-foreground">Price drop:</span> it costs less than at the start of
-            the day, month or year, usually because of exchange rates.
+            <span className="text-foreground">Price drop:</span> it costs 1% or more less than at the
+            start of the day, month or year, usually because of exchange rates.
           </p>
         </div>
       </section>
@@ -81,13 +96,23 @@ export default function DealsPage() {
               {busy
                 ? 'Looking for deals'
                 : `${deals.total.toLocaleString('en-US')} ${deals.total === 1 ? 'deal' : 'deals'}${
-                    latest?.since ? ` since ${formatDate(latest.since)}` : ''
+                    latest?.since && !marketOnly ? ` since ${formatDate(latest.since)}` : ''
                   }`}
             </p>
-            {!busy && (
+            {!busy && deals.total > 0 && (
               <p className="text-xs text-muted-foreground">
                 {latest?.fx
-                  ? `VND prices use the rates of ${formatDate(latest.fx.date)}. Cheapest-market deals compare today's prices, so they are the same for every period.`
+                  ? `VND prices use ${RATE_SOURCE} of ${formatDate(latest.fx.date)}. ${
+                      type === 'drop'
+                        ? ''
+                        : type === 'all' && noDrops
+                          ? `All of these are cheapest-market deals: ${
+                              noStartPrices
+                                ? 'we don’t have prices from the start of this period to find drops yet'
+                                : `no price has fallen by 1% or more ${periodLabel}`
+                            }. They compare today’s prices, so they are the same for every period.`
+                          : 'Cheapest-market deals compare today’s prices, so they are the same for every period.'
+                    }`
                   : 'No exchange rates are stored yet, so markets in different currencies can’t be compared and SGD and HKD drops count only in their own currency.'}
               </p>
             )}
@@ -101,7 +126,15 @@ export default function DealsPage() {
             variant="list"
             renderItem={(deal) => <DealRow deal={deal} />}
             getKey={dealKey}
-            empty={<NoDeals period={period} type={type} fx={latest?.fx} />}
+            empty={
+              <NoDeals
+                period={period}
+                type={type}
+                fx={latest?.fx}
+                noStartPrices={noStartPrices}
+                onShowMarket={() => set('type', 'market', 'all')}
+              />
+            }
           />
         </div>
       </div>
@@ -109,15 +142,34 @@ export default function DealsPage() {
   )
 }
 
-function NoDeals({ period, type, fx }) {
+function NoDeals({ period, type, fx, noStartPrices, onShowMarket }) {
   const label = PERIODS.find((p) => p.value === period)?.label.toLowerCase()
+  if (type === 'drop') {
+    return (
+      <div className="grid justify-items-center gap-4 bg-secondary px-6 py-20 text-center">
+        <p className="eyebrow text-muted-foreground">No price drops {label}</p>
+        <p className="max-w-xl font-serif text-display-sm text-balance">
+          {noStartPrices
+            ? 'Our prices don’t go back to the start of this period yet.'
+            : 'Nothing has fallen by 1% or more in this period.'}
+        </p>
+        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+          {noStartPrices
+            ? 'A drop is 1% or more below the price when the period began, so there is nothing to compare with for now.'
+            : 'Official prices rarely fall, and exchange rates rarely move that far in a short time. Drops appear here when they do.'}{' '}
+          The same pieces can still cost less in another market.
+        </p>
+        <CtaButton variant="outline" onClick={onShowMarket} className="mt-2">
+          See cheapest-market deals
+        </CtaButton>
+      </div>
+    )
+  }
   return (
     <div className="grid justify-items-center gap-4 bg-secondary px-6 py-20 text-center">
       <p className="eyebrow text-muted-foreground">No deals {label}</p>
       <p className="max-w-xl font-serif text-display-sm text-balance">
-        {type === 'market'
-          ? 'No piece is cheaper in one market than another right now.'
-          : 'Nothing costs less than it did at the start of the period.'}
+        No piece is cheaper in one market than another right now.
       </p>
       <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
         {!fx

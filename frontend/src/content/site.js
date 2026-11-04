@@ -26,6 +26,6 @@ export const MARKETS = [
 // Footer disclaimer required by the spec's "Legal & ethics" section.
 export const DISCLAIMER = [
   `${SITE.name} is an independent, non-commercial university project. It is not affiliated with, endorsed by or sponsored by any of the brands shown.`,
-  'Prices are indicative. They are collected from official brand websites and authorized dealers, and may be out of date or differ in store. Always confirm the price with the official store before you buy.',
+  'Prices are indicative. They are collected from official brand websites and authorized dealers, and may be out of date or differ in store. VND prices for Singapore and Hong Kong are converted at Vietcombank’s sell rate. Always confirm the price with the official store before you buy.',
   'Brand names and logos are trademarks of their respective owners. Product images belong to their owners and are credited and linked to their source.',
 ]

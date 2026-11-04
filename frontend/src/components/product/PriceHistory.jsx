@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useApi } from '@/hooks/useApi'
 import { getProductHistory } from '@/lib/api'
 import { formatDate, formatPrice } from '@/lib/format'
+import { RATE_SOURCE } from '@/lib/catalog'
 import { DEFAULT_RANGE, RANGES, hasVndValues, justStarted, seriesName } from '@/lib/history'
 import { cn } from '@/lib/utils'
 
@@ -102,9 +103,8 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
               {!(view === 'chart' && justStarted(data.series)) && (
                 <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
                   {formatDate(data.from)} to {formatDate(data.to)}.
-                  {currency === 'vnd' &&
-                    view === 'chart' &&
-                    " VND values use each day's exchange rate; gaps mean no rate was known."}
+                  {!noVnd && (view === 'table' || currency === 'vnd') && ` VND prices use ${RATE_SOURCE} of each day.`}
+                  {currency === 'vnd' && view === 'chart' && ' Gaps mean no rate was known.'}
                   {noVnd && ' Prices are in their original currency because no exchange rates are stored for these dates.'}
                   {view === 'chart' &&
                     currency !== 'vnd' &&

@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { MARKETS } from '@/content/site'
-import { NO_CURRENT_PRICE, productPath } from '@/lib/catalog'
+import { NO_CURRENT_PRICE, OUT_OF_STOCK, productPath } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -88,7 +88,7 @@ function PriceCell({ offer, lowest }) {
         </span>
         {lowest && <span className="eyebrow text-[0.625rem] text-gain">Lowest</span>}
         {offer.available === false && (
-          <span className="eyebrow text-[0.625rem] text-muted-foreground">Out of stock</span>
+          <span className="eyebrow text-[0.625rem] text-muted-foreground">{OUT_OF_STOCK}</span>
         )}
       </div>
       {converted && (
