@@ -12,6 +12,7 @@ const pricePointSchema = readOnlySchema(
     observedAt: Date,
     origin: String,
     archiveUrl: String,
+    sourceUrl: String,
   },
   { collection: 'price_points' },
 );

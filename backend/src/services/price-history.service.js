@@ -22,6 +22,7 @@ function toPoint(point) {
     price: point.price,
     origin: point.origin,
     archiveUrl: point.archiveUrl ?? null,
+    sourceUrl: point.sourceUrl ?? null,
     carried: false,
   };
 }

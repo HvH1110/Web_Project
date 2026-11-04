@@ -30,7 +30,7 @@ export function offerStages(rates, markets) {
         foreignField: 'productId',
         as: 'offers',
         pipeline: [
-          { $project: { _id: 0, source: 1, url: 1, currency: 1, price: 1, available: 1, lastSeenAt: 1 } },
+          { $project: { _id: 0, source: 1, url: 1, currency: 1, price: 1, available: 1, lastSeenAt: 1, origin: 1 } },
         ],
       },
     },
@@ -74,6 +74,7 @@ export function toOfferDto(offer) {
     priceVnd: offer.priceVnd ?? null,
     available: offer.available ?? null,
     lastSeenAt: offer.lastSeenAt ?? null,
+    origin: offer.origin ?? null,
   };
 }
 

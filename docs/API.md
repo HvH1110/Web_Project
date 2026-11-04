@@ -54,7 +54,8 @@ The current price of a product at one official store or authorized dealer. Used 
   "price": 13450,
   "priceVnd": 255555000,
   "available": true,
-  "lastSeenAt": "2026-10-12T02:00:00.000Z"
+  "lastSeenAt": "2026-10-12T02:00:00.000Z",
+  "origin": "crawl"
 }
 ```
 - `source.type`: `official` or `authorized-dealer`.
@@ -62,6 +63,8 @@ The current price of a product at one official store or authorized dealer. Used 
 - `price`: `null` when the source page shows no price.
 - `priceVnd`: `price` converted with the latest exchange rate (see `fx`). Equals `price` for VND. `null` when `price` is `null` or no rate is available for the currency.
 - `available`: `true`, `false`, or `null` when unknown.
+- `lastSeenAt`: when this price was last confirmed.
+- `origin`: how the price got here. `crawl`: our crawler read it. `manual`: a person read it from the official site, for sites that block crawlers. Show a `manual` price as checked by hand with its `lastSeenAt` date, not as a live price: that date can be weeks old. `available` is `null` for these.
 - Offers are sorted by market (`VN`, `SG`, `HK`), then by `priceVnd` ascending. A market can have more than one offer (e.g. the brand boutique and an authorized dealer).
 
 ### Image
@@ -273,8 +276,8 @@ Price history for the chart: one series per source (normally one source per mark
       "currency": "SGD",
       "lastSeenAt": "2026-10-12T02:00:00.000Z",
       "points": [
-        { "date": "2025-10-12T09:00:00.000Z", "price": 12950, "origin": "crawl", "archiveUrl": null, "carried": true },
-        { "date": "2026-03-01T02:00:00.000Z", "price": 13450, "origin": "crawl", "archiveUrl": null, "carried": false }
+        { "date": "2025-10-12T09:00:00.000Z", "price": 12950, "origin": "crawl", "archiveUrl": null, "sourceUrl": null, "carried": true },
+        { "date": "2026-03-01T02:00:00.000Z", "price": 13450, "origin": "crawl", "archiveUrl": null, "sourceUrl": null, "carried": false }
       ],
       "vnd": [
         { "date": "2025-10-12T09:00:00.000Z", "priceVnd": 245000000 },
@@ -291,7 +294,7 @@ Price history for the chart: one series per source (normally one source per mark
 - `lastSeenAt`: until when the last price is known to hold. Extend the line from the last point to this date. `null` when the source has no current offer with a price; then the line ends at the last point.
 - A source whose line ends before `from` is left out of that range.
 - `points`: price changes in the original `currency`, oldest first.
-  - `origin`: `crawl` (our daily crawl) or `wayback` (Internet Archive snapshot; `archiveUrl` then links to it, so show it as the source).
+  - `origin`: `crawl` (our daily crawl), `wayback` (Internet Archive snapshot; `archiveUrl` then links to it, so show it as the source) or `manual` (a person read it from the official site on that date, which has no time of day; `sourceUrl` then links to the page, so show it as the source). One series can mix origins.
   - `carried: true` marks a synthetic first point at `from`: the price that was already in effect when the range starts. All other points are real observations.
 - `vnd`: the same series converted to VND for the "VND" toggle, oldest first. Sampled at the first point, then at midnight UTC every day for `1y` or every 7 days for `5y` and `all`, plus at each price change and at the end of the line. Each sample uses the exchange rate of its own day (or the closest earlier day, at most 7 days back), so the VND line moves with exchange rates even when the original price does not. `priceVnd` is `null` where no rate is known: leave a gap in the line there.
 

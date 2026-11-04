@@ -19,6 +19,7 @@ const offerSchema = readOnlySchema(
     price: Number,
     available: Boolean,
     lastSeenAt: Date,
+    origin: String,
   },
   { collection: 'offers' },
 );
