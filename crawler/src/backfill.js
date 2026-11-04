@@ -16,13 +16,12 @@ import { saveArchivedItem, validateItem } from './lib/store.js';
 import {
   ArchiveBusyError,
   archiveUrl,
-  captureQuarter,
   checkArchiveStatus,
   listCaptures,
   snapshotUrl,
   timestampToDate,
 } from './lib/wayback.js';
-import { WaybackIndex, WaybackSnapshot } from './models/index.js';
+import { WaybackIndex, WaybackSnapshot, snapshotId } from './models/index.js';
 
 const args = process.argv.slice(2);
 const flags = args.filter((a) => a.startsWith('--'));
@@ -90,8 +89,8 @@ async function indexSource(source) {
         if (timestamp > newest) newest = timestamp;
         ops.push({
           updateOne: {
-            filter: { _id: `${source.id}|${url}|${captureQuarter(timestamp)}` },
-            update: { $setOnInsert: { sourceId: source.id, url, original, timestamp, status: 'pending' } },
+            filter: { _id: snapshotId(source.id, url, timestamp) },
+            update: { $setOnInsert: { sourceId: source.id, original, timestamp, status: 'pending' } },
             upsert: true,
           },
         });
@@ -188,10 +187,9 @@ async function dryRunSource(source) {
 // Step 2: work through the queues, taking turns between sources.
 async function processQueues(sources, queues) {
   for (const source of sources) {
-    const pending = await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' })
-      .sort({ timestamp: -1 })
-      .limit(limit)
-      .lean();
+    const pending = (
+      await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' }).sort({ timestamp: -1 }).limit(limit).lean()
+    ).map((snap) => ({ ...snap, url: normalizeUrl(snap.original) }));
     queues.push({ source, pending, errorsInARow: 0, stats: { saved: 0, created: 0, points: 0, 'no-price': 0, 'no-data': 0, missing: 0, error: 0 } });
   }
 
@@ -226,7 +224,9 @@ async function processQueues(sources, queues) {
           }
         }
       }
-      await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update });
+      // A page with nothing for us is never fetched again: its URL can go.
+      const drop = update.status === 'no-data' || update.status === 'missing' ? { $unset: { original: 1 } } : {};
+      await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...drop });
     }
     active = active.filter((q) => q.pending.length);
   }

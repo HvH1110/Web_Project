@@ -20,7 +20,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
 ## `products`
-One document per real product, shared across markets. The first source that sees a product sets its details; later sources only fill fields that are still empty, so details don't flip between markets.
+One document per real product, shared across markets. The first source that sees a product sets its details; later sources only fill fields that are still empty (and replace `images` when they have more), so details don't flip between markets.
 
 | Field | Type | Notes |
 |---|---|---|

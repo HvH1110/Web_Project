@@ -97,7 +97,8 @@ export async function saveArchivedItem(source, item, observedAt, archiveUrl) {
 }
 
 // products: upsert by { brand, ref }. The first source to see a product sets
-// its details; later sources only fill fields that are still empty.
+// its details; later sources only fill fields that are still empty, and
+// replace the images with a longer list (so they only ever improve).
 async function upsertProduct(source, item) {
   const ref = normalizeRef(item.ref);
   const images = (item.images ?? []).slice(0, 4).map((img) => ({ ...img, sourceId: source.id }));
@@ -126,7 +127,7 @@ async function upsertProduct(source, item) {
       if (!product[key] && details[key]) missing[key] = details[key];
     }
     if (!Object.keys(product.specs ?? {}).length && Object.keys(details.specs).length) missing.specs = details.specs;
-    if ((product.images?.length ?? 0) < 2 && images.length > (product.images?.length ?? 0)) missing.images = images;
+    if (images.length > (product.images?.length ?? 0)) missing.images = images;
     if (Object.keys(missing).length) await Product.updateOne({ _id: product._id }, { $set: missing });
   }
   return { product, created };
