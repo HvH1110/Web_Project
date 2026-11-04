@@ -15,7 +15,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - Prices are numbers in major units (e.g. `13450` SGD), exactly as shown on the source page.
 - All dates are UTC.
 - Source ids are `<site>-<market>`. In use:
-  - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk` (official).
+  - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
   - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on).
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
@@ -25,7 +25,7 @@ One document per real product, shared across markets. The first source that sees
 | Field | Type | Notes |
 |---|---|---|
 | `brand` | string | brand slug |
-| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product); accessories (cufflinks, desk clocks, category `accessories`) use their own code, e.g. `A1015`, `C909010LN-0001`. Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). Louis Vuitton: the product code, e.g. `M12929`, `1AK1FB`. Dior: the style code with its colour variant, e.g. `M0538ONGE_M27V`. IWC: e.g. `IW545901`. |
+| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product); accessories (cufflinks, desk clocks, category `accessories`) use their own code, e.g. `A1015`, `C909010LN-0001`. Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). Louis Vuitton: the product code, e.g. `M12929`, `1AK1FB`. Dior: the style code with its colour variant, e.g. `M0538ONGE_M27V`. IWC: e.g. `IW545901`. Omega: the dotted reference the page shows, e.g. `210.30.42.20.03.001`. |
 | `name` | string | |
 | `category` | string | `bags`, `accessories`, `shoes`, `clothing`, `jewelry`, `watches` (extend here if needed) |
 | `collection` | string? | e.g. `Neverfull`, `Lady Dior`, `LOVE`, `Submariner`, as the source writes it |
@@ -46,7 +46,7 @@ The current price of a product at one source. One document per product per sourc
 | `url` | string | product page; the "where to buy" link |
 | `currency` | string | |
 | `price` | number \| null | null when the page shows no price |
-| `available` | boolean \| null | the source's own stock flag, only where it sells online (Cartier SG/HK). `null` when the page shows no stock (DAFC, Cartier VN) |
+| `available` | boolean \| null | the source's own stock flag, only where it sells online (Cartier SG/HK, Omega HK). `null` when the page shows no stock (DAFC, Cartier VN) |
 | `lastSeenAt` | date | last successful crawl of this page. Cartier pages are re-checked once every 7 days, so this can be up to 7 days old |
 
 Indexes: unique `{ productId: 1, "source.id": 1 }`; `{ "source.market": 1 }`.
@@ -68,13 +68,13 @@ Price history. A new point is added only when the price changes (or the first ti
 Index: `{ productId: 1, market: 1, observedAt: 1 }`.
 
 ## `fx_rates`
-One document per day.
+One document per day, written by `npm run crawl`. Every date from the oldest price point (not before 2020-02-01, where the source starts) to today, weekends and holidays included. A long gap fills over several runs, so read the closest earlier day when a date is missing.
 
 | Field | Type | Notes |
 |---|---|---|
 | `date` | string `YYYY-MM-DD` | unique |
-| `vndPer` | `{ SGD, HKD, USD }` | VND for 1 unit of each currency |
-| `source` | string | where the rate came from |
+| `vndPer` | `{ SGD, HKD, USD }` | VND for 1 unit of each currency: the bank's sell rate, what a buyer in Vietnam pays for that currency. About 1.5% (USD) to 4% (SGD, HKD) above its buying rate |
+| `source` | string | where the rate came from: `vietcombank` |
 
 ## Crawler-internal collections
 Used only by the crawler to resume the Wayback backfill between runs. The backend ignores them.

@@ -1,4 +1,4 @@
-import { Offer, PricePoint, Product } from '../models/index.js';
+import { FxRate, Offer, PricePoint, Product } from '../models/index.js';
 import { BRANDS, CATEGORIES, CURRENCIES, MARKETS } from '../models/constants.js';
 
 // DATA.md: reference codes are uppercase with no spaces.
@@ -17,6 +17,11 @@ export function validateItem(source, item) {
   if (!MARKETS.includes(source.market)) problems.push(`market "${source.market}"`);
   if (item.price != null && !(item.price > 0)) problems.push(`price "${item.price}"`);
   if (problems.length) throw new Error(`invalid item ${item.url ?? ''}: ${problems.join(', ')}`);
+}
+
+// One day's exchange rates. Upsert by date: a later run the same day replaces them.
+export async function saveFxRate(date, vndPer, source) {
+  await FxRate.updateOne({ date }, { $set: { vndPer, source } }, { upsert: true });
 }
 
 // Writes one scraped product page. Safe to re-run:
