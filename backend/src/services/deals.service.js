@@ -4,6 +4,8 @@ import { toOfferDto } from './products.service.js';
 // Deals, as defined in docs/PRODUCT.md "What counts as a deal".
 export const DEAL_PERIODS = ['today', 'month', 'year'];
 export const DEAL_TYPES = ['market', 'drop'];
+// Smaller drops are mostly daily exchange-rate noise. Market deals have no minimum.
+const MIN_DROP_PCT = 1;
 
 // Vietnam has no daylight saving time.
 const VN_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -85,8 +87,8 @@ export function findMarketDeals(products) {
 
 // Current price lower than at `since`, in the source's own currency or in VND.
 // `pricesThen` comes from loadPricesAt(since); `rateThen(currency)` is VND per
-// unit at `since`, or null. savingPct is the larger of the two drops. One deal
-// per product and market: the source with the biggest drop.
+// unit at `since`, or null. savingPct is the larger of the two drops, at least
+// MIN_DROP_PCT. One deal per product and market: the source with the biggest drop.
 export function findDropDeals(products, pricesThen, rateThen, since) {
   const deals = [];
   for (const product of products) {
@@ -107,14 +109,15 @@ export function findDropDeals(products, pricesThen, rateThen, since) {
       if (priceVndThen != null && priceVndNow != null && priceVndNow < priceVndThen) {
         drops.push(percentOff(priceVndThen, priceVndNow));
       }
-      if (drops.length === 0) {
+      const savingPct = Math.max(0, ...drops);
+      if (savingPct < MIN_DROP_PCT) {
         continue;
       }
 
       const deal = {
         type: 'drop',
         productId: product._id,
-        savingPct: Math.max(...drops),
+        savingPct,
         market: offer.source.market,
         currency: offer.currency,
         priceThen: then.price,

@@ -131,7 +131,7 @@ One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart 
 - Each market is represented by its cheapest offer. Needs offers with a `priceVnd` in at least two markets, so SGD and HKD prices only count once exchange rates are stored.
 - Based on current prices, so the same market deals appear for every `period`.
 
-**`drop`: price drop.** The current price is lower than the price in effect at the start of the period, in the source's own currency (rare) or in VND (usually because of exchange-rate moves).
+**`drop`: price drop.** The current price is **at least 1% lower** than the price in effect at the start of the period, in the source's own currency (rare) or in VND (usually because of exchange-rate moves). Smaller drops are not listed, so `savingPct` is always at least 1 for this type; `market` deals have no minimum.
 ```json
 {
   "type": "drop",
