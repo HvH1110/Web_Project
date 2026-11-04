@@ -1,13 +1,15 @@
-// Accent-insensitive search terms, so "panthere" finds "Panthère".
+// Accent-insensitive search terms, so "panthere" finds "Panthère" and "dong ho"
+// finds "đồng hồ". Covers French and Vietnamese letters.
 const ACCENTS = {
-  a: 'aàáâãäå',
+  a: 'aàáâãäåảạăằắẳẵặầấẩẫậ',
   c: 'cç',
-  e: 'eèéêë',
-  i: 'iìíîï',
+  d: 'dđ',
+  e: 'eèéêëẻẽẹềếểễệ',
+  i: 'iìíîïỉĩị',
   n: 'nñ',
-  o: 'oòóôõöø',
-  u: 'uùúûü',
-  y: 'yýÿ',
+  o: 'oòóôõöøỏọồốổỗộơờớởỡợ',
+  u: 'uùúûüủũụưừứửữự',
+  y: 'yýÿỳỷỹỵ',
 };
 
 function escapeRegex(text) {
@@ -24,7 +26,9 @@ export function termRegex(term) {
   const plain = term
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+    .toLowerCase()
+    // "đ" has no decomposed form, so stripping accents leaves it as is.
+    .replace(/đ/g, 'd');
   const pattern = [...plain]
     .map((char) => (ACCENTS[char] ? `[${ACCENTS[char]}]` : escapeRegex(char)))
     .join('');
