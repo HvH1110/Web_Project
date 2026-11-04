@@ -2,8 +2,8 @@ import { Link, Navigate, useSearchParams } from 'react-router'
 import FormField from '@/components/FormField'
 import AccountShell from '@/components/account/AccountShell'
 import FormFooter from '@/components/FormFooter'
+import PageMeta from '@/components/PageMeta'
 import CtaButton from '@/components/CtaButton'
-import { SITE } from '@/content/site'
 import { useForm } from '@/hooks/useForm'
 import { useAuth } from '@/hooks/useAuth'
 import { accountPath, checkEmail, safeNext } from '@/lib/account'
@@ -30,7 +30,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <title>{`Log in · ${SITE.name}`}</title>
+      <PageMeta title="Log in" noindex />
       <AccountShell
         title="Log in"
         intro={

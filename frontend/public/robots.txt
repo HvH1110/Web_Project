@@ -1,0 +1,4 @@
+# Accounts and the members-only forum have nothing to index.
+User-agent: *
+Disallow: /account
+Disallow: /community

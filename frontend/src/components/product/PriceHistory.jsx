@@ -1,25 +1,13 @@
+import { Suspense, lazy } from 'react'
 import { useSearchParams } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import LoadError from '@/components/LoadError'
 import Segmented from '@/components/Segmented'
-import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MARKETS } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { getProductHistory } from '@/lib/api'
-import { formatCompact, formatDate, formatMonth, formatPrice, formatYear } from '@/lib/format'
-import {
-  DEFAULT_RANGE,
-  RANGES,
-  currencyRows,
-  hasVndValues,
-  justStarted,
-  priceScale,
-  seriesStyles,
-  timeTicks,
-  vndRows,
-} from '@/lib/history'
+import { formatDate, formatPrice } from '@/lib/format'
+import { DEFAULT_RANGE, RANGES, hasVndValues, justStarted, seriesName } from '@/lib/history'
 import { cn } from '@/lib/utils'
 
 const CURRENCIES = [
@@ -31,8 +19,8 @@ const VIEWS = [
   { value: 'table', label: 'Table' },
 ]
 
-const marketName = (code) => MARKETS.find((m) => m.code === code)?.name ?? code
-const seriesName = (s) => [marketName(s.market), s.source.name].filter(Boolean).join(' · ')
+// Recharts is large, and many products have no line to draw yet.
+const PriceCharts = lazy(() => import('@/components/product/PriceCharts'))
 
 // Price history, one step line per source (normally one per market).
 // In VND all markets share one axis; in their own currencies they can't, so
@@ -106,10 +94,10 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
                 <HistoryTable series={data.series} />
               ) : justStarted(data.series) ? (
                 <FirstPrices series={data.series} />
-              ) : currency === 'vnd' ? (
-                <VndChart data={data} />
               ) : (
-                <CurrencyCharts data={data} />
+                <Suspense fallback={<Skeleton className="h-96" aria-label="Loading chart" />}>
+                  <PriceCharts data={data} currency={currency} />
+                </Suspense>
               )}
               {!(view === 'chart' && justStarted(data.series)) && (
                 <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
@@ -118,7 +106,9 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
                     view === 'chart' &&
                     " VND values use each day's exchange rate; gaps mean no rate was known."}
                   {noVnd && ' Prices are in their original currency because no exchange rates are stored for these dates.'}
-                  {' '}Hollow points are Internet Archive snapshots; the table links to each one.
+                  {view === 'chart' &&
+                    currency !== 'vnd' &&
+                    ' Hollow points are Internet Archive snapshots; the table links to each one.'}
                 </p>
               )}
             </div>
@@ -128,54 +118,6 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
     </section>
   )
 }
-
-// Line keys and names; always shown, so identity never rests on colour alone.
-function Legend({ series, styles }) {
-  return (
-    <ul className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
-      {series.map((s, i) => (
-        <li key={`${s.market}-${s.source.id}`} className="flex items-center gap-2.5">
-          <LineKey {...styles[i]} />
-          {seriesName(s)}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function LineKey({ color, dashed }) {
-  return (
-    <svg width="18" height="4" aria-hidden="true" className="shrink-0">
-      <line x1="0" y1="2" x2="18" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dashed ? '4 3' : undefined} />
-    </svg>
-  )
-}
-
-const axisProps = {
-  tickLine: false,
-  axisLine: false,
-  tick: { fontSize: 11 },
-}
-
-function timeAxis(data) {
-  const { ticks, yearly } = timeTicks(data.from, data.to)
-  return (
-    <XAxis
-      dataKey="t"
-      type="number"
-      scale="time"
-      domain={[Date.parse(data.from), Date.parse(data.to)]}
-      ticks={ticks}
-      tickFormatter={yearly ? formatYear : formatMonth}
-      {...axisProps}
-    />
-  )
-}
-
-// Rounded ticks around the data rather than from zero, so changes show.
-const priceAxis = (width, values) => (
-  <YAxis {...priceScale(values)} tickFormatter={formatCompact} width={width} {...axisProps} />
-)
 
 // Before there is any line: each store's only price so far, either the start
 // of daily tracking or a single Internet Archive snapshot.
@@ -209,162 +151,6 @@ function FirstPrices({ series }) {
         })}
       </ul>
     </div>
-  )
-}
-
-function VndChart({ data }) {
-  const { series } = data
-  const styles = seriesStyles(series)
-  const rows = vndRows(series)
-  const config = Object.fromEntries(series.map((s, i) => [`s${i}`, { label: seriesName(s), color: styles[i].color }]))
-
-  return (
-    <div className="grid gap-6">
-      <Legend series={series} styles={styles} />
-      <ChartContainer config={config} className="aspect-auto h-80 w-full sm:h-96">
-        <LineChart data={rows} margin={{ top: 8, right: 40, bottom: 0, left: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--border)" />
-          {timeAxis(data)}
-          {priceAxis(56, rows.flatMap((r) => series.map((_, i) => r[`s${i}`])))}
-          <ChartTooltip
-            cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeOpacity: 0.3 }}
-            content={<VndTooltip series={series} styles={styles} />}
-          />
-          {series.map((s, i) => (
-            <Line
-              key={`s${i}`}
-              dataKey={`s${i}`}
-              type="stepAfter"
-              stroke={styles[i].color}
-              strokeWidth={2}
-              strokeDasharray={styles[i].dashed ? '6 4' : undefined}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
-              isAnimationActive={false}
-              label={<EndLabel rows={rows} dataKey={`s${i}`} text={s.market} />}
-            />
-          ))}
-        </LineChart>
-      </ChartContainer>
-    </div>
-  )
-}
-
-// Market code at the end of its line, in text ink (never the line colour).
-function EndLabel({ rows, dataKey, text, index, x, y }) {
-  let last = rows.length - 1
-  while (last >= 0 && rows[last][dataKey] == null) last--
-  if (index !== last) return null
-  return (
-    <text x={x + 8} y={y} dy={4} fontSize={11} fill="var(--muted-foreground)" letterSpacing="0.1em">
-      {text}
-    </text>
-  )
-}
-
-function VndTooltip({ active, payload, label, series, styles }) {
-  if (!active || !payload?.length) return null
-  return (
-    <TooltipBox date={label}>
-      {series.map((s, i) => {
-        const value = payload[0].payload[`s${i}`]
-        if (value === undefined) return null
-        return (
-          <TooltipRow key={i} style={styles[i]} name={seriesName(s)}>
-            {value === null ? 'No rate' : formatPrice(value, 'VND')}
-          </TooltipRow>
-        )
-      })}
-    </TooltipBox>
-  )
-}
-
-function TooltipBox({ date, children }) {
-  return (
-    <div className="grid min-w-56 gap-2 border bg-background px-4 py-3 text-xs shadow-md">
-      <p className="eyebrow text-[0.625rem] text-muted-foreground">{formatDate(date)}</p>
-      {children}
-    </div>
-  )
-}
-
-// Value first, name after, a line key for identity.
-function TooltipRow({ style, name, children }) {
-  return (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2.5">
-      <LineKey {...style} />
-      <span className="font-medium tabular-nums">{children}</span>
-      <span />
-      <span className="text-muted-foreground">{name}</span>
-    </div>
-  )
-}
-
-// Small multiples: one chart per source, each on its own currency's axis.
-function CurrencyCharts({ data }) {
-  const styles = seriesStyles(data.series)
-  return (
-    <ul className="grid gap-12 md:grid-cols-2 xl:grid-cols-3">
-      {data.series.map((s, i) => {
-        const rows = currencyRows(s)
-        const latest = rows.at(-1)?.v
-        return (
-          <li key={`${s.market}-${s.source.id}`} className="grid content-start gap-4 border-t pt-5">
-            <div className="flex items-baseline justify-between gap-4">
-              <p className="flex items-center gap-2.5 text-xs">
-                <LineKey {...styles[i]} />
-                {seriesName(s)}
-              </p>
-              <p className="text-sm tabular-nums">{latest != null ? formatPrice(latest, s.currency) : '—'}</p>
-            </div>
-            <ChartContainer
-              config={{ v: { label: s.currency, color: styles[i].color } }}
-              className="aspect-auto h-48 w-full"
-            >
-              <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--border)" />
-                {timeAxis(data)}
-                {priceAxis(48, rows.map((r) => r.v))}
-                <ChartTooltip
-                  cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeOpacity: 0.3 }}
-                  content={<CurrencyTooltip series={s} style={styles[i]} />}
-                />
-                <Line
-                  dataKey="v"
-                  type="stepAfter"
-                  stroke={styles[i].color}
-                  strokeWidth={2}
-                  strokeDasharray={styles[i].dashed ? '6 4' : undefined}
-                  dot={<ArchiveDot color={styles[i].color} />}
-                  activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ChartContainer>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-// Hollow marker on prices that came from an Internet Archive snapshot.
-function ArchiveDot({ cx, cy, payload, color }) {
-  if (payload?.origin !== 'wayback' || cx == null) return null
-  return <circle cx={cx} cy={cy} r={4} fill="var(--background)" stroke={color} strokeWidth={2} />
-}
-
-function CurrencyTooltip({ active, payload, label, series, style }) {
-  if (!active || !payload?.length) return null
-  const row = payload[0].payload
-  return (
-    <TooltipBox date={label}>
-      <TooltipRow style={style} name={row.origin === 'wayback' ? 'Internet Archive snapshot' : seriesName(series)}>
-        {row.v != null ? formatPrice(row.v, series.currency) : 'No price shown'}
-      </TooltipRow>
-    </TooltipBox>
   )
 }
 

@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router'
 import CtaButton from '@/components/CtaButton'
 import LoadError from '@/components/LoadError'
+import PageMeta from '@/components/PageMeta'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SITE } from '@/content/site'
 import { useAuth } from '@/hooks/useAuth'
 import { accountPath } from '@/lib/account'
 
@@ -17,7 +17,7 @@ export default function RequireMember({ children }) {
 
   if (auth.status === 'loading') {
     return (
-      <div aria-busy="true" aria-label="Loading" className="page-container grid gap-4 pt-16 pb-section">
+      <div aria-busy="true" aria-label="Loading" className="page-container grid min-h-svh content-start gap-4 pt-16 pb-section">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-16 max-w-md" />
       </div>
@@ -37,8 +37,9 @@ export default function RequireMember({ children }) {
   if (auth.user) return children
 
   return (
-    <section className="page-container grid justify-items-center gap-6 py-section text-center">
-      <title>{`Community · ${SITE.name}`}</title>
+    // As tall as the loading state above, so the footer doesn't rise into view.
+    <section className="page-container grid min-h-svh content-center justify-items-center gap-6 py-section text-center">
+      <PageMeta title="Community" noindex />
       <p className="eyebrow text-muted-foreground">Community</p>
       <h1 className="max-w-3xl font-serif text-display-lg text-balance">For members only</h1>
       <p className="max-w-md text-sm leading-relaxed text-muted-foreground">

@@ -1,6 +1,8 @@
 // Shapes GET /api/products/:brand/:ref/history for the price chart.
 // Prices only change at recorded points, so every line is a step line.
 
+import { MARKETS } from '@/content/site'
+
 export const RANGES = [
   { value: '1y', label: '1Y' },
   { value: '5y', label: '5Y' },
@@ -14,6 +16,11 @@ export const MARKET_COLOR = {
   SG: 'var(--color-market-sg)',
   HK: 'var(--color-market-hk)',
 }
+
+const marketName = (code) => MARKETS.find((m) => m.code === code)?.name ?? code
+
+// "Singapore · Rolex Boutique Singapore"; archive-only sources have no name.
+export const seriesName = (s) => [marketName(s.market), s.source.name].filter(Boolean).join(' · ')
 
 const time = (iso) => Date.parse(iso)
 

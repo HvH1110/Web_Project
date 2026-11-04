@@ -4,13 +4,13 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
+import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
 import SortSelect from '@/components/product/SortSelect'
 import Reveal from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES } from '@/content/brands'
-import { SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
 import { getBrand } from '@/lib/api'
@@ -63,7 +63,10 @@ function Brand({ slug }) {
   const b = brand.data
   return (
     <>
-      <title>{`${b.name} · ${SITE.name}`}</title>
+      <PageMeta
+        title={b.name}
+        description={`${b.name}: history, signature pieces and prices of ${b.productCount} tracked ${b.productCount === 1 ? 'piece' : 'pieces'} in Vietnam, Singapore and Hong Kong.`}
+      />
       <Masthead brand={b} />
       <History brand={b} />
       {b.signatureProducts.length > 0 && <Signatures brand={b} />}
@@ -359,7 +362,7 @@ function HouseNav({ slug }) {
 
 function MastheadSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading" className="page-container pt-14 pb-section">
+    <div aria-busy="true" aria-label="Loading" className="page-container min-h-svh pt-14 pb-section">
       <Skeleton className="h-3 w-48" />
       <div className="grid gap-12 pt-24 lg:grid-cols-12 lg:items-end">
         <div className="grid gap-6 lg:col-span-7">

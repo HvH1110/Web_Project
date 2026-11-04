@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router'
 import DealRow from '@/components/product/DealRow'
+import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
 import Segmented from '@/components/Segmented'
-import { SITE } from '@/content/site'
 import { usePaged } from '@/hooks/usePaged'
 import { getDeals } from '@/lib/api'
 import { formatDate } from '@/lib/format'
@@ -45,7 +45,10 @@ export default function DealsPage() {
 
   return (
     <>
-      <title>{`Deals · ${SITE.name}`}</title>
+      <PageMeta
+        title="Deals"
+        description="Where luxury pieces cost less: the cheapest market for the same piece, and official prices that have fallen, across Vietnam, Singapore and Hong Kong."
+      />
 
       <section className="page-container grid gap-10 pt-12 pb-12 sm:pt-16 lg:grid-cols-12">
         <div className="grid content-start gap-4 lg:col-span-6">

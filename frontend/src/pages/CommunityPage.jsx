@@ -5,10 +5,10 @@ import RequireMember from '@/components/community/RequireMember'
 import TopicRow from '@/components/community/TopicRow'
 import CtaButton from '@/components/CtaButton'
 import LoadError from '@/components/LoadError'
+import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
 import SearchBox from '@/components/search/SearchBox'
 import Segmented from '@/components/Segmented'
-import { SITE } from '@/content/site'
 import { useAuth } from '@/hooks/useAuth'
 import { usePaged } from '@/hooks/usePaged'
 import { getForumTopics } from '@/lib/api'
@@ -55,7 +55,7 @@ function Topics() {
 
   return (
     <>
-      <title>{`Community · ${SITE.name}`}</title>
+      <PageMeta title="Community" noindex />
 
       <section className="page-container grid gap-8 pt-12 pb-12 sm:pt-16 lg:grid-cols-12">
         <div className="grid content-start gap-4 lg:col-span-7">

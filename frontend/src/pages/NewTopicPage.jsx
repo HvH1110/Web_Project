@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router'
 import RequireMember from '@/components/community/RequireMember'
 import TopicForm from '@/components/community/TopicForm'
-import { SITE } from '@/content/site'
+import PageMeta from '@/components/PageMeta'
 import { useAuth } from '@/hooks/useAuth'
 import { createForumTopic } from '@/lib/api'
 import { topicPath } from '@/lib/forum'
@@ -21,7 +21,7 @@ function NewTopic() {
 
   return (
     <section className="page-container grid gap-12 pt-12 pb-section sm:pt-16 lg:grid-cols-12 lg:gap-8">
-      <title>{`New topic · ${SITE.name}`}</title>
+      <PageMeta title="New topic" noindex />
       <div className="grid content-start gap-6 lg:col-span-5">
         <p className="eyebrow text-muted-foreground">
           <Link to="/community" className="link-underline">

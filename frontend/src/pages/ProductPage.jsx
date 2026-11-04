@@ -5,11 +5,12 @@ import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
 import OfferTable from '@/components/product/OfferTable'
+import PageMeta from '@/components/PageMeta'
 import PriceHistory from '@/components/product/PriceHistory'
 import ProductCard from '@/components/product/ProductCard'
 import ProductGallery from '@/components/product/ProductGallery'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MARKETS, SITE } from '@/content/site'
+import { MARKETS } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { getProduct, getProductHistory, getProducts } from '@/lib/api'
 import { NO_CURRENT_PRICE, leadPrice } from '@/lib/catalog'
@@ -57,7 +58,13 @@ function Product({ brand, productRef }) {
 
   return (
     <>
-      <title>{`${product.name} · ${brandName} · ${SITE.name}`}</title>
+      <PageMeta
+        title={`${product.name} · ${brandName}`}
+        description={`${brandName} ${product.name}, ref. ${product.ref}: ${
+          noOffers ? 'last known prices' : 'official prices and where to buy'
+        } in Vietnam, Singapore and Hong Kong, with price history.`}
+      />
+      <ProductData product={product} brandName={brandName} />
 
       <div className="page-container pt-10 sm:pt-14">
         <nav aria-label="Breadcrumb">
@@ -137,6 +144,37 @@ function Product({ brand, productRef }) {
       <PriceHistory brand={product.brand} productRef={product.ref} defaultRange={noOffers ? 'all' : undefined} />
       <MoreFrom product={product} brandName={brandName} />
     </>
+  )
+}
+
+// schema.org data for search results, only with a current price: past prices
+// must never read as today's. "<" is escaped so text can't close the script tag.
+function ProductData({ product, brandName }) {
+  const offers = product.offers.filter((o) => o.price != null)
+  if (!offers.length) return null
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    sku: product.ref,
+    brand: { '@type': 'Brand', name: brandName },
+    image: product.images.map((i) => i.url),
+    offers: offers.map((o) => ({
+      '@type': 'Offer',
+      url: o.url,
+      price: o.price,
+      priceCurrency: o.currency,
+      seller: { '@type': 'Organization', name: o.source.name },
+      ...(o.available != null && {
+        availability: `https://schema.org/${o.available ? 'InStock' : 'OutOfStock'}`,
+      }),
+    })),
+  }
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
+    />
   )
 }
 
@@ -296,7 +334,7 @@ function MoreFrom({ product, brandName }) {
 
 function ProductSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading" className="page-container grid gap-12 pt-24 pb-section lg:grid-cols-12 lg:gap-8">
+    <div aria-busy="true" aria-label="Loading" className="page-container grid min-h-svh gap-12 pt-24 pb-section lg:grid-cols-12 lg:gap-8">
       <Skeleton className="aspect-4/5 lg:col-span-7" />
       <div className="grid content-start gap-5 lg:col-span-5 lg:pl-8">
         <Skeleton className="h-3 w-1/3" />

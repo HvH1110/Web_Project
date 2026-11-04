@@ -5,6 +5,10 @@ export const SITE = {
   tagline: 'Know the price before you step inside.',
 }
 
+// Search engines and link previews, when a page has nothing more specific.
+export const DEFAULT_DESCRIPTION =
+  'Official prices and price history of luxury houses in Vietnam, Singapore and Hong Kong.'
+
 // Top-level pages from the product spec.
 export const PAGES = [
   { to: '/search', label: 'Search' },

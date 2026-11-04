@@ -5,8 +5,8 @@ import FormFooter from '@/components/FormFooter'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
+import PageMeta from '@/components/PageMeta'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SITE } from '@/content/site'
 import { useForm } from '@/hooks/useForm'
 import { useAuth } from '@/hooks/useAuth'
 import {
@@ -31,7 +31,7 @@ export default function AccountPage() {
   if (auth.status === 'error') {
     return (
       <div className="page-container py-section">
-        <title>{`Account · ${SITE.name}`}</title>
+        <PageMeta title="Account" noindex />
         <LoadError
           error={auth.error}
           onRetry={auth.retry}
@@ -45,7 +45,7 @@ export default function AccountPage() {
   const { user } = auth
   return (
     <>
-      <title>{`Account · ${SITE.name}`}</title>
+      <PageMeta title="Account" noindex />
       <section className="page-container grid gap-4 pt-12 pb-12 sm:pt-16">
         <p className="eyebrow text-muted-foreground">Your account</p>
         <h1 className="font-serif text-display-lg break-words">{user.displayName}</h1>
@@ -200,8 +200,8 @@ function LogOut({ logout }) {
 
 function AccountSkeleton() {
   return (
-    <div className="page-container grid gap-4 pt-12 pb-section sm:pt-16" aria-busy="true">
-      <title>{`Account · ${SITE.name}`}</title>
+    <div className="page-container grid min-h-svh content-start gap-4 pt-12 pb-section sm:pt-16" aria-busy="true">
+      <PageMeta title="Account" noindex />
       <p className="eyebrow text-muted-foreground">Your account</p>
       <Skeleton className="h-16 w-full max-w-md rounded-none" />
       <Skeleton className="h-4 w-48 rounded-none" />

@@ -4,6 +4,7 @@ import SignatureCard from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import PageMeta from '@/components/PageMeta'
 import Reveal from '@/components/Reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES, brandsIn } from '@/content/brands'
@@ -32,6 +33,7 @@ export default function HomePage() {
 
   return (
     <>
+      <PageMeta />
       <Hero />
       <Intro />
       <HouseIndex brands={brands} />

@@ -8,8 +8,8 @@ import RequireMember from '@/components/community/RequireMember'
 import TopicForm from '@/components/community/TopicForm'
 import CtaButton from '@/components/CtaButton'
 import LoadError from '@/components/LoadError'
+import PageMeta from '@/components/PageMeta'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { useAuth } from '@/hooks/useAuth'
 import { useReplies } from '@/hooks/useReplies'
@@ -61,7 +61,7 @@ function Topic({ id }) {
 
   return (
     <div className="page-container pt-10 pb-section sm:pt-14">
-      <title>{`${topic.title} · ${SITE.name}`}</title>
+      <PageMeta title={topic.title} noindex />
 
       <nav aria-label="Breadcrumb">
         <ol className="eyebrow flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
@@ -296,7 +296,7 @@ function ReplyArea({ topic, onSubmit }) {
 function TopicGone() {
   return (
     <section className="page-container grid justify-items-center gap-6 py-section text-center">
-      <title>{`Topic not found · ${SITE.name}`}</title>
+      <PageMeta title="Topic not found" noindex />
       <p className="eyebrow text-muted-foreground">Error 404</p>
       <h1 className="max-w-3xl font-serif text-display-lg text-balance">This topic isn’t here.</h1>
       <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -311,7 +311,7 @@ function TopicGone() {
 
 function TopicSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading topic" className="page-container grid gap-5 pt-24 pb-section">
+    <div aria-busy="true" aria-label="Loading topic" className="page-container grid min-h-svh content-start gap-5 pt-24 pb-section">
       <Skeleton className="h-14 max-w-2xl" />
       <Skeleton className="h-3 w-48" />
       <Skeleton className="h-40 max-w-3xl" />

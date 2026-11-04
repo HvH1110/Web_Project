@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { SlidersHorizontal, X } from 'lucide-react'
 import CtaButton from '@/components/CtaButton'
+import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
 import SortSelect from '@/components/product/SortSelect'
 import SearchBox from '@/components/search/SearchBox'
@@ -9,7 +10,6 @@ import SearchFilters from '@/components/search/SearchFilters'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { SITE } from '@/content/site'
 import { useProducts } from '@/hooks/useProducts'
 import { formatDate } from '@/lib/format'
 import {
@@ -38,7 +38,10 @@ export default function SearchPage() {
 
   return (
     <>
-      <title>{`${filters.q ? `“${filters.q}” · ` : ''}Search · ${SITE.name}`}</title>
+      <PageMeta
+        title={`${filters.q ? `“${filters.q}” · ` : ''}Search`}
+        description="Search official luxury prices by house, collection, market and price, with where to buy in Vietnam, Singapore and Hong Kong."
+      />
 
       <section className="page-container pt-12 pb-12 sm:pt-16">
         <p className="eyebrow text-muted-foreground">Search</p>

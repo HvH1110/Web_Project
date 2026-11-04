@@ -1,9 +1,11 @@
 import { Link } from 'react-router'
 import CtaButton from '@/components/CtaButton'
+import PageMeta from '@/components/PageMeta'
 
 export default function NotFoundPage() {
   return (
     <section className="page-container grid justify-items-center gap-6 py-section text-center">
+      <PageMeta title="Page not found" noindex />
       <p className="eyebrow text-muted-foreground">Error 404</p>
       <h1 className="max-w-3xl font-serif text-display-lg text-balance">
         This page isn't in the catalog.
