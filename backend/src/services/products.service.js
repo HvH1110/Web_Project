@@ -11,11 +11,12 @@ export function offerStages(rates, markets) {
   const rateBranches = Object.entries(rates)
     .filter(([, rate]) => typeof rate === 'number')
     .map(([currency, rate]) => ({ case: { $eq: ['$$offer.currency', currency] }, then: rate }));
+  // Rounds half up like Math.round, used for past prices. $round rounds half to
+  // even, so the same price and rate could come out 1 VND lower and count as a drop.
   const priceVnd = {
-    $round: [
-      { $multiply: ['$$offer.price', { $switch: { branches: rateBranches, default: null } }] },
-      0,
-    ],
+    $floor: {
+      $add: [{ $multiply: ['$$offer.price', { $switch: { branches: rateBranches, default: null } }] }, 0.5],
+    },
   };
   const countedOffers = markets
     ? { $filter: { input: '$offers', as: 'offer', cond: { $in: ['$$offer.source.market', markets] } } }
