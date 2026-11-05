@@ -5,6 +5,7 @@ import cartierSg from './cartier-sg.js';
 import cartierVn from './cartier-vn.js';
 import dafcVn from './dafc-vn.js';
 import omegaHk from './omega-hk.js';
+import orientalwatchHk from './orientalwatch-hk.js';
 import thehourglassSg from './thehourglass-sg.js';
 
-export const sources = [dafcVn, thehourglassSg, cartierVn, cartierSg, cartierHk, omegaHk];
+export const sources = [dafcVn, thehourglassSg, orientalwatchHk, cartierVn, cartierSg, cartierHk, omegaHk];

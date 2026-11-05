@@ -15,7 +15,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - Prices are numbers in major units (e.g. `13450` SGD), exactly as shown on the source page.
 - All dates are UTC.
 - Source ids are `<site>-<market>`. In use:
-  - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
+  - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `orientalwatch-hk` (Rolex HK, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
   - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on, Louis Vuitton from 2015).
   - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`, `vancleefarpels-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
