@@ -9,6 +9,10 @@ const client = new S3Client({
   credentials: { accessKeyId: env.s3.accessKeyId, secretAccessKey: env.s3.secretAccessKey },
   // R2 and MinIO need path-style URLs when an endpoint is given.
   forcePathStyle: Boolean(env.s3.endpoint),
+  // Otherwise the SDK adds checksum headers that not every S3-compatible service
+  // accepts; R2's docs don't list them for PutObject.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 export async function put(key, body, contentType) {

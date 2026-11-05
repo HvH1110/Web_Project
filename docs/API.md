@@ -15,7 +15,7 @@ The single source of truth between `frontend/` and `backend/`.
 - Dates are ISO 8601 strings in UTC, e.g. `"2026-10-12T02:00:00.000Z"`.
 - Prices are numbers in major units, exactly as the source shows them (e.g. `13450` SGD). `priceVnd` values are converted and rounded to whole VND.
 - Markets: `VN`, `SG`, `HK`. Currencies: `VND`, `SGD`, `HKD`.
-- Every endpoint except `/api/health` answers **503** `Database unavailable` while the backend is not connected to MongoDB.
+- Every endpoint except `/api/health` answers **503** `Database unavailable` while the backend is not connected to MongoDB. In the first 20 seconds after the backend starts, requests wait for the connection instead, so a response can be slow but not a 503 unless the database stays unreachable. Hosting can add about a minute more when it wakes the backend, so show a loading state rather than a short timeout.
 
 ## Shared types
 

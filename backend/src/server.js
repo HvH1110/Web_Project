@@ -13,11 +13,8 @@ app.listen(env.port, (err) => {
   console.log(`Server listening on http://localhost:${env.port}`);
 });
 
-// Connect in the background so the API is up even if the database is not.
-connectDB(env.mongodbUri);
-
-// Every hour, delete forum images uploaded over a day ago but never posted.
-setInterval(async () => {
+// Delete forum images uploaded over a day ago but never posted.
+async function purgeUploads() {
   if (dbStatus() !== 'connected') {
     return;
   }
@@ -29,4 +26,9 @@ setInterval(async () => {
   } catch (err) {
     console.error(`Purging unused uploads failed: ${err.message}`);
   }
-}, HOUR).unref();
+}
+
+// Connect in the background so the API is up even if the database is not.
+// Purge on start too: a host that sleeps when idle may never reach the hour.
+connectDB(env.mongodbUri).then(purgeUploads);
+setInterval(purgeUploads, HOUR).unref();

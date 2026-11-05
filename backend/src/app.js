@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { checkOrigin } from './middleware/check-origin.js';
@@ -34,6 +35,10 @@ if (env.uploadStorage === 'local') {
     }),
   );
 }
+
+// After the uploads: images are already compressed. Outbound traffic is the
+// tightest limit of the free hosting plan (devops/DEPLOY.md).
+app.use(compression());
 
 app.use('/api', routes);
 
