@@ -13,6 +13,11 @@ Survey run 2026-10-12 from Vietnam with our own client (`npm run probe -- <url>`
 - `todo`: candidate found, not verified yet
 - `none`: no official or authorized online source found for this market
 
+## Open: stored data waiting for the user's approval
+Both are written and tested on a local database, and neither has been applied to Atlas. Each touches only the fields named, saves the old values first and can be undone with `--restore=<same file>`. Run from `crawler/`. Without `--apply` they only print what would change.
+- **Cartier specs** (356 of 505 products on 2026-11-05, `specs` only): `npm run tidy-cartier-specs -- --apply=C:/Users/ADMIN/cartier-specs-backup.json`
+- **Van Cleef & Arpels names and collection** (68 of 80 products on 2026-11-05, `name` and `collection` only: adds the material to names stored before the adapter did, corrects "Fleurs D Hawai"): `npm run tidy-vca-names -- --apply=C:/Users/ADMIN/vca-names-backup.json`
+
 ## Coverage
 
 | Brand | VN | SG | HK |

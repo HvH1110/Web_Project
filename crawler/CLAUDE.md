@@ -37,6 +37,7 @@ Update this section as you add scripts.
 - `npm run import-prices [-- file]`: imports prices a person read from official sites that block crawlers (default file `manual/prices.csv`, instructions in `manual/README.md`). All or nothing: one bad row and it lists every problem and writes nothing. Safe to re-run. Writes products, `offers` and `price_points` with origin `manual`. Only Chanel, Van Cleef & Arpels, Louis Vuitton, Dior and IWC: never a brand the daily crawl covers.
   - `--dry-run`: check the file and print the rows; no database
 - `npm run tidy-cartier-specs [-- --apply=<backup.json> | --restore=<backup.json>]`: one-off. Cleans the specs of stored Cartier products; with no option it only prints the changes.
+- `npm run tidy-vca-names [-- --apply=<backup.json> | --restore=<backup.json>]`: one-off. Adds the material to stored Van Cleef & Arpels names and corrects one collection; with no option it only prints the changes. Both one-offs are still to be applied: see the open list at the top of `SOURCES.md`.
 - `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
 - `npm run lint`: ESLint
 

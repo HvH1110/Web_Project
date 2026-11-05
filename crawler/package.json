@@ -13,6 +13,7 @@
     "probe": "node src/tools/probe.js",
     "import-prices": "node src/tools/import-prices.js",
     "tidy-cartier-specs": "node src/tools/tidy-cartier-specs.js",
+    "tidy-vca-names": "node src/tools/tidy-vca-names.js",
     "lint": "eslint ."
   },
   "dependencies": {

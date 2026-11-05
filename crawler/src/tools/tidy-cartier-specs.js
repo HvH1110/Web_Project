@@ -35,7 +35,7 @@ try {
     for (const [line, n] of [...values].sort((a, b) => b[1] - a[1])) console.log(`${n} x ${line}`);
     console.log(`${changes.length} of ${products.length} Cartier products would change`);
     if (backup) {
-      fs.writeFileSync(backup, JSON.stringify(changes.map(({ ref, before }) => ({ ref, specs: before }))));
+      fs.writeFileSync(backup, JSON.stringify(changes.map(({ ref, before }) => ({ ref, specs: before }))), { flag: 'wx' }); // never over an earlier backup
       const ops = changes.map(({ ref, after }) => ({ updateOne: { filter: { brand: 'cartier', ref }, update: { $set: { specs: after } } } }));
       if (ops.length) await Product.bulkWrite(ops, { ordered: false });
       console.log(`Updated ${ops.length} products; old values saved to ${backup}`);
