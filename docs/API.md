@@ -120,6 +120,10 @@ The logged-in member, as returned to that member only.
 ### Deal
 One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart by `type`. Every deal has `type`, `product` (a ProductSummary) and `savingPct` (percentage saved, rounded to 2 decimals, always > 0).
 
+**Hand-entered prices never count.** They can be weeks old, so the server leaves them out and `items`, `total` and `totalPages` are already correct; don't filter on the client.
+- The offers in a deal (`cheapest.offer`, `dearest.offer`, `offer`) never have `origin: manual`.
+- `product.lowestPriceVnd` still counts manual offers, so it can be lower than a deal's prices. Show the deal's own prices on a deal.
+
 **`market`: cheapest market.** Buying the product in its cheapest market instead of its most expensive one, comparing current prices in VND.
 ```json
 {
@@ -131,7 +135,7 @@ One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart 
 }
 ```
 - `savingPct` = (dearest − cheapest) / dearest × 100.
-- Each market is represented by its cheapest offer. Needs offers with a `priceVnd` in at least two markets, so SGD and HKD prices only count once exchange rates are stored.
+- Each market is represented by its cheapest non-manual offer. Needs such offers with a `priceVnd` in at least two markets, so SGD and HKD prices only count once exchange rates are stored. A product with crawled prices in two markets and a manual one in a third compares just the two crawled ones.
 - Based on current prices, so the same market deals appear for every `period`.
 
 **`drop`: price drop.** The current price is **at least 1% lower** than the price in effect at the start of the period, in the source's own currency (rare) or in VND (usually because of exchange-rate moves). Smaller drops are not listed, so `savingPct` is always at least 1 for this type; `market` deals have no minimum.
@@ -156,6 +160,7 @@ One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart 
 - `offer`: the current offer, for the "where to buy" link.
 - At most one drop deal per product and market (if a market has several sources, the one with the biggest drop).
 - A product whose first recorded price is after `since` has nothing to compare against, so it has no drop deal for that period.
+- A source has no drop deal while its current offer is manual, or when the last recorded price at or before `since` is a manual point. Older points are not used instead. A manual point after `since` changes nothing.
 
 ## Endpoints
 

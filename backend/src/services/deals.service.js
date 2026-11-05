@@ -21,7 +21,7 @@ export function periodStart(period, now) {
 }
 
 // Each source's price in effect at `date`: the last price point at or before it.
-// Map `${productId}:${sourceId}` -> { price, currency }.
+// Map `${productId}:${sourceId}` -> { price, currency, origin }.
 export async function loadPricesAt(date) {
   const rows = await PricePoint.aggregate([
     { $match: { observedAt: { $lte: date } } },
@@ -31,11 +31,12 @@ export async function loadPricesAt(date) {
         _id: { productId: '$productId', sourceId: '$sourceId' },
         price: { $last: '$price' },
         currency: { $last: '$currency' },
+        origin: { $last: '$origin' },
       },
     },
   ]).allowDiskUse(true);
   return new Map(
-    rows.map(({ _id, price, currency }) => [`${_id.productId}:${_id.sourceId}`, { price, currency }]),
+    rows.map(({ _id, price, currency, origin }) => [`${_id.productId}:${_id.sourceId}`, { price, currency, origin }]),
   );
 }
 
@@ -45,6 +46,12 @@ function percentOff(before, after) {
 
 function marketPrice(offer) {
   return { market: offer.source.market, priceVnd: offer.priceVnd, offer: toOfferDto(offer) };
+}
+
+// Hand-entered prices never count in deals (docs/PRODUCT.md): they can be weeks
+// old. Older rows may have no origin at all, and those are crawled.
+function isManual(priced) {
+  return priced.origin === 'manual';
 }
 
 // `products`: [{ _id, offers }] from a pipeline with offerStages(), so every
@@ -58,7 +65,7 @@ export function findMarketDeals(products) {
     const cheapestByMarket = new Map();
     for (const offer of product.offers) {
       const market = offer.source?.market;
-      if (offer.priceVnd == null || !market) {
+      if (isManual(offer) || offer.priceVnd == null || !market) {
         continue;
       }
       const current = cheapestByMarket.get(market);
@@ -89,13 +96,15 @@ export function findMarketDeals(products) {
 // `pricesThen` comes from loadPricesAt(since); `rateThen(currency)` is VND per
 // unit at `since`, or null. savingPct is the larger of the two drops, at least
 // MIN_DROP_PCT. One deal per product and market: the source with the biggest drop.
+// A manual price at `since` means no comparison, not a fallback to an older point,
+// which could show a drop from a price that had already changed.
 export function findDropDeals(products, pricesThen, rateThen, since) {
   const deals = [];
   for (const product of products) {
     const bestByMarket = new Map();
     for (const offer of product.offers) {
       const then = pricesThen.get(`${product._id}:${offer.source?.id}`);
-      if (offer.price == null || !then || !(then.price > 0) || then.currency !== offer.currency) {
+      if (isManual(offer) || offer.price == null || !then || isManual(then) || !(then.price > 0) || then.currency !== offer.currency) {
         continue;
       }
       const rate = rateThen(offer.currency);
