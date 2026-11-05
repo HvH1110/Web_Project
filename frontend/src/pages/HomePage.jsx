@@ -49,7 +49,7 @@ function Hero() {
   return (
     // Pulled up under the transparent header; fills the screen below the announcement bar.
     <section className="dark relative -mt-header h-[calc(100svh-var(--spacing-bar))] min-h-[36rem] text-foreground">
-      <ImagePlaceholder tone="ink" label="Campaign image" className="absolute inset-0">
+      <ImagePlaceholder tone="ink" className="absolute inset-0">
         <div className="absolute inset-0 bg-linear-to-b from-black/45 via-transparent to-black/40" />
       </ImagePlaceholder>
 
@@ -239,8 +239,6 @@ function BrandFeature({ brand, info, loading }) {
         <ImagePlaceholder
           tone={brand.tone}
           category={brand.category}
-          label={`${brand.name} campaign image`}
-          captionClassName="top-4 bottom-auto"
           className="group aspect-4/5 text-ivory sm:aspect-auto sm:h-[80svh] sm:max-h-240 sm:min-h-120"
         >
           <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 via-black/20 to-transparent pt-32 pb-10 sm:pb-14">
@@ -302,7 +300,6 @@ function BrandSplit({ brand, info, loading, flip }) {
         <ImagePlaceholder
           tone={brand.tone}
           category={brand.category}
-          label={`${brand.name} campaign image`}
           className="group aspect-4/5"
         />
       </Reveal>

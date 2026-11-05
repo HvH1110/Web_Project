@@ -23,14 +23,12 @@ const ICONS = {
 
 // Stand-in for a product or campaign photo until real images arrive.
 // Size it with className (e.g. aspect-4/5 or absolute inset-0). Children are
-// laid over the art and don't zoom with it; move the caption out of their way
-// with captionClassName. Inside a `group`, the art drifts
+// laid over the art and don't zoom with it. Inside a `group`, the art drifts
 // in slowly on hover.
 export default function ImagePlaceholder({
   tone = 'stone',
   category,
   label,
-  captionClassName,
   className,
   children,
 }) {
@@ -60,7 +58,6 @@ export default function ImagePlaceholder({
           className={cn(
             'eyebrow pointer-events-none absolute right-4 bottom-4 text-[0.625rem]',
             TONES[tone].caption,
-            captionClassName,
           )}
         >
           {label}
