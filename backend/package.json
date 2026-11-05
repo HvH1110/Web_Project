@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "seed:brands": "node scripts/seed-brands.js",
     "set-role": "node scripts/set-role.js",
+    "pretest": "node tests/download-mongodb.js",
     "test": "node --test"
   },
   "dependencies": {
