@@ -62,7 +62,7 @@ function Product({ brand, productRef }) {
       <PageMeta
         title={`${product.name} · ${brandName}`}
         description={`${brandName} ${product.name}, ref. ${product.ref}: ${
-          noOffers ? 'last known prices' : 'official prices and where to buy'
+          noOffers ? 'last known prices' : 'official prices'
         } in Vietnam, Singapore and Hong Kong, with price history.`}
       />
       <ProductData product={product} brandName={brandName} />
