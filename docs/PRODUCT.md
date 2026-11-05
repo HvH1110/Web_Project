@@ -18,11 +18,12 @@ In Vietnam, many luxury houses don't publish their prices. Buyers have to walk i
 | Watches | Rolex, Omega, IWC |
 
 ### Markets
-Vietnam (VND), Singapore (SGD), Hong Kong (HKD). Prices are shown in their original currency and converted to VND.
+Vietnam (VND), Singapore (SGD), Hong Kong (HKD). Prices are shown in their original currency and converted to VND at Vietcombank's sell rate, and the site says so.
 
 ### Data rules
 - Sources are only official brand websites and authorized dealers. No resellers, marketplaces or grey-market sites, even if they are easier to crawl.
 - Every price records its source (store + URL) and the date it was seen.
+- Official sites that block crawlers can be covered by hand: 10 to 20 signature products per brand, read from the official site in a normal browser and imported from a CSV with the source URL and date seen. These prices are marked as `manual`, and the site shows that they were checked by hand and when.
 - Per product: name, brand reference code, category, collection, description, specs, 2 to 4 images, current price per market, price history.
 
 ## Pages
@@ -37,14 +38,14 @@ Vietnam (VND), Singapore (SGD), Hong Kong (HKD). Prices are shown in their origi
 ### What counts as a deal
 Official luxury prices almost never go down; brands raise them a few times a year. So a "deal" here means one of:
 - **Cheapest market:** the biggest gap between the cheapest and the most expensive market for the same item, after converting to VND.
-- **Price drop:** the current price is lower than at the start of the period (day, month, year), either in its own currency (rare) or in VND because of exchange-rate moves.
+- **Price drop:** the current price is at least 1% lower than at the start of the period (day, month, year), either in its own currency (rare) or in VND because of exchange-rate moves.
 
-Deals are ranked by percentage saved.
+Deals are ranked by percentage saved. A deal whose offer is out of stock stays listed, labelled "Out of stock online", because the stock flag only covers online stock and the boutique may still have the item. Hand-entered (`manual`) prices never count in deals, since they can be weeks old; they still appear on product pages and in search.
 
 ## Price history
 - **Daily crawls from now on** are the main source. History grows every day.
 - **Backfill from the Internet Archive (Wayback Machine)** snapshots of the same official product pages, best effort. Expect gaps for 2015 to 2025: many pages were never archived, and on many sites the price loads with JavaScript and was not captured.
-- Each history point records where it came from (`crawl` or `wayback`).
+- Each history point records where it came from (`crawl`, `wayback` or `manual`).
 - Exchange rates are stored per day, so a 2018 SGD price is converted at the 2018 rate, not today's.
 
 ## Phases
