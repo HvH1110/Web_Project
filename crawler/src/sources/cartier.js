@@ -25,6 +25,23 @@ function hash(text) {
   return h;
 }
 
+// Cartier's data has codes where a person would write words: "50HOUR",
+// "Gold,Sapphire", "2.6mm", and "Rose Gold" beside "Rose gold". Values read the
+// same on the page apart from this. "28,800 vibrations" keeps its comma.
+export function tidySpecValue(label, value) {
+  const hours = value.match(/^(\d+(?:\.\d+)?)\s*HOURS?$/i);
+  if (hours) return `${hours[1]} hours`;
+  let tidy = value
+    .replace(/,([^\s\d])/g, (_, ch) => `, ${ch.toLowerCase()}`)
+    .replace(/(\d)(mm|cm)\b/g, '$1 $2');
+  if (label === 'Material') tidy = tidy.replace(/ [A-Z][a-z]+/g, (word) => word.toLowerCase());
+  return tidy;
+}
+
+export function tidySpecs(specs) {
+  return Object.fromEntries(Object.entries(specs).map(([label, value]) => [label, tidySpecValue(label, value)]));
+}
+
 export function cartierSource({ market, locale, currency }) {
   const base = `https://www.cartier.com/${locale}/`;
   const categoryOf = (url) => {
@@ -125,7 +142,7 @@ export function cartierSource({ market, locale, currency }) {
         category,
         collection: data('item-collection'),
         description: lines.join('\n') || undefined,
-        specs,
+        specs: tidySpecs(specs),
         images,
         url,
         currency,

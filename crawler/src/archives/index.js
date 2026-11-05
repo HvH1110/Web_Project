@@ -6,6 +6,7 @@
 import { diorArchive } from './dior.js';
 import { iwcArchive } from './iwc.js';
 import { louisVuittonArchive } from './louisvuitton.js';
+import { vanCleefArchive } from './vancleefarpels.js';
 
 export const archives = [
   louisVuittonArchive({ market: 'SG', hosts: ['sg.louisvuitton.com', 'ap.louisvuitton.com'], locale: 'eng-sg', currency: 'SGD' }),
@@ -14,4 +15,6 @@ export const archives = [
   diorArchive({ market: 'HK', locale: 'en_hk', currency: 'HKD' }),
   iwcArchive({ market: 'SG', path: 'sg/en', currency: 'SGD' }),
   iwcArchive({ market: 'HK', path: 'hk/en', currency: 'HKD' }),
+  vanCleefArchive({ market: 'SG', path: 'sg/en', currency: 'SGD' }),
+  vanCleefArchive({ market: 'HK', path: 'hk/en', currency: 'HKD' }),
 ];

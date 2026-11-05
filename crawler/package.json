@@ -12,6 +12,7 @@
     "backfill": "node src/backfill.js",
     "probe": "node src/tools/probe.js",
     "import-prices": "node src/tools/import-prices.js",
+    "tidy-cartier-specs": "node src/tools/tidy-cartier-specs.js",
     "lint": "eslint ."
   },
   "dependencies": {

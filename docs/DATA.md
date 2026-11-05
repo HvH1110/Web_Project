@@ -16,7 +16,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - All dates are UTC.
 - Source ids are `<site>-<market>`. In use:
   - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `orientalwatch-hk` (Rolex HK, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
-  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on, Louis Vuitton from 2015).
+  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`, `vancleefarpels-sg`, `vancleefarpels-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on, Louis Vuitton from 2015).
   - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`, `vancleefarpels-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
@@ -26,13 +26,13 @@ One document per real product, shared across markets. The first source that sees
 | Field | Type | Notes |
 |---|---|---|
 | `brand` | string | brand slug |
-| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product); accessories (cufflinks, desk clocks, category `accessories`) use their own code, e.g. `A1015`, `C909010LN-0001`. Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). Louis Vuitton: the product code, e.g. `M12929`, `1AK1FB`. Dior: the style code with its colour variant, e.g. `M0538ONGE_M27V`. IWC: e.g. `IW545901`. Omega: the dotted reference the page shows, e.g. `210.30.42.20.03.001`. |
+| `ref` | string | brand's reference / style code, normalized (uppercase, no spaces). Matching key across markets. Unique together with `brand`. Van Cleef & Arpels: the code in its URLs, e.g. `VCARA29600`. Rolex: the model code with its variant, e.g. `M126610LN-0001` (each dial or bracelet variant is its own product); accessories (cufflinks, desk clocks, category `accessories`) use their own code, e.g. `A1015`, `C909010LN-0001`. Cartier: the reference shown on the page, e.g. `WSSA0083` (without the `CR` that cartier.com adds in URLs). Louis Vuitton: the product code, e.g. `M12929`, `1AK1FB`. Dior: the style code with its colour variant, e.g. `M0538ONGE_M27V`. IWC: e.g. `IW545901`. Omega: the dotted reference the page shows, e.g. `210.30.42.20.03.001`. |
 | `name` | string | |
 | `category` | string | `bags`, `accessories`, `shoes`, `clothing`, `jewelry`, `watches` (extend here if needed) |
 | `collection` | string? | e.g. `Neverfull`, `Lady Dior`, `LOVE`, `Submariner`, as the source writes it |
 | `description` | string? | may contain `\n` line breaks (one per bullet point) |
 | `specs` | object | free-form key/value: keys as the source labels them, in sentence case (e.g. `Model case`, `Calibre`, `Water resistance`); values are strings |
-| `images` | `[{ url, sourceId, alt }]` | up to 4, original URLs plus credit. Usually 2 to 4, but can be empty when the source page shows no picture (a few Cartier high-jewellery pieces). For archive-only products the URLs are the brand's own image URLs as they were in the archived page; old ones may no longer load, so show a placeholder on error |
+| `images` | `[{ url, sourceId, alt }]` | up to 4, original URLs plus credit. Usually 2 to 4, but can be empty when the source page shows no picture (a few Cartier pieces, whose pages have no picture). For archive-only products the URLs are the brand's own image URLs as they were in the archived page; old ones may no longer load, so show a placeholder on error |
 | `createdAt`, `updatedAt` | date | |
 
 Indexes: unique `{ brand: 1, ref: 1 }`; text index on `name`, `collection`, `ref`.
