@@ -175,6 +175,14 @@ Health check. Also reports whether the backend is connected to MongoDB Atlas.
 ```
 `db` is `"connected"` or `"disconnected"`.
 
+### `GET /api/sitemap.xml`
+Sitemap for search engines, as `application/xml`, not JSON. Lists `/`, `/search`, `/deals`, every `/brands/:slug` and every `/products/:brand/:ref`, at the address in `CLIENT_ORIGIN`. The `ref` is URL-encoded as in the frontend's links. Community and account pages are left out.
+
+- `lastmod` (`YYYY-MM-DD`) is the product's latest price change or the day it was added, whichever is later, and is left out when it has neither. Static and brand pages have no `lastmod`.
+- Rebuilt at most once an hour, and `Cache-Control: public, max-age=86400`, so a new product can take that long to appear.
+
+Errors: 503 like other endpoints, as JSON.
+
 ### `GET /api/brands`
 All brands, in the order the home page shows them (Louis Vuitton, Dior, Chanel, Cartier, Van Cleef & Arpels, Rolex, Omega, IWC).
 
