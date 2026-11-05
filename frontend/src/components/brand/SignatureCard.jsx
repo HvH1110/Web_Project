@@ -18,11 +18,13 @@ export default function SignatureCard({ piece, brand, compact = false, linked = 
         className="aspect-4/5"
       />
       <div className={cn('grid', compact ? 'gap-1' : 'gap-1.5')}>
-        {piece.year && (
-          <p className={cn('eyebrow text-muted-foreground', compact && 'text-[0.625rem] tracking-[0.16em]')}>
-            Since {piece.year}
-          </p>
-        )}
+        {/* Without a year the line stays empty, so names in a row still line up. */}
+        <p
+          aria-hidden={!piece.year}
+          className={cn('eyebrow text-muted-foreground', compact && 'text-[0.625rem] tracking-[0.16em]')}
+        >
+          {piece.year ? `Since ${piece.year}` : ' '}
+        </p>
         <h4 className={cn('font-serif', compact ? 'text-lg leading-tight' : 'text-display-sm')}>
           {linked ? (
             // Stretched over the card so the whole card is one link.

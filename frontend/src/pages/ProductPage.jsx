@@ -135,9 +135,12 @@ function Product({ brand, productRef }) {
               </div>
             )}
             {Object.keys(product.specs ?? {}).length > 0 && (
-              <div className="grid content-start gap-6 lg:col-span-5 lg:col-start-8">
+              <div
+                className={`grid content-start gap-6 ${product.description ? 'lg:col-span-5 lg:col-start-8' : 'lg:col-span-7'}`}
+              >
                 <h2 className="eyebrow">Specifications</h2>
-                <FactList items={Object.entries(product.specs)} />
+                {/* Some sources name a spec with an underscore, like gem_setting. */}
+                <FactList items={Object.entries(product.specs).map(([name, value]) => [name.replaceAll('_', ' '), value])} />
               </div>
             )}
           </div>

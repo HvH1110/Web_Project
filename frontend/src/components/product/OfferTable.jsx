@@ -97,7 +97,7 @@ function PriceCell({ offer, lowest }) {
         )}
       </div>
       {converted && (
-        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+        <p className="mt-1 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
           ≈ {formatPrice(offer.priceVnd, 'VND')}
         </p>
       )}

@@ -136,7 +136,7 @@ function Masthead({ brand }) {
     ...(brand.productCount
       ? [
           ['Products tracked', brand.productCount],
-          ['Collections', brand.collections.length || '—'],
+          ...(brand.collections.length ? [['Collections', brand.collections.length]] : []),
         ]
       : [['Prices', 'Not available']]),
   ]
