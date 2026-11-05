@@ -199,7 +199,7 @@ function Summary({ products, q }) {
         {busy ? 'Searching' : `${total.toLocaleString('en-US')} ${total === 1 ? 'result' : 'results'}`}
         {!busy && q && ` for “${q}”`}
       </p>
-      {!busy && (
+      {!busy && total > 0 && (
         <p className="text-xs text-muted-foreground">
           {rates?.length
             ? `VND prices are converted at ${RATE_SOURCE}: ${rates
