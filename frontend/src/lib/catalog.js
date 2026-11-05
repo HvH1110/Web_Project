@@ -89,6 +89,10 @@ export const NO_CURRENT_PRICE = 'No current online price'
 export const pricesUnavailable = (name) =>
   `${name}’s website doesn’t allow automated access, so we can’t collect its official prices, and we don’t work around that. For a price, please ask a ${name} boutique.`
 
+// Whether any of these products has a price today. Archive-only houses have none,
+// so there's nothing for an exchange-rate line to explain.
+export const hasCurrentPrices = (products) => products.some((p) => p.offers.length > 0)
+
 // The stock flag only covers online stock: the boutique may still have the piece.
 export const OUT_OF_STOCK = 'Out of stock online'
 

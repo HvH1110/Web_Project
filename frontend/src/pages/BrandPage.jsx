@@ -13,8 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES } from '@/content/brands'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
-import { getBrand } from '@/lib/api'
-import { DEFAULT_SORT, RATE_SOURCE, matchCollection, pricesUnavailable } from '@/lib/catalog'
+import { getBrand, getProducts } from '@/lib/api'
+import { DEFAULT_SORT, RATE_SOURCE, hasCurrentPrices, matchCollection, pricesUnavailable } from '@/lib/catalog'
 import { formatDate, pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -86,10 +86,9 @@ function Brand({ slug }) {
                 All products
               </h2>
               <p className="text-sm text-muted-foreground">
-                {b.productCount} {b.productCount === 1 ? 'piece' : 'pieces'} tracked across Vietnam,
-                Singapore and Hong Kong
+                {b.productCount} {b.productCount === 1 ? 'piece' : 'pieces'} tracked
               </p>
-              {products.fx && (
+              {products.fx && hasCurrentPrices(products.items) && (
                 <p className="text-xs text-muted-foreground">
                   VND prices are converted at {RATE_SOURCE} of {formatDate(products.fx.date)}.
                 </p>
@@ -223,8 +222,20 @@ function History({ brand }) {
 }
 
 // Each piece links to its collection below when the brand has one by that
-// name, otherwise to a search for it.
+// name, otherwise to a search for it, but only once that search is known to
+// find something. Many signature pieces are never sold with a public price.
 function Signatures({ brand }) {
+  const toSearch = brand.signatureProducts.filter((piece) => !matchCollection(piece.name, brand.collections))
+  const found = useApi(`${brand.slug}/signatures`, (signal) =>
+    brand.productCount
+      ? Promise.all(
+          toSearch.map((piece) =>
+            getProducts({ brand: brand.slug, q: piece.name, limit: 1 }, { signal }).then((r) => [piece.name, r.total]),
+          ),
+        ).then(Object.fromEntries)
+      : Promise.resolve({}),
+  )
+
   return (
     <section id="signatures" aria-labelledby="signatures-title" className="scroll-mt-header border-t">
       <div className="page-container py-section">
@@ -249,7 +260,7 @@ function Signatures({ brand }) {
                 <p className="max-w-prose text-sm leading-relaxed text-muted-foreground md:col-span-3">
                   {piece.description}
                 </p>
-                {brand.productCount > 0 && (
+                {(collection || found.data?.[piece.name] > 0) && (
                   <Link
                     to={
                       collection

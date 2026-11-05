@@ -3,12 +3,11 @@ import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { cn } from '@/lib/utils'
 
 // A brand's signature piece (Brand.signatureProducts in ../docs/API.md):
-// image, year introduced, name and one line about it. Links to a search for
-// the piece within its house, unless `linked` is false because the house has no
-// products to find. `compact` is the small three-up version, without the
-// description.
+// image, year introduced, name and one line about it. Links to the house's list
+// of signature pieces, which only links on to products that exist, unless
+// `linked` is false because the house has no products to find. `compact` is the
+// small three-up version, without the description.
 export default function SignatureCard({ piece, brand, compact = false, linked = true, className }) {
-  const search = `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
   return (
     <article className={cn('group relative grid content-start', compact ? 'gap-3' : 'gap-5', className)}>
       <ImagePlaceholder
@@ -28,7 +27,7 @@ export default function SignatureCard({ piece, brand, compact = false, linked = 
         <h4 className={cn('font-serif', compact ? 'text-lg leading-tight' : 'text-display-sm')}>
           {linked ? (
             // Stretched over the card so the whole card is one link.
-            <Link to={search} className="after:absolute after:inset-0">
+            <Link to={`/brands/${brand.slug}#signatures`} className="after:absolute after:inset-0">
               {piece.name}
             </Link>
           ) : (

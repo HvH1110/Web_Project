@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
 import { getBrands } from '@/lib/api'
-import { RATE_SOURCE, pricesUnavailable } from '@/lib/catalog'
+import { RATE_SOURCE, hasCurrentPrices, pricesUnavailable } from '@/lib/catalog'
 import { formatDate } from '@/lib/format'
 import {
   CLEAR_ALL,
@@ -188,7 +188,7 @@ function ActiveFilters({ filters, onRemove, onClear }) {
 
 // "135 results for “sub”" and the exchange rates behind the VND prices.
 function Summary({ products, q }) {
-  const { total, fx, loading, refreshing, error } = products
+  const { items, total, fx, loading, refreshing, error } = products
   if (error) return null
   const busy = loading || refreshing
   const rates = fx && ['SGD', 'HKD'].filter((c) => fx.vndPer[c] != null)
@@ -199,7 +199,7 @@ function Summary({ products, q }) {
         {busy ? 'Searching' : `${total.toLocaleString('en-US')} ${total === 1 ? 'result' : 'results'}`}
         {!busy && q && ` for “${q}”`}
       </p>
-      {!busy && total > 0 && (
+      {!busy && hasCurrentPrices(items) && (
         <p className="text-xs text-muted-foreground">
           {rates?.length
             ? `VND prices are converted at ${RATE_SOURCE}: ${rates
