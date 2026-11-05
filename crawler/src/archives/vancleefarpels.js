@@ -45,9 +45,14 @@ export function vanCleefArchive({ market, path, currency }) {
       if (!code) return null;
       const ref = code.toUpperCase();
       // Only this page's own product: its sku is the code in the URL.
-      const own = ldProducts(cheerio.load(html)).filter((p) => clean(p.sku)?.toUpperCase() === ref);
-      const name = clean(own[0]?.name);
-      if (!name) return null;
+      const $ = cheerio.load(html);
+      const own = ldProducts($).filter((p) => clean(p.sku)?.toUpperCase() === ref);
+      const title = clean(own[0]?.name);
+      if (!title) return null;
+      // Printed under the title: "18K yellow gold, Onyx". Variants share a title
+      // ("Vintage Alhambra earrings") and differ only by this, so it goes in the name.
+      const material = clean($('.vca-pdp-material').first().text());
+      const name = material ? `${title}, ${material}` : title;
 
       const offers = own.flatMap((p) => [].concat(p.offers ?? []));
       for (const offer of offers) {
@@ -64,9 +69,9 @@ export function vanCleefArchive({ market, path, currency }) {
         ref,
         name,
         category: folders.startsWith('watches') ? 'watches' : 'jewelry',
-        collection: folder === 'other-collections' ? undefined : COLLECTION_NAMES[folder] ?? titleCase(folder),
+        collection: COLLECTION_NAMES[folder] ?? titleCase(folder),
         description: clean(own[0].description),
-        specs: {},
+        specs: material ? { Material: material } : {},
         images: [...new Set(own.flatMap((p) => ldImages(p.image)))].slice(0, 4).map((src) => ({ url: src, alt: name })),
         url,
         currency,

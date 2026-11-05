@@ -8,7 +8,8 @@
 //      the archived pages showed (price_points with origin "wayback").
 // Safe to re-run and to stop at any time; the next run continues the queue.
 // If the archive says it is busy (429/503) the run pauses and carries on; it
-// stops only when the archive stays busy (BUSY_PAUSES_MIN).
+// stops only when the archive stays busy (BUSY_PAUSES_MIN). Refused connections
+// in a row count as busy. Run one at a time: the delay between requests is per run.
 //   --oldest-first   fetch the oldest queued snapshots first, to reach far back sooner
 //   --dry-run   no database: read one page of the index per source, fetch the
 //               newest --limit (default 3) product pages and print the items
@@ -55,6 +56,7 @@ const BUSY_PAUSES_MIN = [2, 5, 15, 30];
 // Paused in all per run: the nightly job has about 100 minutes to spare before
 // its timeout, and a run that ends by itself still prints its summary.
 const MAX_BUSY_PAUSED_MIN = 90;
+const REFUSED_IN_A_ROW = 3;
 // A page that timed out, lost its connection or got a 5xx is tried again on
 // later runs, this many times. Other errors would only fail the same way.
 const MAX_RETRIES = 3;
@@ -219,6 +221,19 @@ async function processQueues(sources, queues) {
   let done = 0;
   let busyInARow = 0;
   let busyPausedMin = 0;
+  let refusedInARow = 0;
+  // Waits before the next try, longer each time; throws when it's been too long.
+  const pauseOrStop = async (err) => {
+    const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, (err.retryAfterMs ?? 0) / 60000);
+    if (busyPausedMin + pauseMin > MAX_BUSY_PAUSED_MIN) {
+      err.message += ' Stopping; the next run continues the queue.';
+      throw err;
+    }
+    console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
+    busyInARow += 1;
+    busyPausedMin += pauseMin;
+    await sleep(pauseMin * 60000);
+  };
   let active = queues.filter((q) => q.pending.length);
   while (done < limit && active.length) {
     for (const q of active) {
@@ -237,22 +252,16 @@ async function processQueues(sources, queues) {
         q.stats[status] += 1;
         q.errorsInARow = 0;
         busyInARow = 0;
+        refusedInARow = 0;
       } catch (err) {
         if (err instanceof ArchiveBusyError) {
-          const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, err.retryAfterMs / 60000);
-          if (busyPausedMin + pauseMin > MAX_BUSY_PAUSED_MIN) {
-            err.message += ' Stopping; the next run continues the queue.';
-            throw err;
-          }
-          console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
-          busyInARow += 1;
-          busyPausedMin += pauseMin;
-          await sleep(pauseMin * 60000);
+          await pauseOrStop(err);
           // Not this page's fault: it goes back to the front of its queue.
           q.pending.unshift(snap);
           done -= 1;
           continue;
         }
+        if (err.message === 'fetch failed') refusedInARow += 1;
         Object.assign(update, { status: err instanceof RobotsDisallowedError ? 'missing' : 'error', error: err.message });
         q.stats[update.status] += 1;
         if (update.status === 'error') {
@@ -269,6 +278,11 @@ async function processQueues(sources, queues) {
       // A page that worked on a retry no longer has an error.
       const drop = update.status === 'missing' ? { original: 1, error: 1 } : { error: 1 };
       await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...(update.status === 'error' ? {} : { $unset: drop }) });
+      // The archive also limits a client by refusing its connections, with no
+      // 429 or 503 to read: treat several in a row as busy.
+      if (refusedInARow >= REFUSED_IN_A_ROW) {
+        await pauseOrStop(new Error(`web.archive.org refused ${refusedInARow} connections in a row.`));
+      }
     }
     active = active.filter((q) => q.pending.length);
   }
