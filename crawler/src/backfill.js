@@ -7,6 +7,8 @@
 //      taking turns between sources) and saves the products and the prices
 //      the archived pages showed (price_points with origin "wayback").
 // Safe to re-run and to stop at any time; the next run continues the queue.
+// If the archive says it is busy (429/503) the run pauses and carries on; it
+// stops only when the archive stays busy (BUSY_PAUSES_MIN).
 //   --oldest-first   fetch the oldest queued snapshots first, to reach far back sooner
 //   --dry-run   no database: read one page of the index per source, fetch the
 //               newest --limit (default 3) product pages and print the items
@@ -46,6 +48,19 @@ if (unknown.length) {
 const selected = wanted.length ? archives.filter((a) => wanted.includes(a.id)) : archives;
 
 const MAX_ERRORS_IN_A_ROW = 10;
+// Pauses in a row, in minutes, while the archive keeps answering 429/503.
+// Stopping at the first one cost a run most of its pages (about 320 of 2,000 on
+// 2026-11-05). After the last pause: stop the run.
+const BUSY_PAUSES_MIN = [2, 5, 15, 30];
+// Paused in all per run: the nightly job has about 100 minutes to spare before
+// its timeout, and a run that ends by itself still prints its summary.
+const MAX_BUSY_PAUSED_MIN = 90;
+// A page that timed out, lost its connection or got a 5xx is tried again on
+// later runs, this many times. Other errors would only fail the same way.
+const MAX_RETRIES = 3;
+const RETRYABLE_ERROR = /^(fetch failed|The operation was aborted|HTTP 5\d\d)/;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // https, no port, query or fragment: one key per product page.
 function normalizeUrl(raw) {
@@ -190,6 +205,10 @@ async function dryRunSource(source) {
 
 // Step 2: work through the queues, taking turns between sources.
 async function processQueues(sources, queues) {
+  await WaybackSnapshot.updateMany(
+    { sourceId: { $in: sources.map((s) => s.id) }, status: 'error', error: RETRYABLE_ERROR, retries: { $not: { $gte: MAX_RETRIES } } },
+    { $set: { status: 'pending' }, $inc: { retries: 1 } },
+  );
   for (const source of sources) {
     const pending = (
       await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' }).sort({ timestamp: oldestFirst ? 1 : -1 }).limit(limit).lean()
@@ -198,6 +217,8 @@ async function processQueues(sources, queues) {
   }
 
   let done = 0;
+  let busyInARow = 0;
+  let busyPausedMin = 0;
   let active = queues.filter((q) => q.pending.length);
   while (done < limit && active.length) {
     for (const q of active) {
@@ -215,8 +236,23 @@ async function processQueues(sources, queues) {
         }
         q.stats[status] += 1;
         q.errorsInARow = 0;
+        busyInARow = 0;
       } catch (err) {
-        if (err instanceof ArchiveBusyError) throw err;
+        if (err instanceof ArchiveBusyError) {
+          const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, err.retryAfterMs / 60000);
+          if (busyPausedMin + pauseMin > MAX_BUSY_PAUSED_MIN) {
+            err.message += ' Stopping; the next run continues the queue.';
+            throw err;
+          }
+          console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
+          busyInARow += 1;
+          busyPausedMin += pauseMin;
+          await sleep(pauseMin * 60000);
+          // Not this page's fault: it goes back to the front of its queue.
+          q.pending.unshift(snap);
+          done -= 1;
+          continue;
+        }
         Object.assign(update, { status: err instanceof RobotsDisallowedError ? 'missing' : 'error', error: err.message });
         q.stats[update.status] += 1;
         if (update.status === 'error') {
@@ -230,8 +266,9 @@ async function processQueues(sources, queues) {
       }
       // A page that is gone is never fetched again: its URL can go. A no-data
       // page keeps it, so it can be queued again if a parser learns to read it.
-      const drop = update.status === 'missing' ? { $unset: { original: 1 } } : {};
-      await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...drop });
+      // A page that worked on a retry no longer has an error.
+      const drop = update.status === 'missing' ? { original: 1, error: 1 } : { error: 1 };
+      await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...(update.status === 'error' ? {} : { $unset: drop }) });
     }
     active = active.filter((q) => q.pending.length);
   }
@@ -260,10 +297,10 @@ try {
         console.log(`[${source.id}] ${queued} new snapshots queued`);
       } catch (err) {
         if (!(err instanceof ArchiveBusyError)) throw err;
-        // The index is a separate service from the snapshots: still work
-        // through what is already queued.
-        console.error(`${err.message.replace(/ Stopping;.*$/, '')} Skipping the rest of the index this run.`);
-        break;
+        // listCaptures has already paused and tried again. Only this source's
+        // index waits for the next run: one busy answer used to skip every
+        // source after it, so Louis Vuitton HK's older years were never asked.
+        console.error(`[${source.id}] ${err.message} Skipping the index of this source this run.`);
       }
     }
     await processQueues(selected, queues);

@@ -9,16 +9,25 @@ const PAGE_SIZE = 5000;
 const CDX_TIMEOUT_MS = 120000;
 const BUSY_PAUSE_MS = 60000;
 
-// The archive answers 429/503 when it wants us to slow down: stop the run.
+// How long the archive asked us to wait, in ms (0 if it didn't say). Only the
+// seconds form of Retry-After: the date form is rare and our pauses are long.
+function retryAfterMs(res) {
+  const seconds = Number(res.headers.get('retry-after'));
+  return seconds > 0 ? seconds * 1000 : 0;
+}
+
+// The archive answers 429/503 when it wants us to slow down. Callers pause
+// before trying again, and give up on the run if it stays busy.
 export class ArchiveBusyError extends Error {
-  constructor(status, url) {
-    super(`web.archive.org answered HTTP ${status} (${url}). Stopping; try again later.`);
+  constructor(res) {
+    super(`web.archive.org answered HTTP ${res.status} (${res.url}).`);
     this.name = 'ArchiveBusyError';
+    this.retryAfterMs = retryAfterMs(res);
   }
 }
 
 export function checkArchiveStatus(res) {
-  if (res.status === 429 || res.status === 503) throw new ArchiveBusyError(res.status, res.url);
+  if (res.status === 429 || res.status === 503) throw new ArchiveBusyError(res);
 }
 
 // Captures of every URL under `prefix` (e.g. "sg.louisvuitton.com/eng-sg/products/"),
@@ -47,7 +56,7 @@ export async function listCaptures(prefix, { from, to, onPage, pageSize = PAGE_S
     let res = await politeFetch(url, { timeoutMs: CDX_TIMEOUT_MS });
     if (res.status === 429 || res.status === 503) {
       // Back off once before giving up: the index is often briefly busy.
-      await new Promise((resolve) => setTimeout(resolve, BUSY_PAUSE_MS));
+      await new Promise((resolve) => setTimeout(resolve, Math.max(BUSY_PAUSE_MS, retryAfterMs(res))));
       res = await politeFetch(url, { timeoutMs: CDX_TIMEOUT_MS });
     }
     checkArchiveStatus(res);

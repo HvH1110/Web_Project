@@ -19,6 +19,7 @@ const waybackSnapshotSchema = new mongoose.Schema(
     ref: String,
     price: Number,
     error: String,
+    retries: Number, // times queued again after a timeout, dropped connection or 5xx
     checkedAt: Date,
   },
   { collection: 'wayback_snapshots', versionKey: false },

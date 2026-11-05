@@ -47,7 +47,7 @@ Update this section as you add scripts.
 - `src/lib/store.js`: the only code that writes to MongoDB (upserts and price points, safe to re-run)
 - `src/lib/fx.js`: daily exchange rates from Vietcombank, called from `crawl.js`
 - `src/sources/`: one adapter per source, registered in `index.js`. An adapter is `{ id, name, type, market, listUrls(), parse(html, url), select?(urls), timeoutMs? }`; `parse` returns `{ brand, ref, name, category, collection, description, specs, images: [{ url, alt }], url, currency, price, available }` or null
-- `src/lib/wayback.js`: Wayback index (CDX) and snapshot URLs; stops on 429/503 from web.archive.org
+- `src/lib/wayback.js`: Wayback index (CDX) and snapshot URLs; 429/503 from web.archive.org raises `ArchiveBusyError`, and `backfill.js` pauses and carries on, stopping only if it stays busy
 - `src/archives/`: one adapter per archived site, registered in `index.js`: `{ id, name, type, market, prefixes, isProductUrl(url), parse(html, url), firstYear? }`, `parse` returning the same item as a live source
 - `src/backfill.js`: the backfill entry point (queue in the crawler-internal `wayback_snapshots` collection)
 - `src/lib/manual.js`: reads and validates the hand-entered CSV; `src/tools/import-prices.js` runs it
