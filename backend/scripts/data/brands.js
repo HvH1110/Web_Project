@@ -20,8 +20,8 @@ export const brands = [
     history:
       'Louis Vuitton, a trunk-maker trained in Paris, opened his own workshop on Rue Neuve-des-Capucines in 1854. ' +
       'His flat-topped, lightweight trunks suited the new age of rail and steamship travel, and in 1859 he moved ' +
-      'production to Asnières, just outside Paris, where the house still makes special orders. His son Georges ' +
-      'created the Damier canvas in 1888 and the Monogram canvas in 1896, partly to stop counterfeiting. Louis ' +
+      'production to Asnières, just outside Paris, where the house still makes special orders. With his son Georges ' +
+      'he created the Damier canvas in 1888, and Georges followed with the Monogram canvas in 1896, both partly to stop counterfeiting. Louis ' +
       'Vuitton has been part of LVMH since the group was formed in 1987.',
     signatureProducts: [
       {
@@ -76,7 +76,7 @@ export const brands = [
       {
         name: 'Lady Dior',
         year: 1995,
-        description: 'Structured bag with Cannage top-stitching and D.I.O.R. charms, named after Diana, Princess of Wales.',
+        description: 'Structured bag with Cannage top-stitching and D.I.O.R. charms, first called Chouchou and renamed in 1996 after Diana, Princess of Wales.',
       },
       {
         name: 'Saddle bag',
@@ -311,12 +311,12 @@ export const brands = [
       'The American watchmaker Florentine Ariosto Jones founded the International Watch Company in Schaffhausen ' +
       'in 1868, aiming to combine Swiss craftsmanship with American production methods. He chose the town for ' +
       'the hydropower of the Rhine. After Jones returned to America, the Rauschenbach family of Schaffhausen took ' +
-      'over the company. IWC is known for its pilot\'s watches and the Portugieser, and is part of Richemont.',
+      'over the company in 1880. IWC is known for its pilot\'s watches and the Portugieser, and is part of Richemont.',
     signatureProducts: [
       {
         name: 'Portugieser',
         year: 1939,
-        description: 'Large wristwatch with a pocket-watch movement, ordered by two Portuguese businessmen.',
+        description: 'Large wristwatch with a pocket-watch movement, said to have been ordered by two Portuguese businessmen.',
       },
       {
         name: 'Big Pilot\'s Watch',
