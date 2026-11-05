@@ -58,7 +58,7 @@ jobs:
             echo "Playwright is not a dependency, skipping."
           fi
 
-      # The only job in the repo that gets a secret. GitHub masks its value in
+      # Only this job and the backfill get a secret. GitHub masks its value in
       # the log, and nothing here or in the crawler may print it.
       #
       # Fail fast, before any site is fetched, if Atlas can't be reached, and

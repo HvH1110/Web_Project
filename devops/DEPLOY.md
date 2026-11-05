@@ -9,6 +9,7 @@ Maintained by the devops session. Variables and Atlas details are in `ENVIRONMEN
 | Forum images | Cloudflare R2 (free tier) | bucket `maison-prix-forum` | `https://pub-<id>.r2.dev` |
 | Database | MongoDB Atlas (M0, Singapore) | `ENVIRONMENT.md` | database `webproject_prod` |
 | Daily crawl | GitHub Actions | `.github/workflows/crawl.yml` | see "Daily crawl" below |
+| Nightly backfill | GitHub Actions | `.github/workflows/backfill.yml` | see "Nightly backfill" below |
 
 Browsers only ever talk to `maison-prix.vercel.app` (and R2 for images). Vercel forwards `/api/*` to Render.
 
@@ -107,11 +108,11 @@ Do step 1 only after the first full crawl has finished, with no crawl running. S
    Remove-Item Env:DEV_URI; $rootUri = $null
    ```
    Tested on a throwaway local database, not on Atlas: collections and indexes arrived, text search worked, and no user or forum data was copied. In Atlas **Data Explorer**, check that `webproject_prod` has `products`, `offers`, `price_points`, `fx_rates` and `brands`.
-5. **Move the daily crawl to production.** `crawl.yml` doesn't change.
+5. **Move the daily crawl and nightly backfill to production.** Both use the same secret, and neither workflow file changes. Do steps 4 and 5 together while neither is running, because anything written after the copy stays in development. Between 06:00 and 19:00 UTC is clear of both schedules; check the **Actions** tab for manual runs.
    - In **Database Access**, edit `webproject-crawler`: change its privilege to `readWrite` on `webproject_prod`.
    - In its connection string, change the database name to `webproject_prod`. Update the [`MONGODB_URI` secret](https://github.com/HvH1110/Web_Project/settings/secrets/actions).
    - Run **Actions → Daily crawl → Run workflow** with **check only** ticked. The log should say `Connected to database "webproject_prod"`.
-6. **History backfill:** `npm run backfill` uses `crawler/.env`, which points at development. From now on, run it against production by setting the variable just for that terminal (a real variable wins over `.env`):
+6. **Local history backfill:** the nightly workflow now covers this, so you only need a local run for extra progress. `npm run backfill` uses `crawler/.env`, which points at development. From now on, run it against production by setting the variable just for that terminal (a real variable wins over `.env`). Don't run it during the nightly backfill: nothing stops the two from overlapping, and together they would double the load on web.archive.org.
    ```powershell
    $env:MONGODB_URI = Read-Host "webproject-crawler connection string"
    npm run backfill
@@ -235,7 +236,7 @@ On GitHub, open **Actions → Daily crawl → Run workflow**, select branch `mai
 
 When a manual run finishes successfully and the data in Atlas looks right, uncomment the `schedule:` block in `crawl.yml` and push. Ask the devops session, or commit it yourself as `devops: enable daily crawl schedule`.
 - Cron times are UTC, and GitHub can start scheduled runs late when it is busy.
-- Runs never overlap. A run that starts while another is still going waits for it to finish.
+- Runs never overlap, including with the nightly backfill. A run that starts while another is still going waits for it to finish.
 - A run is cancelled after 300 minutes. Raise `timeout-minutes` if real crawls need longer (GitHub's maximum is 360).
 - When a scheduled run fails, GitHub emails whoever last changed the `cron` line.
 - In a public repository, GitHub turns scheduled workflows off after 60 days without commits. To turn it back on: **Actions → Daily crawl → Enable workflow**.
@@ -243,3 +244,14 @@ When a manual run finishes successfully and the data in Atlas looks right, uncom
 ### Change the password
 
 In Atlas **Database Access**, find `webproject-crawler` and click **Edit → Edit Password → Autogenerate Secure Password → Update User**. Then build the new string (step 3) and update the GitHub secret with it. The old password stops working straight away.
+
+## Nightly backfill (GitHub Actions)
+
+`.github/workflows/backfill.yml` runs `npm run backfill -- --limit=2000 --oldest-first` in `crawler/` every night at 00:37 UTC (07:37 in Vietnam, 08:37 in Singapore and Hong Kong). It fills in price history from Wayback Machine snapshots and uses the same `MONGODB_URI` secret as the daily crawl. To run it by hand: **Actions → Nightly backfill → Run workflow**.
+
+- **Timing:** a run takes about 3 hours, and is cancelled after 300 minutes. The next run continues the queue, so a cancelled run loses at most the page it was reading.
+- **With the daily crawl:** the two share a concurrency group, so they never run at once. The slots don't normally meet: the crawl starts at 19:17 UTC and takes up to about 2h40m. If a third run is queued while one is running and one is waiting, GitHub cancels the older waiting run. Waiting runs are rare, and the next night's run catches up.
+- **Drop `--oldest-first` around 2026-11-13.** It reaches old prices sooner, as the crawler session recommended for about the first week. Delete the flag from the last line of `backfill.yml`, then commit and push.
+- **Failed runs:** if web.archive.org answers 429 or 503, the run stops and fails, and GitHub emails whoever last changed the `cron` line. If this happens once, ignore it; if it happens every night, ask the crawler session to look into it.
+- **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
+- **Turning it off:** **Actions → Nightly backfill → ⋯ → Disable workflow**.

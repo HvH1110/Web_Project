@@ -1,0 +1,96 @@
+name: Nightly backfill
+
+# Price history from Wayback Machine snapshots: `npm run backfill` in crawler/.
+# Each run continues the queue where the last one stopped, so a run that fails
+# or is cancelled loses at most the page it was reading.
+#
+# Scheduled runs only happen on the default branch, and GitHub disables them
+# in a public repo after 60 days without commits (re-enable in the Actions tab).
+on:
+  workflow_dispatch:
+  schedule:
+    # 00:37 UTC: after the 19:17 UTC daily crawl, even one that reaches its
+    # 300-minute timeout (00:17 UTC). It ends by 05:37 UTC at the latest. Off
+    # the hour, because runs at :00 are the most likely to be delayed or dropped
+    # by GitHub's scheduler.
+    - cron: '37 0 * * *'
+
+permissions:
+  contents: read
+
+# The same group as crawl.yml: the crawl and the backfill write the same catalog
+# collections, so they never run at once. A run waits for the current one. If
+# another run is already waiting, GitHub cancels the older waiting run.
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    name: Backfill price history
+    runs-on: ubuntu-latest
+    # 2,000 pages at 5.3 s is about 3 hours, plus the Wayback index.
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crawler/package-lock.json
+
+      - run: npm ci
+
+      # GitHub masks the secret in the log, and nothing here or in the crawler
+      # may print it.
+      #
+      # Fail fast if Atlas can't be reached. Writes fail for the whole cluster
+      # at 512 MB, and this job runs unattended, so it stops at 450 MB. The
+      # crawler's user can only see its own database, so other databases on the
+      # cluster aren't counted.
+      - name: Check database
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."
+            exit 1
+          fi
+          node --input-type=module -e '
+            import mongoose from "mongoose";
+            try {
+              await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 20000 });
+              const db = mongoose.connection.db;
+              const { dataSize, indexSize, collections } = await db.stats();
+              const mb = (dataSize + indexSize) / 1024 / 1024;
+              console.log(`Connected to database "${db.databaseName}": ${collections} collections, ${mb.toFixed(1)} MB (data + indexes).`);
+              if (db.databaseName === "test") {
+                console.log("::error::Database is \"test\": the database name is missing from MONGODB_URI.");
+                process.exitCode = 1;
+              } else if (mb > 450) {
+                console.log(`::error::This database uses ${mb.toFixed(0)} MB of the 512 MB free tier. Backfill stopped. See devops/DEPLOY.md, section Nightly backfill.`);
+                process.exitCode = 1;
+              } else if (mb > 400) {
+                console.log(`::warning::This database uses ${mb.toFixed(0)} MB of the 512 MB free tier.`);
+              }
+            } catch (err) {
+              // Only the name and message: the error object can carry connection details.
+              console.log(`::error::Database check failed. (${err.name}: ${err.message})`);
+              process.exitCode = 1;
+            } finally {
+              await mongoose.disconnect();
+            }
+          '
+
+      # Remove --oldest-first about a week after the first run (around
+      # 2026-11-13), so that new runs go back to newest first.
+      - name: Backfill
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          # Added to the User-Agent so site owners can reach us. Not a secret.
+          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
+        run: npm run backfill -- --limit=2000 --oldest-first
