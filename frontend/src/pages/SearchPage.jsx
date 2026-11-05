@@ -103,7 +103,7 @@ export default function SearchPage() {
                     <CtaButton onClick={() => setSheetOpen(false)} className="w-full">
                       {products.loading || products.refreshing
                         ? 'Show results'
-                        : `Show ${products.total} ${products.total === 1 ? 'result' : 'results'}`}
+                        : `Show ${products.total.toLocaleString('en-US')} ${products.total === 1 ? 'result' : 'results'}`}
                     </CtaButton>
                     {filterCount > 0 && (
                       <button type="button" onClick={clearAll} className="eyebrow link-underline justify-self-center">
