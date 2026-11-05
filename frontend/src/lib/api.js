@@ -9,7 +9,7 @@ export class ApiError extends Error {
   constructor(message, status) {
     super(message)
     this.name = 'ApiError'
-    // HTTP status, or 0 when the request never reached the server.
+    // HTTP status, or 0 when the request never reached the API.
     this.status = status
   }
 }
@@ -54,6 +54,11 @@ async function send(path, { body, headers, ...options } = {}) {
       data?.error?.message ?? `Request failed with status ${res.status}`,
       res.status,
     )
+  }
+  // Only 204 has no body. Anything else that isn't JSON came from something in
+  // front of the API, like the host's loading page while the server wakes up.
+  if (data === null && res.status !== 204) {
+    throw new ApiError('The server is still starting', 0)
   }
   return data
 }
