@@ -1,4 +1,5 @@
 // All backend calls go through this module. Endpoints are defined in ../docs/API.md.
+import { trackRequest } from '@/lib/slowRequests'
 
 export const API_URL = (
   import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'
@@ -13,7 +14,17 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { body, headers, ...options } = {}) {
+// A request that counts towards the "waking up" notice if it takes long.
+async function request(path, options) {
+  const untrack = trackRequest()
+  try {
+    return await send(path, options)
+  } finally {
+    untrack()
+  }
+}
+
+async function send(path, { body, headers, ...options } = {}) {
   const isForm = body instanceof FormData
   let res
   try {
@@ -190,7 +201,8 @@ export function deleteForumReply(id) {
 export function uploadForumImage(file) {
   const body = new FormData()
   body.append('image', file)
-  return request('/forum/uploads', { method: 'POST', body })
+  // Not `request`: a large file on a slow connection is slow by itself.
+  return send('/forum/uploads', { method: 'POST', body })
 }
 
 // PATCH /api/forum/topics/:id/moderation { pinned?, locked?, hidden?, reason? } -> { topic }

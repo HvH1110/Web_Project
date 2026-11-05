@@ -3,6 +3,7 @@ import { Outlet, ScrollRestoration, useLocation } from 'react-router'
 import AuthProvider from '@/components/account/AuthProvider'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
+import WakeNotice from '@/components/layout/WakeNotice'
 
 // The first page of a visit always has key "default", whatever its URL, so
 // key that one by path or a typed URL would inherit another page's scroll.
@@ -25,6 +26,7 @@ export default function App() {
           <Outlet />
         </main>
         <SiteFooter />
+        <WakeNotice />
         <InstantPageScroll />
         <ScrollRestoration getKey={scrollKey} />
       </div>
