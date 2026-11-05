@@ -186,6 +186,8 @@
   html {
     @apply font-sans;
     scroll-behavior: smooth;
+    /* Off so restoring a scroll position isn't undone as content loads (see RestoreScroll). */
+    overflow-anchor: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

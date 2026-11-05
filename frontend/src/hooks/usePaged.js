@@ -1,5 +1,10 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router'
 import { useApi } from '@/hooks/useApi'
+
+// Pages 2 and up for each list and history entry, so going back to a list finds
+// the items that were loaded and the visitor's place in it. Page 1 still reloads.
+const loadedPages = new Map()
 
 // A paged list endpoint with "load more". `load(page, signal)` fetches one
 // page shaped { items, page, totalPages, total, … }. Changing `key` starts
@@ -9,8 +14,14 @@ import { useApi } from '@/hooks/useApi'
 // such as `fx`.
 export function usePaged(key, load, itemKey = (item) => item.id) {
   const first = useApi(key, (signal) => load(1, signal))
+  const entry = `${useLocation().key}/${key}`
   // Pages 2 and up for `key`.
-  const [more, setMore] = useState({ key: null, pages: [], loading: false, error: null })
+  const [more, setMore] = useState(() => ({
+    key,
+    pages: loadedPages.get(entry) ?? [],
+    loading: false,
+    error: null,
+  }))
   const extra = more.key === key ? more : { pages: [], loading: false, error: null }
 
   const pages = first.data ? [first.data, ...extra.pages] : []
@@ -21,6 +32,7 @@ export function usePaged(key, load, itemKey = (item) => item.id) {
     setMore({ key, pages: extra.pages, loading: true, error: null })
     try {
       const data = await load(last.page + 1)
+      loadedPages.set(entry, [...extra.pages, data])
       setMore((m) => (m.key === key ? { ...m, pages: [...m.pages, data], loading: false } : m))
     } catch (error) {
       setMore((m) => (m.key === key ? { ...m, loading: false, error } : m))

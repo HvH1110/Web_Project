@@ -1,6 +1,7 @@
 import { useLayoutEffect } from 'react'
 import { Outlet, ScrollRestoration, useLocation } from 'react-router'
 import AuthProvider from '@/components/account/AuthProvider'
+import RestoreScroll from '@/components/layout/RestoreScroll'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
 import WakeNotice from '@/components/layout/WakeNotice'
@@ -8,6 +9,11 @@ import WakeNotice from '@/components/layout/WakeNotice'
 // The first page of a visit always has key "default", whatever its URL, so
 // key that one by path or a typed URL would inherit another page's scroll.
 const scrollKey = (location) => (location.key === 'default' ? location.pathname : location.key)
+// ScrollRestoration also keeps its positions across page loads, where it can't
+// tell a reload from a fresh visit, so its key for that page is per load.
+// RestoreScroll, which can, handles those.
+const routerScrollKey = (location) =>
+  location.key === 'default' ? `${location.pathname}@${performance.timeOrigin}` : location.key
 
 // Root layout: announcement bar and sticky header, the matched page, footer.
 // AuthProvider makes the logged-in member available everywhere (useAuth).
@@ -28,7 +34,8 @@ export default function App() {
         <SiteFooter />
         <WakeNotice />
         <InstantPageScroll />
-        <ScrollRestoration getKey={scrollKey} />
+        <RestoreScroll getKey={scrollKey} />
+        <ScrollRestoration getKey={routerScrollKey} />
       </div>
     </AuthProvider>
   )
