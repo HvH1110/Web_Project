@@ -80,6 +80,7 @@ describe('errors', () => {
     const sent = {};
     const res = {
       headersSent: false,
+      set() {},
       status(code) {
         sent.status = code;
         return this;

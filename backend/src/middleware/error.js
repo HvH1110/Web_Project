@@ -14,6 +14,9 @@ export function errorHandler(err, req, res, next) {
     return next(err);
   }
 
+  // A 503 or 429 kept by a browser would outlast the problem.
+  res.set('Cache-Control', 'no-store');
+
   const status = err.status || err.statusCode || 500;
   const isHidden = status >= 500 && !err.expose;
 

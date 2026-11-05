@@ -16,6 +16,7 @@ The single source of truth between `frontend/` and `backend/`.
 - Prices are numbers in major units, exactly as the source shows them (e.g. `13450` SGD). `priceVnd` values are converted and rounded to whole VND.
 - Markets: `VN`, `SG`, `HK`. Currencies: `VND`, `SGD`, `HKD`.
 - Every endpoint except `/api/health` answers **503** `Database unavailable` while the backend is not connected to MongoDB. In the first 20 seconds after the backend starts, requests wait for the connection instead, so a response can be slow but not a 503 unless the database stays unreachable. Hosting can add about a minute more when it wakes the backend, so show a loading state rather than a short timeout.
+- Catalog responses (`/api/brands`, `/api/products`, `/api/deals`) have `Cache-Control: public, max-age=300` and an `ETag`, so browsers reuse them for 5 minutes and then revalidate. New prices can take up to 5 minutes to appear on a page already visited. Errors have `Cache-Control: no-store`.
 - Every endpoint except `/api/health` answers **429** `Too many attempts, try again later`, with a `Retry-After` header in seconds, above 300 requests a minute from one IP address, or 1200 a minute overall. The endpoints below can have tighter limits. Every limit can be reached by people other than the viewer, so show the message and let them retry.
 
 ## Shared types

@@ -22,6 +22,9 @@ const SORTS = {
   price_asc: { hasPrice: -1, lowestPriceVnd: 1, _id: 1 },
   price_desc: { hasPrice: -1, lowestPriceVnd: -1, _id: 1 },
 };
+// History responses state their end time. Rounding it up keeps the ETag the same
+// between requests, and nothing can be observed after a time in the future.
+const HISTORY_END_STEP_MS = 5 * 60 * 1000;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 60;
 
@@ -90,12 +93,14 @@ export async function searchProducts(req, res) {
   const hasPriceRange = minPriceVnd !== undefined || maxPriceVnd !== undefined;
   const offersFirst = Boolean(markets) || hasPriceRange || sort.startsWith('price');
 
-  const pipeline = [{ $match: productMatch(search) }, { $project: SUMMARY_FIELDS }];
+  const match = productMatch(search);
+  if (markets) {
+    // Saves joining the offers of every product in the catalog.
+    match._id = { $in: await Offer.distinct('productId', { 'source.market': { $in: markets } }) };
+  }
+  const pipeline = [{ $match: match }, { $project: SUMMARY_FIELDS }];
   if (offersFirst) {
     pipeline.push(...offerStages(rates, markets));
-    if (markets) {
-      pipeline.push({ $match: { 'offers.source.market': { $in: markets } } });
-    }
     if (hasPriceRange) {
       const priceRange = {};
       if (minPriceVnd !== undefined) {
@@ -163,7 +168,7 @@ export async function getProductHistory(req, res) {
     PricePoint.find({ productId: product._id }).sort({ observedAt: 1 }).lean(),
     Offer.find({ productId: product._id }).select('source price lastSeenAt -_id').lean(),
   ]);
-  const to = new Date();
+  const to = new Date(Math.ceil(Date.now() / HISTORY_END_STEP_MS) * HISTORY_END_STEP_MS);
   const from = rangeStart(range, to, pricePoints[0]?.observedAt);
   const rateOn = pricePoints.some((point) => point.currency !== 'VND')
     ? await loadHistoricalRates(from, to)

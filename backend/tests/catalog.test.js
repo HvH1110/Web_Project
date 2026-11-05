@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import { startApp } from './helpers.js';
 
@@ -49,6 +50,56 @@ before(async () => {
     { productId: insertedIds[1], sourceId: 'SG-1', market: 'SG', currency: 'SGD', price: 1900, observedAt: new Date('2025-06-01'), origin: 'wayback', archiveUrl: 'https://web.archive.org/x' },
     { productId: insertedIds[1], sourceId: 'SG-1', market: 'SG', currency: 'SGD', price: 2000, observedAt: new Date(Date.now() - 86400000), origin: 'crawl' },
   ]);
+});
+
+describe('caching', () => {
+  const statusWithEtag = async (client, url) => {
+    const first = await client.get(url);
+    assert.equal(first.status, 200, url);
+    assert.match(first.headers.get('cache-control'), /public, max-age=300/, url);
+    const etag = first.headers.get('etag');
+    assert.ok(etag, url);
+    // Not fetch: it adds "Cache-Control: no-cache" to requests like this, which
+    // browsers don't send when revalidating, and which forces a full response.
+    return new Promise((resolve, reject) => {
+      const headers = { 'if-none-match': etag, 'accept-encoding': 'gzip', 'x-forwarded-for': client.ip };
+      http
+        .get(`${app.base}/api${url}`, { headers }, (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        })
+        .on('error', reject);
+    });
+  };
+
+  it('lets browsers keep catalog responses, and revalidate them with the ETag', async () => {
+    const client = app.client();
+    const [product] = (await client.get('/products?limit=1')).body.items;
+    for (const url of ['/brands', '/products', '/deals', `/products/${product.brand}/${product.ref}`]) {
+      assert.equal(await statusWithEtag(client, url), 304, url);
+    }
+  });
+
+  it('keeps the same ETag for price history between requests', async () => {
+    const client = app.client();
+    const [product] = (await client.get('/products?limit=1')).body.items;
+    const url = `/products/${product.brand}/${product.ref}/history`;
+    // Two requests can fall on either side of a 5-minute step, but not twice in a row.
+    const statuses = [await statusWithEtag(client, url), await statusWithEtag(client, url)];
+    assert.ok(statuses.includes(304), String(statuses));
+    const { to } = (await client.get(url)).body;
+    assert.equal(new Date(to).getTime() % (5 * 60 * 1000), 0);
+    assert.ok(new Date(to) >= new Date(Date.now() - 1000));
+  });
+
+  it('never lets an error be kept', async () => {
+    const client = app.client();
+    for (const url of ['/products/nobody/nothing', '/products?limit=999', '/brands/nobody']) {
+      const res = await client.get(url);
+      assert.ok(res.status >= 400, url);
+      assert.equal(res.headers.get('cache-control'), 'no-store', url);
+    }
+  });
 });
 
 describe('brands', () => {
