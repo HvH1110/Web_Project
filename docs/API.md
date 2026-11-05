@@ -16,6 +16,7 @@ The single source of truth between `frontend/` and `backend/`.
 - Prices are numbers in major units, exactly as the source shows them (e.g. `13450` SGD). `priceVnd` values are converted and rounded to whole VND.
 - Markets: `VN`, `SG`, `HK`. Currencies: `VND`, `SGD`, `HKD`.
 - Every endpoint except `/api/health` answers **503** `Database unavailable` while the backend is not connected to MongoDB. In the first 20 seconds after the backend starts, requests wait for the connection instead, so a response can be slow but not a 503 unless the database stays unreachable. Hosting can add about a minute more when it wakes the backend, so show a loading state rather than a short timeout.
+- Every endpoint except `/api/health` answers **429** `Too many attempts, try again later`, with a `Retry-After` header in seconds, above 300 requests a minute from one IP address, or 1200 a minute overall. The endpoints below can have tighter limits. Every limit can be reached by people other than the viewer, so show the message and let them retry.
 
 ## Shared types
 
@@ -237,7 +238,7 @@ Example: `GET /api/products?q=submariner&market=VN,SG&maxPriceVnd=400000000&sort
 ```
 
 **Errors**
-- 400: invalid parameter, e.g. unknown `market` or `sort`, `page` not a positive integer, `limit` above 60, a negative price, `minPriceVnd` greater than `maxPriceVnd`, `q` too long.
+- 400: invalid parameter, e.g. unknown `market` or `sort`, `page` not a positive integer, `limit` above 60, a negative price, `minPriceVnd` greater than `maxPriceVnd`, `q` too long or containing a null character.
 
 ### `GET /api/products/:brand/:ref`
 One product, for the product detail page. `:brand` is the brand slug and `:ref` the reference code from `ProductSummary` (matched ignoring case and spaces, so `/api/products/rolex/126610ln` also works). URL-encode `:ref`.
@@ -339,6 +340,8 @@ Example: `GET /api/deals?period=month&type=drop`
 **Errors**
 - 400: `period` or `type` is not an allowed value, `page` is not a positive integer, or `limit` is outside 1 to 60.
 
+Deals are computed from the whole catalog and kept for 5 minutes per `period`, so `items` and `fx` can be up to 5 minutes old.
+
 ## Accounts
 
 A session lasts 30 days from login, then the member has to log in again. Too many attempts from one network or for one email answer **429** `Too many attempts, try again later`, with a `Retry-After` header in seconds.
@@ -362,7 +365,7 @@ Creates an account and logs it in (sets the session cookie).
 **Errors**
 - 400: a field is missing or invalid (the message says which).
 - 409: `An account with this email already exists`, or `This display name is taken`.
-- 429: more than 10 registrations from one IP address in an hour.
+- 429: more than 10 registrations from one IP address in an hour, or 100 overall.
 
 ### `POST /api/auth/login`
 Logs in (sets the session cookie, replacing any previous session in this browser).
@@ -380,7 +383,7 @@ Logs in (sets the session cookie, replacing any previous session in this browser
 **Errors**
 - 400: `email` or `password` missing.
 - 401: `Email or password is incorrect` (the same message whether or not the email has an account).
-- 429: more than 10 attempts for one email, or 30 from one IP address, in 15 minutes.
+- 429: more than 10 attempts for one email, 30 from one IP address, or 300 overall, in 15 minutes.
 
 ### `POST /api/auth/logout`
 Ends the current session and clears the cookie. No request body. Safe to call when not logged in.
@@ -442,7 +445,7 @@ Members only: **every forum endpoint is (login required)**, reading included, an
 - IDs are 24-character hex strings. A malformed ID answers 404, like an unknown one.
 - **Images:** upload each file first with `POST /api/forum/uploads`, then send the returned `id`s in a post's `images` list (at most 4, in display order). An upload can be used by one post only. Uploads not used in a post within 24 hours are deleted.
 - **Hidden posts:** a moderator can hide a topic or reply. Only moderators and the post's author still see it, with `hidden` set; for everyone else it is gone (404 or left out of lists).
-- **Banned members** can read but not post: creating topics, replies or uploads, and editing, answer **403** `Your account is banned from posting`. They can still delete their own posts.
+- **Banned members** can read but not post: creating topics, replies or uploads, and editing, answer **403** `Your account is banned from posting`. They can still delete their own posts. A ban also takes away the powers of a moderator or admin until it is lifted: their `permissions` then show what a banned member may do, while `role` stays the same.
 - Too many posts answer **429** `Too many attempts, try again later` with `Retry-After` (limits per member: 10 topics an hour, 30 replies in 15 minutes, 40 uploads an hour).
 - Each topic and reply has `permissions`, so the frontend shows only the buttons that will work. The server checks again on every request.
 
@@ -556,7 +559,7 @@ The topic list.
 ```
 
 **Errors**
-- 400: `sort` is not an allowed value, `author` is not an ID, `page` is not a positive integer, or `limit` is outside 1 to 50.
+- 400: `sort` is not an allowed value, `author` is not an ID, `page` is not a positive integer, `limit` is outside 1 to 50, or `q` is above 100 characters.
 
 ### `POST /api/forum/topics` (login required)
 Creates a topic.
@@ -697,7 +700,7 @@ Show it as a preview, and send its `id` in the post's `images`.
 - 400: no file, more than one file, or `image must be a JPEG, PNG, WebP, GIF or AVIF file` / `HEIC images are not supported; send a JPEG or PNG` / `image must be at most 50 megapixels` / `image could not be read`.
 - 403: banned.
 - 413: `image must be at most 10 MB`.
-- 429: more than 40 uploads in an hour.
+- 429: more than 40 uploads in an hour, or `Too many uploads at the moment, try again shortly` when 8 are already in progress on the server. Both have `Retry-After`. An upload still arriving after 2 minutes is cut off.
 
 ### Moderation (moderator or admin)
 These answer **403** `Moderators only` for other members.

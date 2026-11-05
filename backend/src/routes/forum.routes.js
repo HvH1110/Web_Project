@@ -4,7 +4,7 @@ import { createReply, deleteReply, listReplies, updateReply } from '../controlle
 import { createTopic, deleteTopic, getTopic, listTopics, updateTopic } from '../controllers/forum-topics.controller.js';
 import { uploadImage } from '../controllers/forum-uploads.controller.js';
 import { requireModerator, requireNotBanned, requireUser } from '../middleware/auth.js';
-import { imageUpload } from '../middleware/image-upload.js';
+import { imageUpload, uploadSlot } from '../middleware/image-upload.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 
 const MINUTE = 60 * 1000;
@@ -38,6 +38,7 @@ router.post(
   '/uploads',
   requireNotBanned,
   rateLimit({ windowMs: 60 * MINUTE, max: 40, key: byUser }),
+  uploadSlot,
   imageUpload,
   uploadImage,
 );

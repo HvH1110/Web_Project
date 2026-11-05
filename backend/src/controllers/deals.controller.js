@@ -1,14 +1,5 @@
 import { Product } from '../models/product.model.js';
-import {
-  DEAL_PERIODS,
-  DEAL_TYPES,
-  compareDeals,
-  findDropDeals,
-  findMarketDeals,
-  loadPricesAt,
-  periodStart,
-} from '../services/deals.service.js';
-import { getLatestFx, loadHistoricalRates, vndRates } from '../services/fx.service.js';
+import { DEAL_PERIODS, DEAL_TYPES, loadDeals } from '../services/deals.service.js';
 import { SUMMARY_FIELDS, getBrandNames, offerStages, toProductSummary } from '../services/products.service.js';
 import { enumParam, intParam } from '../utils/query.js';
 
@@ -27,22 +18,9 @@ export async function listDeals(req, res) {
   const type = enumParam(req.query, 'type', DEAL_TYPES);
   const page = intParam(req.query, 'page', { fallback: 1 });
   const limit = intParam(req.query, 'limit', { max: MAX_LIMIT, fallback: DEFAULT_LIMIT });
-  const withMarket = type !== 'drop';
-  const withDrop = type !== 'market';
 
-  const since = periodStart(period, new Date());
-  const fx = await getLatestFx();
-  const rates = vndRates(fx);
-  // Deals are computed over the whole catalog, then paged.
-  const [products, pricesThen, rateOn] = await Promise.all([
-    Product.aggregate([{ $project: { _id: 1 } }, ...offerStages(rates)]),
-    withDrop ? loadPricesAt(since) : null,
-    withDrop ? loadHistoricalRates(since, since) : null,
-  ]);
-  const deals = [
-    ...(withMarket ? findMarketDeals(products) : []),
-    ...(withDrop ? findDropDeals(products, pricesThen, (currency) => rateOn(currency, since), since) : []),
-  ].sort(compareDeals);
+  const { since, fx, rates, deals: allDeals } = await loadDeals(period);
+  const deals = type ? allDeals.filter((deal) => deal.type === type) : allDeals;
   const pageDeals = deals.slice((page - 1) * limit, page * limit);
 
   const [docs, brandNames] = await Promise.all([

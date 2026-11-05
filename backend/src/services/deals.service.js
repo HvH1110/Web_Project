@@ -1,11 +1,16 @@
 import { PricePoint } from '../models/price-point.model.js';
-import { toOfferDto } from './products.service.js';
+import { Product } from '../models/product.model.js';
+import { getLatestFx, loadHistoricalRates, vndRates } from './fx.service.js';
+import { offerStages, toOfferDto } from './products.service.js';
 
 // Deals, as defined in docs/PRODUCT.md "What counts as a deal".
 export const DEAL_PERIODS = ['today', 'month', 'year'];
 export const DEAL_TYPES = ['market', 'drop'];
 // Smaller drops are mostly daily exchange-rate noise. Market deals have no minimum.
 const MIN_DROP_PCT = 1;
+// Deals are computed from the whole catalog, about 1 MB read from the database,
+// and prices change at most a few times a day.
+const CACHE_MS = 5 * 60 * 1000;
 
 // Vietnam has no daylight saving time.
 const VN_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -154,4 +159,44 @@ export function compareDeals(a, b) {
     a.type.localeCompare(b.type) ||
     String(a.market ?? '').localeCompare(String(b.market ?? ''))
   );
+}
+
+async function computeDeals(since) {
+  const fx = await getLatestFx();
+  const rates = vndRates(fx);
+  const [products, pricesThen, rateOn] = await Promise.all([
+    Product.aggregate([{ $project: { _id: 1 } }, ...offerStages(rates)]),
+    loadPricesAt(since),
+    loadHistoricalRates(since, since),
+  ]);
+  const deals = [
+    ...findMarketDeals(products),
+    ...findDropDeals(products, pricesThen, (currency) => rateOn(currency, since), since),
+  ].sort(compareDeals);
+  return { fx, rates, deals };
+}
+
+const cache = new Map();
+
+// { since, fx, rates, deals } of a period, recomputed every CACHE_MS. Requests
+// arriving during a computation share it. Failures aren't kept.
+export async function loadDeals(period, now = new Date()) {
+  const since = periodStart(period, now);
+  const cached = cache.get(period);
+  if (cached && cached.expiresAt > now.getTime() && cached.since.getTime() === since.getTime()) {
+    return { since, ...(await cached.result) };
+  }
+  const result = computeDeals(since);
+  const entry = { since, expiresAt: now.getTime() + CACHE_MS, result };
+  cache.set(period, entry);
+  result.catch(() => {
+    if (cache.get(period) === entry) {
+      cache.delete(period);
+    }
+  });
+  return { since, ...(await result) };
+}
+
+export function clearDealsCache() {
+  cache.clear();
 }

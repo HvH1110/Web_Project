@@ -5,12 +5,34 @@ import { httpError } from '../utils/http-error.js';
 import { storage } from './storage/index.js';
 
 export const MAX_UPLOAD_MB = 10;
+export const MAX_UPLOADS_AT_ONCE = 8;
 export const MAX_IMAGES_PER_POST = 4;
 const MAX_SIDE = 2048;
 const MAX_INPUT_PIXELS = 50_000_000;
 // sharp reports AVIF as "heif".
 const INPUT_FORMATS = new Set(['jpeg', 'png', 'webp', 'gif', 'heif']);
 const UNUSED_UPLOAD_MS = 24 * 60 * 60 * 1000;
+
+// A large image can take 150 MB once decoded, on a server with 512 MB. So: no
+// image cache, one thread, one image at a time.
+sharp.cache(false);
+sharp.concurrency(1);
+let lastEncoding = Promise.resolve();
+let waitingEncodings = 0;
+
+// The upload slots end when a client disconnects, while its file is still waiting
+// here. So this limit is needed too.
+function oneAtATime(task) {
+  if (waitingEncodings >= MAX_UPLOADS_AT_ONCE) {
+    throw httpError(429, 'Too many uploads at the moment, try again shortly');
+  }
+  waitingEncodings += 1;
+  const result = lastEncoding.then(task).finally(() => {
+    waitingEncodings -= 1;
+  });
+  lastEncoding = result.catch(() => {});
+  return result;
+}
 
 // Re-encodes an uploaded file as WebP, at most MAX_SIDE pixels on its longest
 // side. Re-encoding drops EXIF data (camera GPS location included) and makes
@@ -44,7 +66,7 @@ async function toWebp(buffer) {
 }
 
 export async function createUpload(ownerId, buffer) {
-  const { data, info } = await toWebp(buffer);
+  const { data, info } = await oneAtATime(() => toWebp(buffer));
   const key = `forum/${crypto.randomBytes(16).toString('hex')}.webp`;
   await storage.put(key, data, 'image/webp');
   try {

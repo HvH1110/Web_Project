@@ -9,6 +9,10 @@ export function stringParam(query, name) {
     throw httpError(400, `${name} must be given only once`);
   }
   const text = value === undefined ? '' : String(value).trim();
+  // MongoDB refuses regular expressions containing one, and no real value has one.
+  if (text.includes('\0')) {
+    throw httpError(400, `${name} contains an invalid character`);
+  }
   return text === '' ? undefined : text;
 }
 

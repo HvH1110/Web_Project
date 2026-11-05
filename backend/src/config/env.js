@@ -40,6 +40,8 @@ export const env = {
   // Browsers only accept SameSite=None on Secure cookies.
   cookieSecure: process.env.COOKIE_SECURE === 'true' || cookieSameSite === 'none',
   trustProxy: Number(process.env.TRUST_PROXY) || 0,
+  // When set, requests must carry it in X-Proxy-Secret (middleware/require-proxy.js).
+  proxySecret: process.env.PROXY_SECRET || '',
   uploadStorage,
   // Local storage folder, relative to backend/.
   uploadsDir: process.env.UPLOADS_DIR || 'uploads',

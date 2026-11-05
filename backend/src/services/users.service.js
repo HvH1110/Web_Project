@@ -2,8 +2,9 @@ import { httpError } from '../utils/http-error.js';
 
 export const BANNED_MESSAGE = 'Your account is banned from posting';
 
+// A ban takes moderator powers away too, but keeps the role for when it's lifted.
 export function isModerator(user) {
-  return user.role === 'moderator' || user.role === 'admin';
+  return !isBanned(user) && (user.role === 'moderator' || user.role === 'admin');
 }
 
 export function isBanned(user) {

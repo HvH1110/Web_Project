@@ -12,6 +12,8 @@ const ACCENTS = {
   y: 'yýÿỳỷỹỵ',
 };
 
+export const MAX_SEARCH_LENGTH = 100;
+
 function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

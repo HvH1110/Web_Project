@@ -18,7 +18,9 @@ export function errorHandler(err, req, res, next) {
   const isHidden = status >= 500 && !err.expose;
 
   if (isHidden) {
-    console.error(err);
+    // Not the error object, and no connection strings: database errors can carry
+    // connection details.
+    console.error(String(err?.stack ?? err).replace(/mongodb(\+srv)?:\/\/\S+/g, 'mongodb://[hidden]'));
   }
 
   res.status(status).json({

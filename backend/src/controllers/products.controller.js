@@ -13,7 +13,7 @@ import {
 } from '../services/products.service.js';
 import { httpError } from '../utils/http-error.js';
 import { enumParam, intParam, listParam, nonNegativeNumberParam, stringParam } from '../utils/query.js';
-import { searchTerms, termRegex } from '../utils/search.js';
+import { MAX_SEARCH_LENGTH, searchTerms, termRegex } from '../utils/search.js';
 
 const SORTS = {
   newest: { createdAt: -1, _id: -1 },
@@ -22,14 +22,13 @@ const SORTS = {
   price_asc: { hasPrice: -1, lowestPriceVnd: 1, _id: 1 },
   price_desc: { hasPrice: -1, lowestPriceVnd: -1, _id: 1 },
 };
-const MAX_QUERY_LENGTH = 100;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 60;
 
 function parseSearchQuery(query) {
   const q = stringParam(query, 'q');
-  if (q && q.length > MAX_QUERY_LENGTH) {
-    throw httpError(400, `q must be at most ${MAX_QUERY_LENGTH} characters`);
+  if (q && q.length > MAX_SEARCH_LENGTH) {
+    throw httpError(400, `q must be at most ${MAX_SEARCH_LENGTH} characters`);
   }
 
   const markets = listParam(query, 'market')?.map((market) => market.toUpperCase());

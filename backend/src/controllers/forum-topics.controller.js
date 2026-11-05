@@ -18,7 +18,7 @@ import { MAX_IMAGES_PER_POST, attachUploads, deleteUploads, detachUploads } from
 import { OBJECT_ID, parseImageIds, parseText, parseTitle } from '../utils/forum-fields.js';
 import { httpError } from '../utils/http-error.js';
 import { enumParam, intParam, stringParam } from '../utils/query.js';
-import { searchTerms, termRegex } from '../utils/search.js';
+import { MAX_SEARCH_LENGTH, searchTerms, termRegex } from '../utils/search.js';
 
 const TOPIC_SORTS = ['activity', 'newest'];
 const DEFAULT_LIMIT = 20;
@@ -31,6 +31,9 @@ export async function listTopics(req, res) {
   const sort = enumParam(req.query, 'sort', TOPIC_SORTS, 'activity');
   const page = intParam(req.query, 'page', { fallback: 1 });
   const limit = intParam(req.query, 'limit', { max: MAX_LIMIT, fallback: DEFAULT_LIMIT });
+  if (q && q.length > MAX_SEARCH_LENGTH) {
+    throw httpError(400, `q must be at most ${MAX_SEARCH_LENGTH} characters`);
+  }
   if (author !== undefined && !OBJECT_ID.test(author)) {
     throw httpError(400, 'author must be a member id');
   }
