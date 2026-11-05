@@ -8,7 +8,7 @@ import { useApi } from '@/hooks/useApi'
 import { getProductHistory } from '@/lib/api'
 import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 import { RATE_SOURCE } from '@/lib/catalog'
-import { DEFAULT_RANGE, RANGES, hasVndValues, justStarted, seriesName } from '@/lib/history'
+import { DEFAULT_RANGE, RANGES, RATES_START, hasVndValues, justStarted, seriesName, vndCoverage } from '@/lib/history'
 import { cn } from '@/lib/utils'
 
 const CURRENCIES = [
@@ -104,7 +104,7 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
                 <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
                   {formatDate(data.from)} to {formatDate(data.to)}.
                   {!noVnd && (view === 'table' || currency === 'vnd') && ` VND prices use ${RATE_SOURCE} of each day.`}
-                  {currency === 'vnd' && view === 'chart' && ' Gaps mean no rate was known.'}
+                  {!noVnd && <VndNote series={data.series} view={view} currency={currency} />}
                   {noVnd && ' Prices are in their original currency because no exchange rates are stored for these dates.'}
                   {view === 'chart' && currency !== 'vnd' && markerNote(data.series)}
                 </p>
@@ -114,6 +114,21 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
         </div>
       </div>
     </section>
+  )
+}
+
+// Why some prices have no VND value, only where that shows.
+function VndNote({ series, view, currency }) {
+  const { hasEarlierPrices, hasGaps } = vndCoverage(series)
+  if (view === 'table') {
+    return hasEarlierPrices || hasGaps ? ' A dash means no exchange rate is stored for that day.' : null
+  }
+  if (currency !== 'vnd') return null
+  return (
+    <>
+      {hasEarlierPrices && ` Our exchange rates start in ${RATES_START}, so earlier prices show only in the original currency.`}
+      {hasGaps && ' Gaps mean no rate was known.'}
+    </>
   )
 }
 

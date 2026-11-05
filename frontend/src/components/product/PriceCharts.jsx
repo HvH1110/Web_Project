@@ -1,7 +1,7 @@
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { formatCompact, formatDate, formatMonth, formatPrice, formatYear } from '@/lib/format'
-import { currencyRows, priceScale, seriesName, seriesStyles, timeTicks, vndRows } from '@/lib/history'
+import { currencyRows, priceScale, seriesName, seriesStyles, timeTicks, vndCoverage, vndRows } from '@/lib/history'
 
 // The price history charts, loaded on demand by PriceHistory. In VND all
 // markets share one axis; in their own currencies they can't, so each gets its
@@ -38,14 +38,14 @@ const axisProps = {
   tick: { fontSize: 11 },
 }
 
-function timeAxis(data) {
-  const { ticks, yearly } = timeTicks(data.from, data.to)
+function timeAxis(data, from = Date.parse(data.from)) {
+  const { ticks, yearly } = timeTicks(new Date(from).toISOString(), data.to)
   return (
     <XAxis
       dataKey="t"
       type="number"
       scale="time"
-      domain={[Date.parse(data.from), Date.parse(data.to)]}
+      domain={[from, Date.parse(data.to)]}
       ticks={ticks}
       tickFormatter={yearly ? formatYear : formatMonth}
       {...axisProps}
@@ -58,10 +58,17 @@ const priceAxis = (width, values) => (
   <YAxis {...priceScale(values)} tickFormatter={formatCompact} width={width} {...axisProps} />
 )
 
+// Starts at the first VND value and leaves out sources with none: years of
+// empty axis would read as missing data, when those prices simply predate the
+// exchange rates. PriceHistory's note says where they are.
 function VndChart({ data }) {
-  const { series } = data
-  const styles = seriesStyles(series)
-  const rows = vndRows(series)
+  const allStyles = seriesStyles(data.series)
+  const shown = data.series.flatMap((s, i) => (s.vnd.some((v) => v.priceVnd != null) ? [{ s, style: allStyles[i] }] : []))
+  const series = shown.map((x) => x.s)
+  const styles = shown.map((x) => x.style)
+  const { from } = vndCoverage(data.series)
+  const start = Math.max(from, Date.parse(data.from))
+  const rows = vndRows(series).filter((r) => r.t >= start)
   const config = Object.fromEntries(series.map((s, i) => [`s${i}`, { label: seriesName(s), color: styles[i].color }]))
 
   return (
@@ -70,7 +77,7 @@ function VndChart({ data }) {
       <ChartContainer config={config} className="aspect-auto h-80 w-full sm:h-96">
         <LineChart data={rows} margin={{ top: 8, right: 40, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--border)" />
-          {timeAxis(data)}
+          {timeAxis(data, start)}
           {priceAxis(56, rows.flatMap((r) => series.map((_, i) => r[`s${i}`])))}
           <ChartTooltip
             cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeOpacity: 0.3 }}
@@ -86,7 +93,7 @@ function VndChart({ data }) {
               strokeDasharray={styles[i].dashed ? '6 4' : undefined}
               strokeLinejoin="round"
               strokeLinecap="round"
-              dot={false}
+              dot={<LoneDot rows={rows} dataKey={`s${i}`} color={styles[i].color} />}
               activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
               isAnimationActive={false}
               label={<EndLabel rows={rows} dataKey={`s${i}`} text={s.market} />}
@@ -96,6 +103,12 @@ function VndChart({ data }) {
       </ChartContainer>
     </div>
   )
+}
+
+// A value with no neighbour has no line to draw, so it would vanish: mark it.
+function LoneDot({ rows, dataKey, color, index, cx, cy }) {
+  if (cx == null || cy == null || rows[index - 1]?.[dataKey] != null || rows[index + 1]?.[dataKey] != null) return null
+  return <circle cx={cx} cy={cy} r={3} fill={color} />
 }
 
 // Market code at the end of its line, in text ink (never the line colour).

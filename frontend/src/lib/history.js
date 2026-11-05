@@ -77,6 +77,26 @@ export function lastKnownPrices(series) {
 // Whether any sample has a VND value: none does when no exchange rate is known.
 export const hasVndValues = (series) => series.some((s) => s.vnd.some((v) => v.priceVnd != null))
 
+// When the exchange-rate source starts (fx_rates in ../docs/DATA.md).
+export const RATES_START = 'February 2020'
+
+// What the VND view can show: the first date with a VND value (ms, or null),
+// whether some prices are older than that, and whether a rate is missing
+// between known values.
+export function vndCoverage(series) {
+  const starts = series
+    .map((s) => s.vnd.find((v) => v.priceVnd != null)?.date)
+    .filter(Boolean)
+    .map(time)
+  const from = starts.length ? Math.min(...starts) : null
+  const earliest = Math.min(...series.flatMap((s) => s.points.filter((p) => !p.carried).map((p) => time(p.date))))
+  const hasGaps = series.some((s) => {
+    const known = s.vnd.flatMap((v, i) => (v.priceVnd != null ? [i] : []))
+    return known.length > 0 && known.at(-1) - known[0] + 1 !== known.length
+  })
+  return { from, hasEarlierPrices: from != null && earliest < from, hasGaps }
+}
+
 // Time axis ticks on calendar boundaries: the 1st of every second month for a
 // range up to about a year, else every 1 January (thinned to at most ~7).
 // `yearly` says which label format fits.
