@@ -236,7 +236,7 @@ On GitHub, open **Actions → Daily crawl → Run workflow**, select branch `mai
 When a manual run finishes successfully and the data in Atlas looks right, uncomment the `schedule:` block in `crawl.yml` and push. Ask the devops session, or commit it yourself as `devops: enable daily crawl schedule`.
 - Cron times are UTC, and GitHub can start scheduled runs late when it is busy.
 - Runs never overlap. A run that starts while another is still going waits for it to finish.
-- A run is cancelled after 180 minutes. Raise `timeout-minutes` if real crawls need longer (GitHub's maximum is 360).
+- A run is cancelled after 300 minutes. Raise `timeout-minutes` if real crawls need longer (GitHub's maximum is 360).
 - When a scheduled run fails, GitHub emails whoever last changed the `cron` line.
 - In a public repository, GitHub turns scheduled workflows off after 60 days without commits. To turn it back on: **Actions → Daily crawl → Enable workflow**.
 

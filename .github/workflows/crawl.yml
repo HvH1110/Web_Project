@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     # The crawler waits seconds between requests, so a full run is slow. This
     # only stops a hung run; raise it if real runs need longer (max 360).
-    timeout-minutes: 180
+    timeout-minutes: 300
     defaults:
       run:
         working-directory: crawler
