@@ -36,8 +36,8 @@ export default function ImagePlaceholder({
   return (
     <div className={cn('relative isolate overflow-hidden', className)}>
       <div
-        role="img"
-        aria-label={label ? `Image placeholder: ${label}` : 'Image placeholder'}
+        // Without a label it's only decoration: nothing for screen readers to say.
+        {...(label ? { role: 'img', 'aria-label': `Image placeholder: ${label}` } : { 'aria-hidden': true })}
         className={cn(
           'placeholder-art absolute inset-0 -z-10 transition-transform duration-1600 ease-lux group-hover:scale-[1.04] motion-reduce:transition-none',
           TONES[tone].art,

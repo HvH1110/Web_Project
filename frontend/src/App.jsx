@@ -1,6 +1,7 @@
 import { useLayoutEffect } from 'react'
 import { Outlet, ScrollRestoration, useLocation } from 'react-router'
 import AuthProvider from '@/components/account/AuthProvider'
+import PageAnnouncer from '@/components/layout/PageAnnouncer'
 import RestoreScroll from '@/components/layout/RestoreScroll'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
@@ -33,6 +34,7 @@ export default function App() {
         </main>
         <SiteFooter />
         <WakeNotice />
+        <PageAnnouncer />
         <InstantPageScroll />
         <RestoreScroll getKey={scrollKey} />
         <ScrollRestoration getKey={routerScrollKey} />

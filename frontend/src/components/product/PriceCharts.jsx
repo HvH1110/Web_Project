@@ -3,6 +3,10 @@ import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { formatCompact, formatDate, formatMonth, formatPrice, formatYear } from '@/lib/format'
 import { currencyRows, priceScale, seriesName, seriesStyles, timeTicks, vndCoverage, vndRows } from '@/lib/history'
 
+// The chart is for looking at. The table view gives the same prices to keyboards
+// and screen readers, so this is one named image rather than a focus stop.
+const TABLE_HINT = 'Chart of these prices over time. Switch to the table view to read every price.'
+
 // The price history charts, loaded on demand by PriceHistory. In VND all
 // markets share one axis; in their own currencies they can't, so each gets its
 // own small chart.
@@ -74,8 +78,8 @@ function VndChart({ data }) {
   return (
     <div className="grid gap-6">
       <Legend series={series} styles={styles} />
-      <ChartContainer config={config} className="aspect-auto h-80 w-full sm:h-96">
-        <LineChart data={rows} margin={{ top: 8, right: 40, bottom: 0, left: 0 }}>
+      <ChartContainer config={config} role="img" aria-label={TABLE_HINT} className="aspect-auto h-80 w-full sm:h-96">
+        <LineChart accessibilityLayer={false} data={rows} margin={{ top: 8, right: 40, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--border)" />
           {timeAxis(data, start)}
           {priceAxis(56, rows.flatMap((r) => series.map((_, i) => r[`s${i}`])))}
@@ -180,9 +184,11 @@ function CurrencyCharts({ data }) {
             </div>
             <ChartContainer
               config={{ v: { label: s.currency, color: styles[i].color } }}
+              role="img"
+              aria-label={TABLE_HINT}
               className="aspect-auto h-48 w-full"
             >
-              <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+              <LineChart accessibilityLayer={false} data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 {timeAxis(data)}
                 {priceAxis(48, rows.map((r) => r.v))}
