@@ -14,7 +14,7 @@ import { BRANDS, CATEGORIES } from '@/content/brands'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
 import { getBrand } from '@/lib/api'
-import { DEFAULT_SORT, RATE_SOURCE, matchCollection } from '@/lib/catalog'
+import { DEFAULT_SORT, RATE_SOURCE, matchCollection, pricesUnavailable } from '@/lib/catalog'
 import { formatDate, pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -65,12 +65,19 @@ function Brand({ slug }) {
     <>
       <PageMeta
         title={b.name}
-        description={`${b.name}: history, signature pieces and prices of ${b.productCount} tracked ${b.productCount === 1 ? 'piece' : 'pieces'} in Vietnam, Singapore and Hong Kong.`}
+        description={
+          b.productCount
+            ? `${b.name}: history, signature pieces and prices of ${b.productCount} tracked ${b.productCount === 1 ? 'piece' : 'pieces'} in Vietnam, Singapore and Hong Kong.`
+            : `${b.name}: the history of the house and its signature pieces.`
+        }
       />
       <Masthead brand={b} />
       <History brand={b} />
       {b.signatureProducts.length > 0 && <Signatures brand={b} />}
 
+      {b.productCount === 0 ? (
+        <NoPrices brand={b} />
+      ) : (
       <section id="products" aria-labelledby="products-title" className="scroll-mt-header border-t">
         <div className="page-container py-section">
           <div className="flex flex-wrap items-end justify-between gap-6">
@@ -114,6 +121,7 @@ function Brand({ slug }) {
           </div>
         </div>
       </section>
+      )}
 
       <HouseNav slug={slug} />
     </>
@@ -125,8 +133,12 @@ function Masthead({ brand }) {
   const facts = [
     ['Founded', `${brand.city}, ${brand.country}, ${brand.foundedYear}`],
     ['Founder', brand.founder],
-    ['Products tracked', brand.productCount || 'None yet'],
-    ['Collections', brand.collections.length || '—'],
+    ...(brand.productCount
+      ? [
+          ['Products tracked', brand.productCount],
+          ['Collections', brand.collections.length || '—'],
+        ]
+      : [['Prices', 'Not available']]),
   ]
 
   return (
@@ -175,9 +187,15 @@ function Masthead({ brand }) {
               Signature pieces
             </a>
           )}
-          <a href="#products" className="link-underline">
-            All products <span className="text-muted-foreground">{brand.productCount}</span>
-          </a>
+          {brand.productCount ? (
+            <a href="#products" className="link-underline">
+              All products <span className="text-muted-foreground">{brand.productCount}</span>
+            </a>
+          ) : (
+            <a href="#prices" className="link-underline">
+              Prices
+            </a>
+          )}
         </nav>
       </div>
     </header>
@@ -231,23 +249,25 @@ function Signatures({ brand }) {
                 <p className="max-w-prose text-sm leading-relaxed text-muted-foreground md:col-span-3">
                   {piece.description}
                 </p>
-                <Link
-                  to={
-                    collection
-                      ? { search: `?collection=${encodeURIComponent(collection.name)}`, hash: '#products' }
-                      : `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
-                  }
-                  className="eyebrow group mt-3 inline-flex items-center gap-2 justify-self-start md:col-span-2 md:mt-0 md:justify-self-end"
-                >
-                  <span className="link-underline">
-                    {collection ? `View ${collection.productCount}` : 'Search'}
-                  </span>
-                  <ArrowRight
-                    className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
-                    strokeWidth={1.25}
-                    aria-hidden="true"
-                  />
-                </Link>
+                {brand.productCount > 0 && (
+                  <Link
+                    to={
+                      collection
+                        ? { search: `?collection=${encodeURIComponent(collection.name)}`, hash: '#products' }
+                        : `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
+                    }
+                    className="eyebrow group mt-3 inline-flex items-center gap-2 justify-self-start md:col-span-2 md:mt-0 md:justify-self-end"
+                  >
+                    <span className="link-underline">
+                      {collection ? `View ${collection.productCount}` : 'Search'}
+                    </span>
+                    <ArrowRight
+                      className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
+                      strokeWidth={1.25}
+                      aria-hidden="true"
+                    />
+                  </Link>
+                )}
               </Reveal>
             )
           })}
@@ -308,6 +328,30 @@ function CollectionFilter({ collections, total, value, onChange }) {
         </button>
       )}
     </div>
+  )
+}
+
+// In place of the product list, for a house with no usable source.
+function NoPrices({ brand }) {
+  return (
+    <section id="prices" aria-labelledby="prices-title" className="scroll-mt-header border-t">
+      <div className="page-container grid gap-8 py-section lg:grid-cols-12 lg:gap-8">
+        <Reveal as="h2" id="prices-title" className="font-serif text-display-lg lg:col-span-6">
+          Prices aren’t available
+        </Reveal>
+        <Reveal delay={100} className="grid content-end justify-items-start gap-6 lg:col-span-5 lg:col-start-8">
+          <p className="text-sm leading-relaxed text-muted-foreground">{pricesUnavailable(brand.name)}</p>
+          <Link to="/search" className="eyebrow group inline-flex items-center gap-2">
+            <span className="link-underline">Browse prices from other houses</span>
+            <ArrowRight
+              className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
+              strokeWidth={1.25}
+              aria-hidden="true"
+            />
+          </Link>
+        </Reveal>
+      </div>
+    </section>
   )
 }
 

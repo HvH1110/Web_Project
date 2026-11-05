@@ -223,7 +223,7 @@ function Story({ info, loading }) {
 const brandFacts = (info) => [
   ['Founded', `${info.city}, ${info.country}, ${info.foundedYear}`],
   ['Founder', info.founder],
-  ['Products tracked', info.productCount || 'None yet'],
+  info.productCount ? ['Products tracked', info.productCount] : ['Prices', 'Not available'],
 ]
 
 const signaturesOf = (info) => info?.signatureProducts.slice(0, 3) ?? []
@@ -277,7 +277,7 @@ function BrandFeature({ brand, info, loading }) {
           <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
             {pieces.map((piece, i) => (
               <Reveal as="li" key={piece.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
-                <SignatureCard piece={piece} brand={brand} />
+                <SignatureCard piece={piece} brand={brand} linked={info.productCount > 0} />
               </Reveal>
             ))}
           </ul>
@@ -335,7 +335,7 @@ function BrandSplit({ brand, info, loading, flip }) {
             <ul className="grid grid-cols-3 gap-3 sm:gap-5">
               {pieces.map((piece) => (
                 <li key={piece.name}>
-                  <SignatureCard piece={piece} brand={brand} compact />
+                  <SignatureCard piece={piece} brand={brand} linked={info.productCount > 0} compact />
                 </li>
               ))}
             </ul>

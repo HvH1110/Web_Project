@@ -85,6 +85,10 @@ export const imageCredit = (product, image) =>
 
 export const NO_CURRENT_PRICE = 'No current online price'
 
+// A house with no tracked products has no usable source (see ../docs/PRODUCT.md).
+export const pricesUnavailable = (name) =>
+  `${name}’s website doesn’t allow automated access, so we can’t collect its official prices, and we don’t work around that. For a price, please ask a ${name} boutique.`
+
 // The stock flag only covers online stock: the boutique may still have the piece.
 export const OUT_OF_STOCK = 'Out of stock online'
 

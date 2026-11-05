@@ -4,9 +4,10 @@ import { cn } from '@/lib/utils'
 
 // A brand's signature piece (Brand.signatureProducts in ../docs/API.md):
 // image, year introduced, name and one line about it. Links to a search for
-// the piece within its house. `compact` is the small three-up version, without
-// the description.
-export default function SignatureCard({ piece, brand, compact = false, className }) {
+// the piece within its house, unless `linked` is false because the house has no
+// products to find. `compact` is the small three-up version, without the
+// description.
+export default function SignatureCard({ piece, brand, compact = false, linked = true, className }) {
   const search = `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
   return (
     <article className={cn('group relative grid content-start', compact ? 'gap-3' : 'gap-5', className)}>
@@ -23,10 +24,14 @@ export default function SignatureCard({ piece, brand, compact = false, className
           </p>
         )}
         <h4 className={cn('font-serif', compact ? 'text-lg leading-tight' : 'text-display-sm')}>
-          {/* Stretched over the card so the whole card is one link. */}
-          <Link to={search} className="after:absolute after:inset-0">
-            {piece.name}
-          </Link>
+          {linked ? (
+            // Stretched over the card so the whole card is one link.
+            <Link to={search} className="after:absolute after:inset-0">
+              {piece.name}
+            </Link>
+          ) : (
+            piece.name
+          )}
         </h4>
         {!compact && piece.description && (
           <p className="text-sm leading-relaxed text-muted-foreground">{piece.description}</p>

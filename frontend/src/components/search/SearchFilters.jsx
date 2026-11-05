@@ -10,8 +10,9 @@ import { cn } from '@/lib/utils'
 
 // The search filters, for the desktop sidebar and the mobile sheet. Every
 // change calls onChange(patch) right away; the parent writes it to the URL.
-// Collections show once exactly one house is chosen.
-export default function SearchFilters({ filters, onChange }) {
+// Collections show once exactly one house is chosen. `noPrices` lists the slugs
+// of houses with nothing to find; they stay selectable and say so.
+export default function SearchFilters({ filters, onChange, noPrices = [] }) {
   const house = filters.brand.length === 1 ? filters.brand[0] : ''
   const collections = useApi(house, (signal) =>
     house ? getBrand(house, { signal }).then((d) => d.brand.collections) : Promise.resolve([]),
@@ -31,6 +32,7 @@ export default function SearchFilters({ filters, onChange }) {
           <CheckOption
             key={b.slug}
             label={b.name}
+            count={noPrices.includes(b.slug) ? 'No prices' : undefined}
             checked={filters.brand.includes(b.slug)}
             onChange={() => toggle('brand', b.slug)}
           />

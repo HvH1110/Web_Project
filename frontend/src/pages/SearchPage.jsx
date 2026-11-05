@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { SlidersHorizontal, X } from 'lucide-react'
 import CtaButton from '@/components/CtaButton'
 import PageMeta from '@/components/PageMeta'
@@ -10,8 +10,10 @@ import SearchFilters from '@/components/search/SearchFilters'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
+import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
-import { RATE_SOURCE } from '@/lib/catalog'
+import { getBrands } from '@/lib/api'
+import { RATE_SOURCE, pricesUnavailable } from '@/lib/catalog'
 import { formatDate } from '@/lib/format'
 import {
   CLEAR_ALL,
@@ -29,6 +31,13 @@ export default function SearchPage() {
   const [params, setParams] = useSearchParams()
   const filters = readFilters(params)
   const products = useProducts(toProductQuery(filters))
+  const brands = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
+  const noPrices = (brands.data ?? []).filter((b) => b.productCount === 0)
+  // Every chosen house has no prices: say why, rather than "check the spelling".
+  const chosenNoPrices =
+    filters.brand.length > 0 && filters.brand.every((slug) => noPrices.some((b) => b.slug === slug))
+      ? noPrices.filter((b) => filters.brand.includes(b.slug))
+      : []
   const [sheetOpen, setSheetOpen] = useState(false)
 
   // Filters replace the history entry and keep the scroll position.
@@ -57,7 +66,7 @@ export default function SearchPage() {
           aria-label="Filters"
           className="hidden lg:sticky lg:top-[calc(var(--spacing-header)+1.5rem)] lg:col-span-3 lg:block lg:max-h-[calc(100svh-var(--spacing-header)-3rem)] lg:self-start lg:overflow-y-auto lg:pr-6 lg:pb-6"
         >
-          <SearchFilters filters={filters} onChange={update} />
+          <SearchFilters filters={filters} onChange={update} noPrices={noPrices.map((b) => b.slug)} />
         </aside>
 
         <div className="min-w-0 lg:col-span-9">
@@ -88,7 +97,7 @@ export default function SearchPage() {
                     </SheetClose>
                   </div>
                   <div className="flex-1 overflow-y-auto px-8 py-6 [&_fieldset:first-of-type]:border-t-0 [&_fieldset:first-of-type]:pt-0">
-                    <SearchFilters filters={filters} onChange={update} />
+                    <SearchFilters filters={filters} onChange={update} noPrices={noPrices.map((b) => b.slug)} />
                   </div>
                   <div className="grid gap-3 border-t p-6">
                     <CtaButton onClick={() => setSheetOpen(false)} className="w-full">
@@ -124,7 +133,13 @@ export default function SearchPage() {
             <ProductResults
               products={products}
               variant="list"
-              empty={<NoResults q={filters.q} filtered={filterCount > 0 || Boolean(filters.q)} onClear={clearAll} />}
+              empty={
+                chosenNoPrices.length ? (
+                  <NoPrices houses={chosenNoPrices} onClear={clearAll} />
+                ) : (
+                  <NoResults q={filters.q} filtered={filterCount > 0 || Boolean(filters.q)} onClear={clearAll} />
+                )
+              }
               error={
                 products.error?.status === 400 ? (
                   <div role="alert" className="grid justify-items-start gap-4 border-y py-12">
@@ -193,6 +208,32 @@ function Summary({ products, q }) {
             : 'No exchange rates stored yet, so SGD and HKD prices are not converted to VND.'}
         </p>
       )}
+    </div>
+  )
+}
+
+function NoPrices({ houses, onClear }) {
+  return (
+    <div className="grid justify-items-center gap-4 bg-secondary px-6 py-20 text-center">
+      <p className="eyebrow text-muted-foreground">Prices not available</p>
+      <p className="max-w-xl font-serif text-display-sm text-balance">
+        We don’t have prices for {houses.map((b) => b.name).join(' or ')}.
+      </p>
+      <div className="grid max-w-md gap-2 text-sm leading-relaxed text-muted-foreground">
+        {houses.map((b) => (
+          <p key={b.slug}>{pricesUnavailable(b.name)}</p>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap justify-center gap-3">
+        <CtaButton variant="outline" onClick={onClear}>
+          Clear search and filters
+        </CtaButton>
+        {houses.length === 1 && (
+          <CtaButton variant="outline" render={<Link to={`/brands/${houses[0].slug}`} />} nativeButton={false}>
+            About {houses[0].name}
+          </CtaButton>
+        )}
+      </div>
     </div>
   )
 }
