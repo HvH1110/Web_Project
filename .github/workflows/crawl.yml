@@ -1,7 +1,6 @@
 name: Daily crawl
 
-# Manual runs only (Actions tab > Daily crawl > Run workflow) until
-# `npm run crawl` works end to end. Then uncomment `schedule` below.
+# Also runs by hand: Actions tab > Daily crawl > Run workflow.
 #
 # Scheduled runs only happen on the default branch, and GitHub disables them
 # in a public repo after 60 days without commits (re-enable in the Actions tab).
@@ -12,11 +11,11 @@ on:
         description: Only check the database connection, don't crawl
         type: boolean
         default: false
-  # schedule:
-  #   # 19:17 UTC = 02:17 in Vietnam, 03:17 in Singapore and Hong Kong: quiet
-  #   # hours in every market. Off the hour, because runs at :00 are the most
-  #   # likely to be delayed or dropped by GitHub's scheduler.
-  #   - cron: '17 19 * * *'
+  schedule:
+    # 19:17 UTC = 02:17 in Vietnam, 03:17 in Singapore and Hong Kong: quiet
+    # hours in every market. Off the hour, because runs at :00 are the most
+    # likely to be delayed or dropped by GitHub's scheduler.
+    - cron: '17 19 * * *'
 
 permissions:
   contents: read

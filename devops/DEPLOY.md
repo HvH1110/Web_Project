@@ -195,7 +195,7 @@ Then commit and push. `CLIENT_ORIGIN` must match the address people use exactly.
 
 `.github/workflows/crawl.yml` runs `npm run crawl` in `crawler/` on a GitHub-hosted Ubuntu runner with Node 24. It installs Chromium only if the crawler depends on Playwright, and reads `MONGODB_URI` from a repository secret.
 
-**Status: manual trigger only.** The daily schedule (19:17 UTC, i.e. 02:17 in Vietnam and 03:17 in Singapore and Hong Kong) is commented out until the crawler works end to end.
+**Status: on.** It runs every day at 19:17 UTC (02:17 in Vietnam, 03:17 in Singapore and Hong Kong), and can also be started by hand. The first full run, on 2026-11-05, took 2h28m with 0 errors, before `orientalwatch-hk` was added (about 10 more minutes).
 
 ### Why Atlas has to allow `0.0.0.0/0`
 
@@ -232,9 +232,9 @@ On GitHub, open **Actions → Daily crawl → Run workflow**, select branch `mai
 - `Atlas not reachable`: step 2 is missing or still `Pending`.
 - `bad auth`: the user or password in the secret is wrong.
 
-### Turn on the daily schedule
+### Daily schedule
 
-When a manual run finishes successfully and the data in Atlas looks right, uncomment the `schedule:` block in `crawl.yml` and push. Ask the devops session, or commit it yourself as `devops: enable daily crawl schedule`.
+To pause it, comment out the `schedule:` block in `crawl.yml` and push.
 - Cron times are UTC, and GitHub can start scheduled runs late when it is busy.
 - Runs never overlap, including with the nightly backfill. A run that starts while another is still going waits for it to finish.
 - A run is cancelled after 300 minutes. Raise `timeout-minutes` if real crawls need longer (GitHub's maximum is 360).
