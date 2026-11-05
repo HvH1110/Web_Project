@@ -295,7 +295,7 @@ Price history for the chart: one series per source (normally one source per mark
   ]
 }
 ```
-- `from` / `to`: the chart's x-axis. `to` is now. For `all`, `from` is the oldest history point (equal to `to` when there is no history).
+- `from` / `to`: the chart's x-axis. `to` is now, rounded up to the next 5 minutes so that repeat requests match the `ETag`. For `all`, `from` is the oldest history point (equal to `to` when there is no history).
 - `series`: sorted by market (`VN`, `SG`, `HK`), then source id. Empty when the product has no history yet.
 - `source.name` / `source.type`: `null` if the source no longer has a current offer for this product.
 - `lastSeenAt`: until when the last price is known to hold. Extend the line from the last point to this date. `null` when the source has no current offer with a price; then the line ends at the last point.
