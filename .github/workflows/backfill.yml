@@ -86,8 +86,8 @@ jobs:
             }
           '
 
-      # Remove --oldest-first about a week after the first run (around
-      # 2026-11-13), so that new runs go back to newest first.
+      # Review --oldest-first around 2026-12-01; see devops/DEPLOY.md, section
+      # Nightly backfill. Removing it makes runs go back to newest first.
       - name: Backfill
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}

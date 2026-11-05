@@ -35,7 +35,7 @@ jobs:
       - run: npm run build
 
   backend:
-    name: Backend (install, lint, smoke test)
+    name: Backend (install, lint, test, smoke test)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,6 +51,18 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+
+      # The tests start their own in-memory MongoDB and need no secrets. Its
+      # binary is a large download, and the lockfile decides its version.
+      - name: Cache the test database
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Test
+        timeout-minutes: 15
+        run: npm test
 
       # Plain Node has no build step. Instead, start the server and check
       # /api/health. MONGODB_URI is deliberately unset: CI never gets Atlas

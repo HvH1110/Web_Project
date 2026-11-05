@@ -19,6 +19,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 | `COOKIE_SECURE` | backend  | No      | `false` (the default if unset)                                        | `true`, in `backend/render.yaml`. |
 | `COOKIE_SAME_SITE` | backend | No    | `lax` (the default if unset)                                          | `lax`, in `backend/render.yaml`. Vercel proxies `/api`, so `none` isn't needed. |
 | `TRUST_PROXY`   | backend  | No      | `0` (the default if unset)                                            | `10`, in `backend/render.yaml`. See the note below. |
+| `PROXY_SECRET`  | backend, Vercel proxy | No | Not set, so the backend doesn't check it. | The same random value on Vercel and Render, added in step 7 of `DEPLOY.md`, **Vercel first**. Not in any tracked file. |
 | `UPLOAD_STORAGE` | backend | No      | `local` (the default if unset)                                        | `s3`, in `backend/render.yaml`. Render's disk doesn't survive restarts. |
 | `UPLOADS_DIR`   | backend  | No      | `uploads` (the default if unset)                                      | Not used with `s3`. |
 | `UPLOADS_PUBLIC_URL` | backend | No  | Empty: defaults to `http://localhost:<PORT>/api/uploads`              | The bucket's `https://pub-<id>.r2.dev` address, with no trailing slash. Set on Render. |
@@ -48,7 +49,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas. The crawler job installs, lints and imports every module. It never crawls a site.
+- **CI** (`.github/workflows/ci.yml`) sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend tests use their own in-memory MongoDB. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas. The crawler job installs, lints and imports every module. It never crawls a site.
 - **Daily crawl** (`.github/workflows/crawl.yml`) and **Nightly backfill** (`.github/workflows/backfill.yml`) are the only workflows that get a secret: `MONGODB_URI`, passed only to their `Check database` and `Crawl` or `Backfill` steps. GitHub masks the value in logs and never gives it to workflows started by pull requests from forks.
 
 ## Where the files are
@@ -64,6 +65,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 | GitHub secret `MONGODB_URI` | n/a (stored by GitHub) | Crawler connection string for Actions | You (repo Settings) |
 | `backend/render.yaml`   | Yes      | Render service and its non-secret values    | Devops session   |
 | `frontend/vercel.json`  | Yes      | Vercel build, `/api` proxy and page fallback | Devops session  |
+| `devops/vercel.proxy-secret.json` | Yes | Replaces `frontend/vercel.json` in step 7 of `DEPLOY.md`. No secret in it, only the variable's name. | Devops session |
 | Render's Environment page | n/a (stored by Render) | Backend's production secrets | You              |
 
 The root `.gitignore` ignores `.env`, `.env.*` and `*.env` (e.g. `atlas-credentials.env`) but keeps `.env.example`. Even so, keep credential files outside the project folder.
@@ -121,11 +123,12 @@ Hosting is chosen: Vercel, Render and R2 (see `DEPLOY.md`). Production stays on 
 | Writes fail with `over your space quota` | The 512 MB is full. See the storage budget above. |
 | Production: every POST answers 403 `Cross-origin request refused` | `CLIENT_ORIGIN` on Render doesn't match the address in the browser. Use the production address, not a Vercel preview. |
 | Production: registering works, but the person stays logged out | The site is calling Render directly instead of through `/api`. Check that the build used `VITE_API_URL=/api`. |
-| Production: `503 Database unavailable` for a few seconds after a quiet spell | The backend woke up and is still connecting to Atlas. See backend request 1 in `DEPLOY.md`. |
+| Production: `503 Database unavailable` for a few seconds after a quiet spell | The backend woke up and is still connecting to Atlas. The backend should wait for this, so report it to the backend session. |
 | Production: `/api` answers Vercel's 404 or 502 | The Render address in `frontend/vercel.json` is wrong, or the backend isn't running. |
 | Production: uploads fail with 413 | Vercel's limit applies to the proxy. See check 6 in `DEPLOY.md`. |
-| Production: uploads fail with 501 `NotImplemented` | R2 refuses the SDK's checksum header. See backend request 3 in `DEPLOY.md`. |
+| Production: uploads fail with 501 `NotImplemented` | R2 refuses the SDK's checksum header. Check 5 in `DEPLOY.md` says what to do. |
 | Production: forum images vanish after a restart | `UPLOAD_STORAGE` isn't `s3`. |
+| Production: every API call gets 403 `Direct access is not allowed` | `PROXY_SECRET` differs between Vercel and Render, or Render got it first. See step 7 in `DEPLOY.md`. |
 | Everyone gets 429 `Too many attempts` at once | `TRUST_PROXY` is too low. See the note on it above. |
 
 ## Adding a new variable
