@@ -21,6 +21,7 @@ Real values go in `backend/.env` (gitignored). Document every variable in `backe
 - `CLIENT_ORIGIN`: default `http://localhost:5173`. Also the only origin allowed to send non-GET requests (CSRF check).
 - `COOKIE_SECURE` (default `false`), `COOKIE_SAME_SITE` (default `lax`): session cookie flags. Production needs `COOKIE_SECURE=true`.
 - `TRUST_PROXY`: number of proxies in front of the app (default `0`), so rate limits see the client IP.
+- `PROXY_SECRET`: optional. When set, only requests carrying it in `X-Proxy-Secret` reach the API (`src/middleware/require-proxy.js`); `/api/health` is exempt. Set it on the frontend proxy first, or every other API call gets 403. Never print it.
 - `UPLOAD_STORAGE`: `local` (default, files in `UPLOADS_DIR`, default `uploads/`, gitignored, served at `/api/uploads`) or `s3` (any S3-compatible bucket: `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`). `UPLOADS_PUBLIC_URL`: base URL of the files (required for `s3`). Never print the S3 keys.
 
 ## Accounts
@@ -31,7 +32,7 @@ Real values go in `backend/.env` (gitignored). Document every variable in `backe
 ## Forum
 - Everything under `/api/forum` is login-only. Permission rules live in `src/services/forum.service.js` (`editRefusal`, `replyRefusal`, `canDelete`, `visibleFilter`); responses carry the resulting `permissions`, so keep them in one place.
 - Text is plain text, cleaned by `src/utils/forum-fields.js`; the frontend renders it as text, never HTML.
-- Images: `POST /api/forum/uploads` re-encodes with sharp to WebP (strips EXIF/GPS) via `src/services/uploads.service.js`, then posts attach upload IDs. Files go to `src/services/storage/` (never MongoDB: the free cluster has 512 MB). `server.js` purges unused uploads hourly.
+- Images: `POST /api/forum/uploads` re-encodes with sharp to WebP (strips EXIF/GPS) via `src/services/uploads.service.js`, then posts attach upload IDs. Files go to `src/services/storage/` (never MongoDB: the free cluster has 512 MB). `server.js` purges unused uploads on start and hourly: a host that sleeps when idle may never reach the hour.
 - `replyCount` counts visible replies only: keep it in step when creating, deleting, hiding or unhiding replies.
 
 ## API contract
@@ -46,7 +47,7 @@ Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
 - `npm run set-role -- <email> <member|moderator|admin>`: change a member's role (e.g. make a moderator)
 - `npm run lint`: ESLint (flat config in `eslint.config.js`: `js.configs.recommended` + Node globals). Keep it passing.
 - Smoke check: `curl http://localhost:5000/api/health`
-- No tests yet.
+- `npm test`: automated tests in `tests/` (`node --test`) on an in-memory MongoDB, never Atlas. `pretest` downloads the MongoDB binary first, so the first run takes longer. Needs no secrets. Keep it passing.
 
 ## Notes
 - `Dockerfile` / `.dockerignore` in this folder, if they exist, belong to the devops session.
