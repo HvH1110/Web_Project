@@ -172,6 +172,13 @@ Then commit and push. `CLIENT_ORIGIN` must match the address people use exactly.
    ```
    All 400s would mean the fake IP got through. Then, from a phone on mobile data, register a test account: that should succeed, showing that other visitors aren't affected. Your own network stays limited for an hour, or until Render next restarts.
 
+9. **Sitemap:** run this. Expect `200 application/xml`:
+   ```powershell
+   curl.exe -s -o NUL -w "%{http_code} %{content_type}" https://maison-prix.vercel.app/sitemap.xml
+   ```
+   A 200 with `text/html` means the site's page fallback answered, so the `/sitemap.xml` rewrite is missing from `frontend/vercel.json`.
+10. **Gzip reaches Render's bandwidth (after about a week of traffic):** divide the outbound figure on Render's **Metrics** page by the page views for the same days. The backend session estimates about 6 KB per page view with gzip and about 35 KB without, which means about 880,000 or about 150,000 page views on the 5 GB limit. Near 35 KB means Vercel's proxy isn't getting gzip, so tell the backend and devops sessions. Very little traffic won't give a clear answer.
+
 ### Step 6: Finish up
 
 1. **Make yourself an admin.** After registering on the live site, run this from `backend/`:
@@ -195,15 +202,15 @@ The method is the one in [Vercel's docs](https://vercel.com/docs/routing/rewrite
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 2. **Vercel:** open **Settings → Environment Variables** and add `PROXY_SECRET` with that value, for **Production** and **Preview**. Tick **Sensitive** if it's offered.
-3. **Deploy the config:** ask the devops session to copy `devops/vercel.proxy-secret.json` over `frontend/vercel.json`, commit and push. Vercel deploys it. A deployment only sees variables that existed when it was created, so step 2 has to come first.
+3. **Deploy the config:** ask the devops session to compare `devops/vercel.proxy-secret.json` with `frontend/vercel.json`, because any rule added there since must also be in the prepared file. Every rule that sends a request to Render needs the secret. Then copy the file over `frontend/vercel.json`, commit and push. Vercel deploys it. A deployment only sees variables that existed when it was created, so step 2 has to come first.
 4. **Check Vercel, with Render still open.** Each should work as it did in step 5:
    ```powershell
    $site = "https://maison-prix.vercel.app"
-   foreach ($p in "/api/health", "/api/brands", "/api/products?limit=1", "/api/no-such-route", "/brands/dior") {
+   foreach ($p in "/api/health", "/api/brands", "/api/products?limit=1", "/api/no-such-route", "/brands/dior", "/sitemap.xml") {
      "$p -> " + (curl.exe -s -o NUL -w "%{http_code} %{content_type}" "$site$p")
    }
    ```
-   Expect 200 JSON, except 404 JSON for `/api/no-such-route` and 200 HTML for `/brands/dior`. Also log in on the site. If anything fails, stop here: use **Deployments → Instant Rollback** in Vercel, and tell the devops session.
+   Expect 200 JSON, except 404 JSON for `/api/no-such-route`, 200 HTML for `/brands/dior` and 200 XML for `/sitemap.xml`. Also log in on the site. If anything fails, stop here: use **Deployments → Instant Rollback** in Vercel, and tell the devops session.
 5. **Render:** open **Environment**, add `PROXY_SECRET` with the same value, then **Save, rebuild, and deploy**. Wait until the deploy is live.
 6. **Check the lock:**
    ```powershell
@@ -211,8 +218,10 @@ The method is the one in [Vercel's docs](https://vercel.com/docs/routing/rewrite
    "direct health -> " + (curl.exe -s -o NUL -w "%{http_code}" "$api/api/health")
    "direct brands -> " + (curl.exe -s -o NUL -w "%{http_code}" "$api/api/brands")
    "through Vercel -> " + (curl.exe -s -o NUL -w "%{http_code}" "$site/api/brands")
+   "direct sitemap -> " + (curl.exe -s -o NUL -w "%{http_code}" "$api/api/sitemap.xml")
+   "sitemap through Vercel -> " + (curl.exe -s -o NUL -w "%{http_code} %header{x-vercel-cache}" "$site/sitemap.xml?check=$(Get-Random)")
    ```
-   Expect 200, 403 and 200. Then log in and post a forum image on the site.
+   Expect 200, 403, 200, 403, then 200 for the sitemap through Vercel. The backend lets the sitemap be cached for a day, so a 200 only proves the secret arrived if the sitemap line shows `MISS`; the random `check` value is there to get one. A 403 there means search engines would get one too. Then log in and post a forum image on the site.
 
 **If the site gets 403 after step 5:** delete `PROXY_SECRET` from Render's **Environment** and save. That reopens the API without touching Vercel. The usual cause is values that differ, or a Vercel deployment made before the variable existed. If the variable is missing, Vercel sends the literal text `$PROXY_SECRET`, which also gets 403.
 
