@@ -1,88 +1,129 @@
-# Web_Project
+# Maison Prix
 
-Luxury price lookup and price history for Vietnam, Singapore and Hong Kong. See [docs/PRODUCT.md](docs/PRODUCT.md) for the product spec.
+**Know the price before you step inside.**
 
-React + shadcn/ui frontend, Node.js + Express backend, Node.js crawler, MongoDB Atlas database.
+Maison Prix is a website for looking up the official prices of luxury goods, comparing them across Vietnam, Singapore and Hong Kong, and seeing how they have changed over time.
 
-```
-Web_Project/
-├── CLAUDE.md          shared rules, loaded by every Claude session
-├── docs/PRODUCT.md    product spec
-├── docs/API.md        API contract between frontend and backend
-├── docs/DATA.md       data contract between crawler and backend
-├── frontend/          React (Vite) + Tailwind + shadcn/ui        → frontend session
-├── backend/           Node.js + Express + Mongoose               → backend session
-├── crawler/           Node.js crawlers for official price sites  → crawler session
-└── devops/            Atlas, env vars, CI/CD, schedules, deploy  → devops session
-```
+*A non-commercial university project, not affiliated with any brand.*
 
-## Working with four Claude Code sessions in parallel
+## Why this project exists
 
-Each session is started inside its own folder. Claude Code loads the `CLAUDE.md` in that folder plus the root `CLAUDE.md`, so each session knows its role, what it owns, and the shared rules.
+In Vietnam, many luxury houses don't publish their prices. To find out what a bag or a watch costs, a buyer has to walk into a boutique or rely on resellers and social media posts, which may not be accurate.
 
-### 1. Open four terminals and start one session in each
+Maison Prix collects prices only from **official brand websites and authorized dealers**, never from resellers or marketplaces, and every price links back to where it came from. Prices from other markets are converted to VND, so a buyer can see at a glance what an item costs at home and abroad.
 
-Windows Terminal: open four tabs, or split panes with `Alt+Shift+=` / `Alt+Shift+-`. The VS Code integrated terminal works too.
+## Features
 
-```powershell
-# Terminal 1: frontend
-cd C:\DAIHOC\Web_Project\frontend
-claude --add-dir ..\docs
+- **Luxury-house home page:** an editorial design with each brand's history, key facts and signature products.
+- **Search:** find products by text and filter by brand, category, collection, market and price, with Vietnamese letters handled correctly. Each result shows the price per market and where to buy.
+- **Product pages:** image gallery, description, specifications, current prices, and a **price history line chart**, in the style of Chrono24.
+- **Deals:** Today, This month and This year tabs, showing the cheapest market for an item and price drops of 1% or more.
+- **Community forum:** members can create topics and reply with text and images, with moderation tools.
+- **Accounts:** register, log in and manage a profile.
 
-# Terminal 2: backend
-cd C:\DAIHOC\Web_Project\backend
-claude --add-dir ..\docs
+### What counts as a deal?
 
-# Terminal 3: crawler
-cd C:\DAIHOC\Web_Project\crawler
-claude --add-dir ..\docs
+Official luxury prices rarely go down, so a deal here isn't a discount. It's one of two things:
 
-# Terminal 4: devops
-cd C:\DAIHOC\Web_Project\devops
-claude --add-dir ..
-```
+- **Cheapest market:** the biggest gap between the cheapest and most expensive market for the same item, after converting to VND.
+- **Price drop:** the price is at least 1% lower than at the start of the period, in its own currency or in VND because the exchange rate moved.
 
-`--add-dir` gives a session access to a folder outside the one it started in: frontend, backend and crawler need `docs/` for the spec and contracts, devops needs the whole repo.
+## Data coverage
 
-To come back to a session later, run `claude --continue` in the same folder.
+| Brand | Where the prices come from | Markets |
+|---|---|---|
+| Cartier | Official website | VN, SG, HK |
+| Rolex | Authorized dealers (DAFC, The Hour Glass) | VN, SG |
+| Omega | Official website | HK |
+| Louis Vuitton, Dior, IWC | Archived copies of the official websites (Wayback Machine): past prices only | SG, HK |
+| Chanel, Van Cleef & Arpels | Brand information only: their websites block automated access | None |
 
-### 2. First-time kickoff prompts
+Several official websites block crawlers. Maison Prix respects that and doesn't try to get around it. The crawler also follows `robots.txt`, identifies itself honestly, and waits between requests.
 
-**Backend**
-```
-Set up the Express backend in this folder following CLAUDE.md: package.json with dev and start scripts, Express app with CORS and JSON parsing, Mongoose connection using MONGODB_URI, GET /api/health exactly as described in ../docs/API.md, an error-handling middleware, and .env.example. The server should still start if MONGODB_URI is missing (health then reports db "disconnected"). Fill in the Commands section of CLAUDE.md. No features yet.
-```
+**Price history** comes from regular crawls and, for sites that block crawlers, from Wayback Machine archives. It is only stored when a price changes. Foreign prices are converted using Vietcombank's sell rate for the relevant date.
 
-**Frontend**
-```
-Set up the frontend in this folder following CLAUDE.md: Vite + React (JavaScript), Tailwind CSS and shadcn/ui following the official shadcn Vite guide, React Router, src/lib/api.js using VITE_API_URL, and .env.example. Make the home page call GET /api/health (see ../docs/API.md) and show the status and db fields in a shadcn Card, with loading and error states. Fill in the Commands section of CLAUDE.md.
+## How it works
+
+```mermaid
+flowchart LR
+    A[Official sites and<br>authorized dealers] --> C[Crawler]
+    B[Wayback Machine<br>archives] --> C
+    D[Vietcombank<br>exchange rates] --> C
+    C --> E[(MongoDB Atlas)]
+    E --> F[Express API]
+    F --> G[React website]
 ```
 
-**DevOps**
+The project is split into four areas:
+
+| Folder | Purpose | Main tools |
+|---|---|---|
+| `frontend/` | The website | React 19, Vite, Tailwind CSS 4, shadcn/ui, Recharts, React Router |
+| `backend/` | REST API, accounts, forum and image uploads | Node.js, Express 5, Mongoose, sharp |
+| `crawler/` | Collects prices, product details and exchange rates | Node.js, cheerio, Mongoose |
+| `devops/` | Environment and deployment guides | GitHub Actions, MongoDB Atlas |
+
+## Getting started
+
+You need [Node.js](https://nodejs.org/) 20.19 or newer and a [MongoDB Atlas](https://www.mongodb.com/atlas) connection string. `devops/ENVIRONMENT.md` explains how to set up Atlas and what each setting does.
+
+```bash
+git clone https://github.com/HvH1110/Web_Project.git
+cd Web_Project
 ```
-Walk me through setting up MongoDB Atlas for this project one step at a time: free cluster, database user, network access, and getting the connection string. I will paste the connection string into backend/.env myself. Then create devops/ENVIRONMENT.md documenting every environment variable.
+
+**1. Backend** (http://localhost:5000)
+
+```bash
+cd backend
+npm install
+cp .env.example .env      # then put your connection string in MONGODB_URI
+npm run seed:brands       # loads the brand information
+npm run dev
 ```
 
-Once the frontend and backend are scaffolded, ask devops for CI:
-```
-Both apps are scaffolded now. Add a GitHub Actions workflow that installs, lints and builds frontend and backend on every push and pull request.
-```
+**2. Frontend** (http://localhost:5173), in a second terminal
 
-### 3. Check that everything is connected
-
-Run the dev servers yourself, in two more terminals:
-
-```powershell
-cd C:\DAIHOC\Web_Project\backend;  npm run dev    # http://localhost:5000
-cd C:\DAIHOC\Web_Project\frontend; npm run dev    # http://localhost:5173
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-Open http://localhost:5173. The card should show `status: ok` and `db: connected`, which proves frontend → backend → Atlas works.
+**3. Crawler** (optional, to collect product data), in a third terminal
 
-### Day-to-day rules
+```bash
+cd crawler
+npm install
+cp .env.example .env      # then put your connection string in MONGODB_URI
+npm run crawl -- cartier-sg --limit=5
+```
 
-- **One area per session.** Sessions only edit their own folder. If one needs something from another (e.g. frontend needs a new endpoint), it tells you, and you pass the request to the right session.
-- **The API contract is the hand-off.** Backend updates `docs/API.md` with every endpoint change. Then tell the frontend session: "docs/API.md changed, re-read it".
-- **Run dev servers yourself.** Only one process can use port 5000 or 5173, so keep the servers in your own terminals instead of having several sessions start them.
-- **Commit per area.** All sessions share one checkout and one branch. Ask a session to commit and it commits only its own folder (`git commit -- backend/`). Never let a session run `git add .`, `git stash` or switch branches.
-- **Secrets stay in `.env`.** `backend/.env` and `frontend/.env` are gitignored. Paste the Atlas connection string there yourself, not into a chat.
+Leave out the source name and limit to crawl every source, which takes a few hours.
+
+## Project status
+
+The website, API and crawler are built, and CI runs on every push. Still to do:
+
+- Deploy the site (planned: Vercel for the website, Render for the API, Cloudflare R2 for forum images).
+- Turn on the daily crawl schedule.
+- Extend the price history through the Wayback Machine archives.
+- Review the draft brand histories.
+
+## Documentation
+
+- [Product spec](docs/PRODUCT.md): what the site does and the rules behind it
+- [API reference](docs/API.md): every endpoint
+- [Data model](docs/DATA.md): how products, prices and rates are stored
+- [Sources](crawler/SOURCES.md): every site checked, and what was found
+- [Environment](devops/ENVIRONMENT.md) and [deployment](devops/DEPLOY.md) guides
+- [Development workflow](docs/WORKFLOW.md): how this project is built with four parallel Claude Code sessions
+
+## Disclaimer
+
+Maison Prix is not affiliated with or endorsed by any brand mentioned. Prices are indicative, so always confirm with the official store. Brand names are trademarks of their owners, and product images belong to their owners and are credited to their source.
+
+## Author
+
+Huynh Vu Hoang
