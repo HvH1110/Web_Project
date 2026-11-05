@@ -2,3 +2,5 @@
 User-agent: *
 Disallow: /account
 Disallow: /community
+
+Sitemap: https://maison-prix.vercel.app/sitemap.xml

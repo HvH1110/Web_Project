@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import App from '@/App'
 import HomePage from '@/pages/HomePage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import RouteError from '@/pages/RouteError'
 
 export const router = createBrowserRouter([
   {
@@ -9,61 +10,68 @@ export const router = createBrowserRouter([
     element: <App />,
     // Shown for a moment while a lazy page loads on the first visit.
     hydrateFallbackElement: <div className="min-h-svh" />,
+    errorElement: <RouteError />,
     children: [
-      { index: true, element: <HomePage /> },
-      // Lazy, so catalog pages and their widgets stay out of the home page bundle.
       {
-        path: 'brands/:slug',
-        lazy: async () => ({ Component: (await import('@/pages/BrandPage')).default }),
+        // Inside the layout, so a failed page keeps the header and footer.
+        errorElement: <RouteError />,
+        children: [
+          { index: true, element: <HomePage /> },
+          // Lazy, so catalog pages and their widgets stay out of the home page bundle.
+          {
+            path: 'brands/:slug',
+            lazy: async () => ({ Component: (await import('@/pages/BrandPage')).default }),
+          },
+          {
+            path: 'products/:brand/:ref',
+            lazy: async () => ({ Component: (await import('@/pages/ProductPage')).default }),
+          },
+          {
+            path: 'deals',
+            lazy: async () => ({ Component: (await import('@/pages/DealsPage')).default }),
+          },
+          {
+            path: 'community',
+            lazy: async () => ({ Component: (await import('@/pages/CommunityPage')).default }),
+          },
+          {
+            path: 'community/new',
+            lazy: async () => ({ Component: (await import('@/pages/NewTopicPage')).default }),
+          },
+          {
+            path: 'community/:id',
+            lazy: async () => ({ Component: (await import('@/pages/TopicPage')).default }),
+          },
+          {
+            path: 'account',
+            lazy: async () => ({ Component: (await import('@/pages/AccountPage')).default }),
+          },
+          {
+            path: 'account/login',
+            lazy: async () => ({ Component: (await import('@/pages/LoginPage')).default }),
+          },
+          {
+            path: 'account/register',
+            lazy: async () => ({ Component: (await import('@/pages/RegisterPage')).default }),
+          },
+          {
+            path: 'search',
+            lazy: async () => ({ Component: (await import('@/pages/SearchPage')).default }),
+          },
+          // Design system reference, dev builds only.
+          ...(import.meta.env.DEV
+            ? [
+                {
+                  path: 'styleguide',
+                  lazy: async () => ({
+                    Component: (await import('@/pages/StyleguidePage')).default,
+                  }),
+                },
+              ]
+            : []),
+          { path: '*', element: <NotFoundPage /> },
+        ],
       },
-      {
-        path: 'products/:brand/:ref',
-        lazy: async () => ({ Component: (await import('@/pages/ProductPage')).default }),
-      },
-      {
-        path: 'deals',
-        lazy: async () => ({ Component: (await import('@/pages/DealsPage')).default }),
-      },
-      {
-        path: 'community',
-        lazy: async () => ({ Component: (await import('@/pages/CommunityPage')).default }),
-      },
-      {
-        path: 'community/new',
-        lazy: async () => ({ Component: (await import('@/pages/NewTopicPage')).default }),
-      },
-      {
-        path: 'community/:id',
-        lazy: async () => ({ Component: (await import('@/pages/TopicPage')).default }),
-      },
-      {
-        path: 'account',
-        lazy: async () => ({ Component: (await import('@/pages/AccountPage')).default }),
-      },
-      {
-        path: 'account/login',
-        lazy: async () => ({ Component: (await import('@/pages/LoginPage')).default }),
-      },
-      {
-        path: 'account/register',
-        lazy: async () => ({ Component: (await import('@/pages/RegisterPage')).default }),
-      },
-      {
-        path: 'search',
-        lazy: async () => ({ Component: (await import('@/pages/SearchPage')).default }),
-      },
-      // Design system reference, dev builds only.
-      ...(import.meta.env.DEV
-        ? [
-            {
-              path: 'styleguide',
-              lazy: async () => ({
-                Component: (await import('@/pages/StyleguidePage')).default,
-              }),
-            },
-          ]
-        : []),
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])
