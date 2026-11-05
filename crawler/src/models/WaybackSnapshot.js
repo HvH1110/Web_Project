@@ -11,7 +11,7 @@ const waybackSnapshotSchema = new mongoose.Schema(
     _id: String, // snapshotId(): a short hash of source, page and quarter
     sourceId: { type: String, required: true },
     // The URL exactly as archived (the page URL is normalizeUrl(original)).
-    // Dropped once the snapshot turns out to be no-data or missing.
+    // Dropped once the snapshot turns out to be missing.
     original: String,
     timestamp: { type: String, required: true }, // Wayback timestamp, YYYYMMDDhhmmss
     // pending | saved | no-price | no-data (no product data / out of scope) | missing | error

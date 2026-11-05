@@ -8,6 +8,8 @@ import { clean, parsePrice } from '../lib/parse.js';
 // .../watch-collections/portugieser/iw545901-portugieser-hand-wound-....html
 const WATCH_URL = /\/watch-collections\/([^/]+)\/(iw[0-9a-z]+)-[^/]*\.html$/i;
 
+const CURRENCY_SIGNS = { 'S$': 'SGD', 'HK$': 'HKD' };
+
 const titleCase = (slug) => slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
 export function iwcArchive({ market, path, currency }) {
@@ -29,7 +31,9 @@ export function iwcArchive({ market, path, currency }) {
       const name = clean(main.attr('data-product-name')) ?? clean($(`[data-product-reference="${ref}"]`).first().attr('data-product-name')) ?? clean($('h1').first().text());
       if (!name) return null;
 
-      const pageCurrency = clean($('[itemprop="priceCurrency"]').first().attr('content'));
+      // Written as a sign on some 2023 pages.
+      const shown = clean($('[itemprop="priceCurrency"]').first().attr('content'));
+      const pageCurrency = CURRENCY_SIGNS[shown] ?? shown;
       if (pageCurrency && pageCurrency !== currency) {
         throw new Error(`expected ${currency} but the page shows ${pageCurrency}`);
       }

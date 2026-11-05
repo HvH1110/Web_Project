@@ -11,8 +11,8 @@ const CATEGORY_WORDS = [
   [/jewel|\brings?\b|necklace|earring|bracelet|pendant/i, 'jewelry'],
   [/shoe|sneaker|boot|loafer|sandal|pump|mule|espadrille|slide/i, 'shoes'],
   [/small leather|wallet|card holder|key holder|belt|scar(f|ves)|shawl|stole|sunglass|eyewear|\bhats?\b|\bcaps?\b|glove|\bties?\b|charm|accessor/i, 'accessories'],
-  [/bag|luggage|travel|backpack|tote|clutch|pouch|trunk/i, 'bags'],
-  [/ready-to-wear|pr[êe]t-[àa]-porter|clothing|shirt|jacket|coat|dress|knit|trousers|pants|shorts|skirt|sweater|hoodie|blouse|cardigan|polo|swim|denim|jeans/i, 'clothing'],
+  [/bag|luggage|suitcase|travel|backpack|tote|clutch|pouch|trunk/i, 'bags'],
+  [/ready[- ]to[- ]wear|pr[êe]t-[àa]-porter|clothing|shirt|jacket|coat|dress|knit|trousers|pants|shorts|skirt|sweater|hoodie|blouse|cardigan|polo|swim|denim|jeans|\btops?\b/i, 'clothing'],
 ];
 
 const categoryOf = (text) => CATEGORY_WORDS.find(([re]) => re.test(text))?.[1];
@@ -30,7 +30,8 @@ export function breadcrumbs($) {
 // Category from the deepest breadcrumb that names one, plus the crumb after
 // it (e.g. "Lady Dior" after "Bags") as the collection. Without one: the
 // category in the page title ("Name - Ready-to-Wear | LOUIS VUITTON"), then
-// the product name ("Clair D Lune Earrings").
+// the product name ("Clair D Lune Earrings"), then the whole title ("Dior3D M1U
+// Black Mask Sunglasses | DIOR").
 // category is undefined when nothing matched, null when out of scope.
 export function categorize($, name) {
   const crumbs = breadcrumbs($);
@@ -38,9 +39,10 @@ export function categorize($, name) {
     const category = categoryOf(crumbs[i].replace(/fashion\s*&\s*accessories/i, ''));
     if (category !== undefined) return { category, collection: i < crumbs.length - 1 ? crumbs.at(-1) : undefined };
   }
-  const titleParts = $('title').first().text().split('|')[0].split(' - ');
+  const title = $('title').first().text().split('|')[0];
+  const titleParts = title.split(' - ');
   const titleCategory = titleParts.length > 1 ? titleParts.at(-1) : undefined;
-  for (const text of [titleCategory, name]) {
+  for (const text of [titleCategory, name, title]) {
     const category = text && categoryOf(text);
     if (category !== undefined) return { category };
   }
@@ -57,10 +59,11 @@ export function ldImages(image) {
 // Product pages with schema.org JSON-LD (Product + Offer + BreadcrumbList), as
 // archived. Returns the normalized item, or null when the snapshot has no
 // product data or the product is out of scope. Only the price in the Offer
-// counts: analytics data in the page is not what the page showed.
-export function parseJsonLdProduct($, url, { brand, currency }) {
+// counts: analytics data in the page is not what the page showed. `fallbackRef`
+// is for pages whose JSON-LD has no sku. A price of 0 means the page shows none.
+export function parseJsonLdProduct($, url, { brand, currency, fallbackRef }) {
   const ld = jsonLdOfType($, 'Product')[0];
-  const ref = clean(ld?.sku);
+  const ref = clean(ld?.sku) ?? fallbackRef;
   const name = clean(ld?.name);
   if (!ref || !name) return null;
 
@@ -90,7 +93,7 @@ export function parseJsonLdProduct($, url, { brand, currency }) {
     images: images.slice(0, 4).map((src) => ({ url: src, alt: name })),
     url,
     currency,
-    price: offer?.priceCurrency ? parsePrice(offer.price) : null,
+    price: offer?.priceCurrency ? parsePrice(offer.price) || null : null,
     available: null,
   };
 }

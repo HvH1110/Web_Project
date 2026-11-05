@@ -16,7 +16,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - All dates are UTC.
 - Source ids are `<site>-<market>`. In use:
   - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
-  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on).
+  - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on, Louis Vuitton from 2015).
   - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`, `vancleefarpels-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
@@ -63,7 +63,7 @@ Price history. A new point is added only when the price changes (or the first ti
 | `market` | string | |
 | `currency` | string | |
 | `price` | number | |
-| `observedAt` | date | |
+| `observedAt` | date | Rates in `fx_rates` start 2020-02-01, so a Louis Vuitton `wayback` price older than that has no VND value: show it in its own currency |
 | `origin` | `crawl` \| `wayback` \| `manual` | `wayback`: the price an archived snapshot of the official page showed, at the snapshot's date. `manual`: the price a person read from the official page, on `observedAt` (a date with no time, midnight UTC) |
 | `archiveUrl` | string? | for `wayback` only: the snapshot on web.archive.org (link it as the source of that point) |
 | `sourceUrl` | string? | for `manual` only: the official page the price was read from (link it as the source of that point) |

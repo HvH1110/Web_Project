@@ -1,5 +1,5 @@
 // Price history from the Internet Archive (Wayback Machine):
-//   npm run backfill [-- [archive-id ...] [--limit=N] [--dry-run]]
+//   npm run backfill [-- [archive-id ...] [--limit=N] [--oldest-first] [--dry-run]]
 // With no ids it runs every adapter in src/archives/index.js. Each run:
 //   1. asks the Wayback index for captures of each source's product pages
 //      newer than the last run, and queues at most one per page per quarter;
@@ -7,6 +7,7 @@
 //      taking turns between sources) and saves the products and the prices
 //      the archived pages showed (price_points with origin "wayback").
 // Safe to re-run and to stop at any time; the next run continues the queue.
+//   --oldest-first   fetch the oldest queued snapshots first, to reach far back sooner
 //   --dry-run   no database: read one page of the index per source, fetch the
 //               newest --limit (default 3) product pages and print the items
 import { connectDB, disconnectDB } from './db.js';
@@ -30,7 +31,9 @@ const dryRun = flags.includes('--dry-run');
 const limitFlag = flags.find((f) => f.startsWith('--limit='));
 const limit = limitFlag ? Number(limitFlag.slice('--limit='.length)) : dryRun ? 3 : 500;
 
-const badFlags = flags.filter((f) => f !== '--dry-run' && f !== limitFlag);
+const oldestFirst = flags.includes('--oldest-first');
+
+const badFlags = flags.filter((f) => f !== '--dry-run' && f !== '--oldest-first' && f !== limitFlag);
 if (badFlags.length || !(limit > 0)) {
   console.error(`Unknown or invalid option(s): ${[...badFlags, limitFlag].filter(Boolean).join(', ')}`);
   process.exit(1);
@@ -58,9 +61,9 @@ function normalizeUrl(raw) {
   }
 }
 
-// Oldest year of history we index. Product pages exist in the archive from
-// about 2014, but older ones are mostly products no longer sold, and every
-// year adds tens of thousands of pages to the queue.
+// Oldest year of history we index, unless the adapter sets `firstYear`. Before
+// this only Louis Vuitton has readable prices (SOURCES.md), and exchange rates
+// start in February 2020.
 const FIRST_YEAR = 2020;
 // Past years indexed per URL prefix per run (newest first), so the first runs
 // don't spend all their time on the index. Later runs fill in older years.
@@ -100,7 +103,8 @@ async function indexSource(source) {
 
     // This year since the newest capture seen, then past years not done yet.
     const slices = [{ from: newest > String(thisYear) ? newest : String(thisYear) }];
-    for (let year = thisYear - 1; year >= FIRST_YEAR && slices.length <= PAST_YEARS_PER_RUN; year -= 1) {
+    const firstYear = source.firstYear ?? FIRST_YEAR;
+    for (let year = thisYear - 1; year >= firstYear && slices.length <= PAST_YEARS_PER_RUN; year -= 1) {
       if (!yearsDone.has(year)) slices.push({ year, from: String(year), to: String(year) });
     }
     // true when the whole range was listed. A range that fails halfway is
@@ -188,7 +192,7 @@ async function dryRunSource(source) {
 async function processQueues(sources, queues) {
   for (const source of sources) {
     const pending = (
-      await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' }).sort({ timestamp: -1 }).limit(limit).lean()
+      await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' }).sort({ timestamp: oldestFirst ? 1 : -1 }).limit(limit).lean()
     ).map((snap) => ({ ...snap, url: normalizeUrl(snap.original) }));
     queues.push({ source, pending, errorsInARow: 0, stats: { saved: 0, created: 0, points: 0, 'no-price': 0, 'no-data': 0, missing: 0, error: 0 } });
   }
@@ -224,8 +228,9 @@ async function processQueues(sources, queues) {
           }
         }
       }
-      // A page with nothing for us is never fetched again: its URL can go.
-      const drop = update.status === 'no-data' || update.status === 'missing' ? { $unset: { original: 1 } } : {};
+      // A page that is gone is never fetched again: its URL can go. A no-data
+      // page keeps it, so it can be queued again if a parser learns to read it.
+      const drop = update.status === 'missing' ? { $unset: { original: 1 } } : {};
       await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...drop });
     }
     active = active.filter((q) => q.pending.length);
