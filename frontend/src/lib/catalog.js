@@ -1,3 +1,5 @@
+import { formatDayUtc } from '@/lib/format'
+
 // Helpers for catalog data from the API (shapes in ../docs/API.md).
 
 export const SORTS = [
@@ -12,16 +14,35 @@ export const productPath = (product) =>
   `/products/${product.brand}/${encodeURIComponent(product.ref)}`
 
 // The price a product card leads with: the lowest VND price, or, when no
-// exchange rate is known, the first offer that shows any price.
+// exchange rate is known, the first offer that shows any price. `origin` and
+// `lastSeenAt` say how and when it was read (see handChecked).
 export function leadPrice(product) {
   const priced = product.offers.filter((o) => o.price != null)
   if (product.lowestPriceVnd != null) {
     const offer = priced.find((o) => o.priceVnd === product.lowestPriceVnd)
-    return { value: product.lowestPriceVnd, currency: 'VND', market: offer?.market ?? null }
+    return {
+      value: product.lowestPriceVnd,
+      currency: 'VND',
+      market: offer?.market ?? null,
+      origin: offer?.origin,
+      lastSeenAt: offer?.lastSeenAt,
+    }
   }
   const offer = priced[0]
-  return offer ? { value: offer.price, currency: offer.currency, market: offer.market } : null
+  return offer
+    ? {
+        value: offer.price,
+        currency: offer.currency,
+        market: offer.market,
+        origin: offer.origin,
+        lastSeenAt: offer.lastSeenAt,
+      }
+    : null
 }
+
+// For a price a person read from the official site: it can be weeks old, so it
+// always shows this rather than passing as a live price.
+export const handChecked = (iso) => `Checked by hand on ${formatDayUtc(iso)}`
 
 // Lowercase, accents removed: "Perlée" -> "perlee".
 const fold = (text) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()

@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { MARKETS } from '@/content/site'
-import { NO_CURRENT_PRICE, OUT_OF_STOCK, productPath } from '@/lib/catalog'
+import { NO_CURRENT_PRICE, OUT_OF_STOCK, handChecked, productPath } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -9,12 +9,17 @@ const SOURCE_TYPE = { official: 'Official store', 'authorized-dealer': 'Authoriz
 
 // Current price in every market, each offer with its where-to-buy link. All
 // three markets get a row so they compare at a glance, even when one has no
-// offer. The lowest VND price is marked when there is more than one.
+// offer. The lowest VND price is marked when there is more than one. A price
+// read by hand carries its own date, which can be weeks older than the crawl's.
 export default function OfferTable({ product, className }) {
   const priced = product.offers.filter((o) => o.priceVnd != null)
   const lowest =
     priced.length > 1 ? priced.find((o) => o.priceVnd === product.lowestPriceVnd) : undefined
-  const lastSeen = product.offers.map((o) => o.lastSeenAt).sort().at(-1)
+  const lastSeen = product.offers
+    .filter((o) => o.origin !== 'manual')
+    .map((o) => o.lastSeenAt)
+    .sort()
+    .at(-1)
 
   if (!product.offers.length) {
     return (
@@ -95,6 +100,9 @@ function PriceCell({ offer, lowest }) {
         <p className="mt-1 text-xs text-muted-foreground tabular-nums">
           ≈ {formatPrice(offer.priceVnd, 'VND')}
         </p>
+      )}
+      {offer.origin === 'manual' && (
+        <p className="mt-1 text-xs text-muted-foreground">{handChecked(offer.lastSeenAt)}</p>
       )}
     </td>
   )

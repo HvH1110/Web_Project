@@ -9,12 +9,13 @@ import PageMeta from '@/components/PageMeta'
 import PriceHistory from '@/components/product/PriceHistory'
 import ProductCard from '@/components/product/ProductCard'
 import ProductGallery from '@/components/product/ProductGallery'
+import PriceSource from '@/components/product/PriceSource'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MARKETS } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { getProduct, getProductHistory, getProducts } from '@/lib/api'
-import { NO_CURRENT_PRICE, RATE_SOURCE, leadPrice } from '@/lib/catalog'
-import { formatDate, formatPrice } from '@/lib/format'
+import { NO_CURRENT_PRICE, RATE_SOURCE, handChecked, leadPrice } from '@/lib/catalog'
+import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 import { lastKnownPrices } from '@/lib/history'
 import NotFoundPage from '@/pages/NotFoundPage'
 
@@ -150,9 +151,10 @@ function Product({ brand, productRef }) {
 }
 
 // schema.org data for search results, only with a current price: past prices
-// must never read as today's. "<" is escaped so text can't close the script tag.
+// and prices read by hand, which can be weeks old, must never read as today's.
+// "<" is escaped so text can't close the script tag.
 function ProductData({ product, brandName }) {
-  const offers = product.offers.filter((o) => o.price != null)
+  const offers = product.offers.filter((o) => o.price != null && o.origin !== 'manual')
   if (!offers.length) return null
   const data = {
     '@context': 'https://schema.org',
@@ -207,6 +209,9 @@ function LeadPrice({ product }) {
           <p className="text-sm text-muted-foreground">
             {markets.size > 1 ? `In ${market}, of ${markets.size} markets` : `In ${market}`}
           </p>
+        )}
+        {price.origin === 'manual' && (
+          <p className="text-sm text-muted-foreground">{handChecked(price.lastSeenAt)}</p>
         )}
       </div>
       {offer && (
@@ -268,21 +273,10 @@ function ArchivedPrices({ prices, history }) {
                   </th>
                   <td className="py-3.5 pr-4 align-top tabular-nums">{formatPrice(p.price, p.currency)}</td>
                   <td className="py-3.5 text-right align-top">
-                    <p className="tabular-nums">{formatDate(p.date)}</p>
-                    {p.origin === 'wayback' && p.archiveUrl ? (
-                      <a
-                        href={p.archiveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground"
-                      >
-                        <span className="link-underline">Internet Archive</span>
-                        <ArrowUpRight className="size-3" strokeWidth={1.5} aria-hidden="true" />
-                        <span className="sr-only">(opens in a new tab)</span>
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">Daily crawl</p>
-                    )}
+                    <p className="tabular-nums">{p.origin === 'manual' ? formatDayUtc(p.date) : formatDate(p.date)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <PriceSource {...p} />
+                    </p>
                   </td>
                 </tr>
               ))}

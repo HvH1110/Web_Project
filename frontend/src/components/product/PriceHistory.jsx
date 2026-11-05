@@ -1,12 +1,12 @@
 import { Suspense, lazy } from 'react'
 import { useSearchParams } from 'react-router'
-import { ArrowUpRight } from 'lucide-react'
 import LoadError from '@/components/LoadError'
+import PriceSource from '@/components/product/PriceSource'
 import Segmented from '@/components/Segmented'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useApi } from '@/hooks/useApi'
 import { getProductHistory } from '@/lib/api'
-import { formatDate, formatPrice } from '@/lib/format'
+import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 import { RATE_SOURCE } from '@/lib/catalog'
 import { DEFAULT_RANGE, RANGES, hasVndValues, justStarted, seriesName } from '@/lib/history'
 import { cn } from '@/lib/utils'
@@ -106,9 +106,7 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
                   {!noVnd && (view === 'table' || currency === 'vnd') && ` VND prices use ${RATE_SOURCE} of each day.`}
                   {currency === 'vnd' && view === 'chart' && ' Gaps mean no rate was known.'}
                   {noVnd && ' Prices are in their original currency because no exchange rates are stored for these dates.'}
-                  {view === 'chart' &&
-                    currency !== 'vnd' &&
-                    ' Hollow points are Internet Archive snapshots; the table links to each one.'}
+                  {view === 'chart' && currency !== 'vnd' && markerNote(data.series)}
                 </p>
               )}
             </div>
@@ -119,21 +117,39 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
   )
 }
 
-// Before there is any line: each store's only price so far, either the start
-// of daily tracking or a single Internet Archive snapshot.
+// What the markers on the original-currency charts mean, for those present.
+function markerNote(series) {
+  const origins = new Set(series.flatMap((s) => s.points.map((p) => p.origin)))
+  const meanings = [
+    origins.has('wayback') && 'Hollow circles are Internet Archive snapshots',
+    origins.has('manual') && `${origins.has('wayback') ? 'hollow' : 'Hollow'} squares are prices checked by hand`,
+  ].filter(Boolean)
+  return meanings.length ? ` ${meanings.join(' and ')}; the table links to each one.` : ''
+}
+
+// Before there is any line: each store's only price so far: the start of daily
+// tracking, a single Internet Archive snapshot, or a price checked by hand.
 function FirstPrices({ series }) {
   const started = series.map((s) => s.points[0].date).sort()[0]
-  const archived = series.every((s) => s.points[0].origin === 'wayback')
+  const firstOrigins = new Set(series.map((s) => s.points[0].origin))
+  const archived = firstOrigins.size === 1 && firstOrigins.has('wayback')
+  const tracked = firstOrigins.size === 1 && firstOrigins.has('crawl')
   return (
     <div className="grid gap-6 bg-secondary px-6 py-12 sm:px-10">
       <div className="grid gap-2">
         <p className="eyebrow text-muted-foreground">
-          {archived ? 'One archived price per store so far' : `Tracking started ${formatDate(started)}`}
+          {archived
+            ? 'One archived price per store so far'
+            : tracked
+              ? `Tracking started ${formatDate(started)}`
+              : 'One price per store so far'}
         </p>
         <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
           {archived
             ? 'A line appears once the Internet Archive has captured a store at more than one date. Captured so far:'
-            : 'The chart appears once prices have been checked over a few days. First prices recorded:'}
+            : tracked
+              ? 'The chart appears once prices have been checked over a few days. First prices recorded:'
+              : 'A line appears once a store has prices from more than one date. Recorded so far:'}
         </p>
       </div>
       <ul className="grid max-w-2xl border-b">
@@ -144,7 +160,15 @@ function FirstPrices({ series }) {
               <span>{seriesName(s)}</span>
               <span className="tabular-nums">
                 {first.price != null ? formatPrice(first.price, s.currency) : '—'}
-                <span className="ml-3 text-xs text-muted-foreground">{formatDate(first.date)}</span>
+                <span className="ml-3 text-xs text-muted-foreground">
+                  {first.origin === 'manual' ? (
+                    <>
+                      <PriceSource {...first} /> on {formatDayUtc(first.date)}
+                    </>
+                  ) : (
+                    formatDate(first.date)
+                  )}
+                </span>
               </span>
             </li>
           )
@@ -169,7 +193,8 @@ function HistoryTable({ series }) {
   }
   return (
     // Focusable so keyboard users can scroll it sideways on small screens.
-    <div role="region" aria-label="Recorded price changes" tabIndex={0} className="overflow-x-auto">
+    // Relative, or the hidden link text escapes the scrolling and widens the page.
+    <div role="region" aria-label="Recorded price changes" tabIndex={0} className="relative overflow-x-auto">
       <table className="w-full min-w-[40rem] border-b text-sm">
         <caption className="sr-only">Recorded price changes</caption>
         <thead>
@@ -184,7 +209,9 @@ function HistoryTable({ series }) {
         <tbody>
           {rows.map((r) => (
             <tr key={`${r.s.market}-${r.s.source.id}-${r.date}`} className="border-t">
-              <td className="py-3 pr-4 whitespace-nowrap tabular-nums">{formatDate(r.date)}</td>
+              <td className="py-3 pr-4 whitespace-nowrap tabular-nums">
+                {r.origin === 'manual' ? formatDayUtc(r.date) : formatDate(r.date)}
+              </td>
               <td className="py-3 pr-4">{seriesName(r.s)}</td>
               <td className="py-3 pr-4 text-right tabular-nums">
                 {r.price != null ? formatPrice(r.price, r.s.currency) : '—'}
@@ -193,15 +220,7 @@ function HistoryTable({ series }) {
                 {r.vnd != null ? formatPrice(r.vnd, 'VND') : '—'}
               </td>
               <td className="py-3 text-right">
-                {r.origin === 'wayback' && r.archiveUrl ? (
-                  <a href={r.archiveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
-                    <span className="link-underline">Internet Archive</span>
-                    <ArrowUpRight className="size-3" strokeWidth={1.5} aria-hidden="true" />
-                    <span className="sr-only">(opens in a new tab)</span>
-                  </a>
-                ) : (
-                  'Daily crawl'
-                )}
+                <PriceSource {...r} />
               </td>
             </tr>
           ))}

@@ -63,14 +63,14 @@ export function currencyRows(s) {
 }
 
 // The last price each source showed, for products with no current offer:
-// [{ market, sourceId, currency, price, date, origin, archiveUrl }], in series
+// [{ market, sourceId, currency, price, date, origin, archiveUrl, sourceUrl }], in series
 // order (VN, SG, HK). Expects the range `all`, so nothing is carried.
 export function lastKnownPrices(series) {
   return series.flatMap((s) => {
     const point = s.points.findLast((p) => p.price != null)
     if (!point) return []
-    const { price, date, origin, archiveUrl } = point
-    return [{ market: s.market, sourceId: s.source.id, currency: s.currency, price, date, origin, archiveUrl }]
+    const { price, date, origin, archiveUrl, sourceUrl } = point
+    return [{ market: s.market, sourceId: s.source.id, currency: s.currency, price, date, origin, archiveUrl, sourceUrl }]
   })
 }
 

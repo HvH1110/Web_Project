@@ -12,6 +12,17 @@ const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', y
 // "12 Oct 2026"
 export const formatDate = (iso) => day.format(new Date(iso))
 
+const utcDay = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+// "12 Oct 2026" for a date with no time of day, stored as midnight UTC: the
+// same day everywhere, where formatDate could show the day before.
+export const formatDayUtc = (iso) => utcDay.format(new Date(iso))
+
 const dayTime = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',

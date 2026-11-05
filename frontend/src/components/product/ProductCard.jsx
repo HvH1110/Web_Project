@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
-import { NO_CURRENT_PRICE, imageCredit, leadPrice, productPath } from '@/lib/catalog'
+import { NO_CURRENT_PRICE, handChecked, imageCredit, leadPrice, productPath } from '@/lib/catalog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -68,6 +68,9 @@ export default function ProductCard({ product }) {
               ? 'Price on request'
               : NO_CURRENT_PRICE}
         </p>
+        {price?.origin === 'manual' && (
+          <p className="text-xs text-muted-foreground">{handChecked(price.lastSeenAt)}</p>
+        )}
         {product.offers.length > 0 && <MarketStrip offers={product.offers} lowest={price?.market} />}
       </div>
 

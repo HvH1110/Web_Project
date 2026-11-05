@@ -196,18 +196,25 @@ function CurrencyCharts({ data }) {
   )
 }
 
-// Hollow marker on prices that came from an Internet Archive snapshot.
+// Hollow marker on prices not from the daily crawl, told apart by shape so it
+// doesn't rest on colour: a circle for an Internet Archive snapshot, a square
+// for a price checked by hand.
 function ArchiveDot({ cx, cy, payload, color }) {
-  if (payload?.origin !== 'wayback' || cx == null) return null
-  return <circle cx={cx} cy={cy} r={4} fill="var(--background)" stroke={color} strokeWidth={2} />
+  if (cx == null) return null
+  const marker = { fill: 'var(--background)', stroke: color, strokeWidth: 2 }
+  if (payload?.origin === 'wayback') return <circle cx={cx} cy={cy} r={4} {...marker} />
+  if (payload?.origin === 'manual') return <rect x={cx - 4} y={cy - 4} width={8} height={8} {...marker} />
+  return null
 }
+
+const MARKER_NAME = { wayback: 'Internet Archive snapshot', manual: 'Checked by hand' }
 
 function CurrencyTooltip({ active, payload, label, series, style }) {
   if (!active || !payload?.length) return null
   const row = payload[0].payload
   return (
     <TooltipBox date={label}>
-      <TooltipRow style={style} name={row.origin === 'wayback' ? 'Internet Archive snapshot' : seriesName(series)}>
+      <TooltipRow style={style} name={MARKER_NAME[row.origin] ?? seriesName(series)}>
         {row.v != null ? formatPrice(row.v, series.currency) : 'No price shown'}
       </TooltipRow>
     </TooltipBox>
