@@ -22,7 +22,7 @@ Each folder has its own `CLAUDE.md` saying which session owns it and what that s
 
 ## Git: one shared checkout, one branch
 All sessions work in the same folder on the same branch, so:
-- Only commit when the user asks.
+- When you finish a piece of work and its checks pass, commit it without asking. Don't commit half-finished or failing work. Only push when the user asks.
 - Stage and commit only your own area, e.g. `git add backend/ && git commit -m "backend: add auth routes" -- backend/`
 - Prefix commit messages with the area: `frontend:`, `backend:`, `crawler:`, `devops:`.
 - Never run commands that touch the whole tree: `git add -A`, `git add .`, `git stash`, `git reset --hard`, `git checkout -- .`, `git clean`, or switching branches.
