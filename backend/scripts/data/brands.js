@@ -1,7 +1,10 @@
-// DRAFT, NOT YET REVIEWED.
-// Editorial text for the 8 brands, written from well-known public facts.
-// Check every name, date and claim before publishing. After reviewing a brand,
-// set its contentStatus to 'reviewed' and re-run `npm run seed:brands`.
+// Editorial text for the 8 brands. 'reviewed' means a source check by Claude, not
+// a review by a person: in November 2026 each claim was looked up with web searches,
+// preferring the brand's own site, then auction houses, Britannica and museums, and
+// relying on search summaries rather than a full reading of each page. Claims with no
+// solid source were reworded or removed. Where sources disagree on a date, the text
+// follows the brand's own or the most consistent one. When changing a claim, check
+// it the same way, then re-run `npm run seed:brands`.
 //
 // This file is the source of truth for the `brands` collection: the seed script
 // overwrites the database with it. `city` / `country` are where the house was
@@ -19,20 +22,20 @@ export const brands = [
     country: 'France',
     history:
       'Louis Vuitton, a trunk-maker trained in Paris, opened his own workshop on Rue Neuve-des-Capucines in 1854. ' +
-      'His flat-topped, lightweight trunks suited the new age of rail and steamship travel, and in 1859 he moved ' +
-      'production to Asnières, just outside Paris, where the house still makes special orders. With his son Georges ' +
-      'he created the Damier canvas in 1888, and Georges followed with the Monogram canvas in 1896, both partly to stop counterfeiting. Louis ' +
+      'His flat-topped, lightweight trunks could be stacked, and in 1859 he moved production to Asnières, just ' +
+      'outside Paris, where the house still has a workshop. With his son Georges he created the Damier canvas in ' +
+      '1888 to counter imitators, and in 1896 Georges created the Monogram canvas in tribute to his father. Louis ' +
       'Vuitton has been part of LVMH since the group was formed in 1987.',
     signatureProducts: [
       {
         name: 'Damier canvas',
         year: 1888,
-        description: 'Checkerboard canvas, one of the first patterns the house used to set its trunks apart.',
+        description: 'Checkerboard canvas marked "marque L. Vuitton déposée" to counter imitators.',
       },
       {
         name: 'Monogram canvas',
         year: 1896,
-        description: 'The LV initials with flowers and quatrefoils, designed by Georges Vuitton in tribute to his father.',
+        description: 'The LV initials with floral motifs, designed by Georges Vuitton in tribute to his father.',
       },
       {
         name: 'Keepall',
@@ -50,7 +53,7 @@ export const brands = [
         description: 'Roomy tote with side laces that cinch its shape.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'dior',
@@ -63,20 +66,20 @@ export const brands = [
     country: 'France',
     history:
       'Christian Dior opened his couture house at 30 Avenue Montaigne, Paris, in December 1946, backed by the ' +
-      'textile industrialist Marcel Boussac. His first collection, in February 1947, was hailed as the "New Look" ' +
-      "by Harper's Bazaar editor Carmel Snow: soft shoulders, cinched waists and full skirts that redefined " +
-      'post-war fashion. After Dior died in 1957, the 21-year-old Yves Saint Laurent took over, the first of a ' +
+      'textile industrialist Marcel Boussac. His first collection, in February 1947, became known as the "New Look", ' +
+      "a name credited to Harper's Bazaar editor Carmel Snow: sloping shoulders, nipped-in waists and full skirts. " +
+      'After Dior died in 1957, the 21-year-old Yves Saint Laurent took over, the first of a ' +
       'line of creative directors. The house is part of LVMH.',
     signatureProducts: [
       {
         name: 'Bar jacket',
         year: 1947,
-        description: 'Ivory shantung jacket with a padded peplum, the emblem of the New Look.',
+        description: 'Jacket with a nipped-in waist, the emblem of the New Look.',
       },
       {
         name: 'Lady Dior',
         year: 1995,
-        description: 'Structured bag with Cannage top-stitching and D.I.O.R. charms, first called Chouchou and renamed in 1996 after Diana, Princess of Wales.',
+        description: 'Structured bag with Cannage top-stitching and D.I.O.R. charms. First called Chouchou, it was given to Diana, Princess of Wales, in 1995 and renamed after her in 1996.',
       },
       {
         name: 'Saddle bag',
@@ -89,7 +92,7 @@ export const brands = [
         description: 'Embroidered canvas tote introduced by Maria Grazia Chiuri.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'chanel',
@@ -128,12 +131,12 @@ export const brands = [
         description: 'Beige shoe with a black toe cap.',
       },
       {
-        name: 'Classic Flap Bag (11.12)',
+        name: 'Classic Flap Bag',
         year: null,
         description: "Karl Lagerfeld's update of the 2.55, with the interlocking CC clasp.",
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'cartier',
@@ -147,7 +150,7 @@ export const brands = [
     history:
       'Louis-François Cartier took over the Paris jewellery workshop of his master, Adolphe Picard, in 1847. His ' +
       'grandsons Louis, Pierre and Jacques took the house abroad, with branches in London (1902) and New York ' +
-      '(1909), and Cartier supplied royal courts across Europe. Louis Cartier was also an early maker of ' +
+      '(1909). Louis Cartier was also an early maker of ' +
       'wristwatches, with the Santos (1904) and the Tank (1917). Cartier is part of the Swiss group Richemont.',
     signatureProducts: [
       {
@@ -172,11 +175,11 @@ export const brands = [
       },
       {
         name: 'Juste un Clou',
-        year: 1971,
-        description: 'Bracelet in the shape of a bent nail, also designed by Aldo Cipullo.',
+        year: null,
+        description: 'Bracelet in the shape of a nail, created in New York in the 1970s by Aldo Cipullo.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'van-cleef-arpels',
@@ -215,7 +218,7 @@ export const brands = [
         description: 'Gold jewellery edged with rows of small gold beads.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'rolex',
@@ -227,7 +230,7 @@ export const brands = [
     city: 'London',
     country: 'United Kingdom',
     history:
-      'Hans Wilsdorf and his brother-in-law Alfred Davis founded Wilsdorf & Davis in London in 1905 to sell ' +
+      'Hans Wilsdorf and Alfred Davis founded Wilsdorf & Davis in London in 1905 to sell ' +
       'Swiss-made watches. Wilsdorf registered the Rolex name in 1908 and moved the company to Geneva in 1919. ' +
       'Rolex introduced the waterproof Oyster case in 1926 and the Perpetual self-winding rotor in 1931. ' +
       'The company is owned by the Hans Wilsdorf Foundation, set up by its founder.',
@@ -235,7 +238,7 @@ export const brands = [
       {
         name: 'Datejust',
         year: 1945,
-        description: 'Shows the date in a window on the dial; launched for the brand\'s 40th anniversary.',
+        description: 'The first self-winding wrist chronometer to show the date in a window on the dial.',
       },
       {
         name: 'Submariner',
@@ -245,7 +248,7 @@ export const brands = [
       {
         name: 'GMT-Master',
         year: 1955,
-        description: 'Shows two time zones at once; developed with Pan Am pilots in mind.',
+        description: 'Shows two time zones at once; became the official watch of airlines including Pan Am.',
       },
       {
         name: 'Day-Date',
@@ -255,10 +258,10 @@ export const brands = [
       {
         name: 'Cosmograph Daytona',
         year: 1963,
-        description: 'Chronograph for motor racing, named after Daytona Beach in Florida.',
+        description: 'Chronograph for motor racing, named after the Daytona racetrack in the United States.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'omega',
@@ -296,7 +299,7 @@ export const brands = [
         description: 'Divers\' watch worn by James Bond since GoldenEye (1995).',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
   {
     slug: 'iwc',
@@ -334,6 +337,6 @@ export const brands = [
         description: 'Soft-iron inner case protects the movement from magnetic fields.',
       },
     ],
-    contentStatus: 'draft',
+    contentStatus: 'reviewed',
   },
 ];
