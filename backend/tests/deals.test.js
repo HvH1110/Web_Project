@@ -13,12 +13,13 @@ const now = new Date();
 const since = new Date(Date.UTC(new Date(now.getTime() + 7 * 3600000).getUTCFullYear(), 0, 1) - 7 * 3600000);
 const daysBefore = (days) => new Date(since.getTime() - days * 86400000);
 const old = daysBefore(40);
+const daysAgo = (days) => new Date(now.getTime() - days * 86400000);
 
 const offers = [];
 const points = [];
 async function product(ref, offerList, pointList = []) {
   const { insertedId } = await app.db.collection('products').insertOne({ brand: 'dior', ref, name: ref, category: 'bags', createdAt: now });
-  for (const [sourceId, market, price, origin] of offerList) {
+  for (const [sourceId, market, price, origin, lastSeenAt = now] of offerList) {
     offers.push({
       productId: insertedId,
       source: { id: sourceId, market, name: sourceId, type: 'official' },
@@ -26,7 +27,7 @@ async function product(ref, offerList, pointList = []) {
       currency: CURRENCY[market],
       price,
       available: true,
-      lastSeenAt: now,
+      lastSeenAt,
       ...(origin === undefined ? {} : { origin }),
     });
   }
@@ -59,6 +60,12 @@ before(async () => {
   await product('M-SAME-PRICE', [['p-vn', 'VN', 2000000, 'crawl'], ['p-sg', 'SG', 100, 'crawl']]);
   await product('M-TINY-GAP', [['q-vn', 'VN', 2000100, 'crawl'], ['q-sg', 'SG', 100, 'crawl']]);
 
+  // Offers last seen 15 and 13 days ago: the limit is 14.
+  await product('M-STALE', [['x-sg', 'SG', 100, 'crawl'], ['x-hk', 'HK', 1000, 'crawl', daysAgo(15)]]);
+  await product('M-STALE-THIRD', [['y-sg', 'SG', 100, 'crawl'], ['y-hk', 'HK', 1000, 'crawl'], ['y-vn', 'VN', 9000000, 'crawl', daysAgo(15)]]);
+  await product('M-SEEN-LATELY', [['z-sg', 'SG', 100, 'crawl'], ['z-hk', 'HK', 1000, 'crawl', daysAgo(13)]]);
+  await product('M-NEVER-SEEN', [['aa-sg', 'SG', 100, 'crawl'], ['aa-hk', 'HK', 1000, 'crawl', null]]);
+
   // Drop deals, one market each, so they have no market deal.
   await product('D-CONTROL', [['g-sg', 'SG', 90, 'crawl']], [['g-sg', 'SG', 100, old, 'crawl']]);
   await product('D-WAYBACK-THEN', [['h-sg', 'SG', 90, 'crawl']], [['h-sg', 'SG', 100, old, 'wayback']]);
@@ -74,6 +81,8 @@ before(async () => {
   await product('D-PRICE-ROSE', [['t-sg', 'SG', 110, 'crawl']], [['t-sg', 'SG', 100, old, 'crawl']]);
   await product('D-FIRST-PRICE-LATER', [['u-sg', 'SG', 90, 'crawl']], [['u-sg', 'SG', 100, new Date(now.getTime() - 3600000), 'crawl']]);
   await product('D-OTHER-CURRENCY', [['v-sg', 'SG', 90, 'crawl']], [['v-sg', 'HK', 100, old, 'crawl']]);
+  await product('D-STALE', [['ab-sg', 'SG', 90, 'crawl', daysAgo(15)]], [['ab-sg', 'SG', 100, old, 'crawl']]);
+  await product('D-SEEN-LATELY', [['ac-sg', 'SG', 90, 'crawl', daysAgo(13)]], [['ac-sg', 'SG', 100, old, 'crawl']]);
   await product('D-TWO-MARKETS', [['w-sg', 'SG', 90, 'crawl'], ['w-sg2', 'SG', 80, 'crawl']], [['w-sg', 'SG', 100, old, 'crawl'], ['w-sg2', 'SG', 100, old, 'crawl']]);
 
   await app.db.collection('offers').insertMany(offers);
@@ -210,6 +219,47 @@ describe('hand-entered prices', () => {
 
   it('stay in lowestPriceVnd', () => {
     assert.equal(byRef(market)['M-THIRD-CHEAP'].product.lowestPriceVnd, 1000000);
+  });
+});
+
+describe('offers not seen for over 14 days', () => {
+  it('are no current price in market deals', () => {
+    const deals = byRef(market);
+    assert.equal(deals['M-STALE'], undefined);
+    assert.equal(deals['M-NEVER-SEEN'], undefined);
+    assert.equal(deals['M-STALE-THIRD'].dearest.offer.source.id, 'y-hk');
+    assert.equal(deals['M-SEEN-LATELY'].dearest.offer.source.id, 'z-hk');
+  });
+
+  it('are no current price in drop deals', () => {
+    const deals = byRef(drop);
+    assert.equal(deals['D-STALE'], undefined);
+    assert.equal(deals['D-SEEN-LATELY'].savingPct, 10);
+  });
+
+  it('stay on the product itself', () => {
+    assert.equal(byRef(market)['M-STALE-THIRD'].product.offers.length, 3);
+  });
+});
+
+describe('archive-only products', () => {
+  it('have no deals, however their archived prices moved', async () => {
+    const { insertedId } = await app.db.collection('products').insertOne({ brand: 'dior', ref: 'ARCHIVE-ONLY', name: 'Archive only', category: 'bags', createdAt: now });
+    const point = (sourceId, market, price, observedAt) => ({ productId: insertedId, sourceId, market, currency: CURRENCY[market], price, observedAt, origin: 'wayback' });
+    await app.db.collection('price_points').insertMany([
+      point('dior-sg', 'SG', 200, daysBefore(900)),
+      point('dior-sg', 'SG', 100, daysAgo(2)),
+      point('dior-hk', 'HK', 1000, daysAgo(2)),
+    ]);
+    const { clearDealsCache } = await import('../src/services/deals.service.js');
+    clearDealsCache();
+    const { body } = await app.client().get('/deals?period=year&limit=60');
+    clearDealsCache();
+    assert.ok(body.total > 0);
+    for (let page = 1; page <= body.totalPages; page += 1) {
+      const { body: { items } } = await app.client().get(`/deals?period=year&limit=60&page=${page}`);
+      assert.ok(items.every((deal) => deal.product.ref !== 'ARCHIVE-ONLY'));
+    }
   });
 });
 

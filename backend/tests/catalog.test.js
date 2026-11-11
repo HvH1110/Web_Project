@@ -172,6 +172,31 @@ describe('filters and sorting', () => {
     assert.deepEqual(refs(await client.get('/products?sort=price_desc')), ['R2', 'R1', 'P1', 'P2', 'NOPRICE']);
   });
 
+  it('keeps products without offers, or with an unpriced one, last in a price sort', async () => {
+    const products = app.db.collection('products');
+    const { insertedIds } = await products.insertMany([
+      { brand: 'dior', ref: 'UNPRICED', name: 'Unpriced offer', category: 'bags', createdAt: new Date() },
+      { brand: 'dior', ref: 'ARCHIVED', name: 'Archive only', category: 'bags', createdAt: new Date() },
+    ]);
+    await app.db.collection('offers').insertOne({ productId: insertedIds[0], source: { id: 'dior-sg', market: 'SG', name: 'Dior', type: 'official' }, url: 'https://example.test/u', currency: 'SGD', price: null, lastSeenAt: new Date() });
+    try {
+      const all = await client.get('/products?sort=price_asc');
+      assert.deepEqual(refs(all).slice(0, 4), ['P2', 'P1', 'R1', 'R2']);
+      assert.deepEqual(refs(all).slice(4).sort(), ['ARCHIVED', 'NOPRICE', 'UNPRICED']);
+      assert.equal(all.body.total, 7);
+      const archived = all.body.items.find((item) => item.ref === 'ARCHIVED');
+      assert.deepEqual([archived.offers, archived.lowestPriceVnd, archived.brandName], [[], null, null]);
+      assert.deepEqual(refs(await client.get('/products?sort=price_desc&brand=dior')).sort(), ['ARCHIVED', 'UNPRICED'], 'filters apply to them too');
+      assert.deepEqual(refs(await client.get('/products?sort=price_desc&q=archive')), ['ARCHIVED']);
+      assert.deepEqual(refs(await client.get('/products?sort=price_asc&limit=2&page=3')), refs(all).slice(4, 6), 'paging runs across both');
+      assert.equal((await client.get('/products?sort=price_asc&minPriceVnd=0')).body.total, 4, 'a price range leaves them out');
+      assert.deepEqual(refs(await client.get('/products?market=SG&brand=dior')), ['UNPRICED']);
+    } finally {
+      await products.deleteMany({ brand: 'dior' });
+      await app.db.collection('offers').deleteMany({ 'source.id': 'dior-sg' });
+    }
+  });
+
   it('counts only the chosen markets for lowestPriceVnd', async () => {
     const res = await client.get('/products?market=HK&collection=Tank');
     assert.equal(res.body.items[0].lowestPriceVnd, 20000 * HKD);

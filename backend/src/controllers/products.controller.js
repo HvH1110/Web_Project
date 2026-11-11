@@ -94,13 +94,23 @@ export async function searchProducts(req, res) {
   const offersFirst = Boolean(markets) || hasPriceRange || sort.startsWith('price');
 
   const match = productMatch(search);
-  if (markets) {
-    // Saves joining the offers of every product in the catalog.
-    match._id = { $in: await Offer.distinct('productId', { 'source.market': { $in: markets } }) };
-  }
   const pipeline = [{ $match: match }, { $project: SUMMARY_FIELDS }];
   if (offersFirst) {
+    // Most of the catalog is archive-only, with no offers: joining offers to every
+    // product is the slow part, so only products that have some are joined.
+    const withOffers = await Offer.distinct('productId', markets ? { 'source.market': { $in: markets } } : {});
+    const withoutOffers = { ...match, _id: { $nin: withOffers } };
+    match._id = { $in: withOffers };
     pipeline.push(...offerStages(rates, markets));
+    if (!markets && !hasPriceRange) {
+      // A price sort alone still lists the products without offers, after the others.
+      pipeline.push({
+        $unionWith: {
+          coll: Product.collection.collectionName,
+          pipeline: [{ $match: withoutOffers }, { $project: SUMMARY_FIELDS }, { $set: { offers: [], lowestPriceVnd: null } }],
+        },
+      });
+    }
     if (hasPriceRange) {
       const priceRange = {};
       if (minPriceVnd !== undefined) {

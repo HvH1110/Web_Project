@@ -1,3 +1,4 @@
+import { Offer } from '../models/offer.model.js';
 import { PricePoint } from '../models/price-point.model.js';
 import { Product } from '../models/product.model.js';
 import { getLatestFx, loadHistoricalRates, vndRates } from './fx.service.js';
@@ -11,6 +12,9 @@ const MIN_DROP_PCT = 1;
 // Deals are computed from the whole catalog, about 1 MB read from the database,
 // and prices change at most a few times a day.
 const CACHE_MS = 5 * 60 * 1000;
+// An offer not seen for longer is no current price: its page has probably gone.
+// Twice the slowest crawl cycle (Cartier pages are re-checked every 7 days).
+export const MAX_OFFER_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
 // Vietnam has no daylight saving time.
 const VN_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -161,14 +165,24 @@ export function compareDeals(a, b) {
   );
 }
 
-async function computeDeals(since) {
+async function computeDeals(since, now) {
   const fx = await getLatestFx();
   const rates = vndRates(fx);
-  const [products, pricesThen, rateOn] = await Promise.all([
-    Product.aggregate([{ $project: { _id: 1 } }, ...offerStages(rates)]),
+  const [catalog, pricesThen, rateOn] = await Promise.all([
+    // Archive-only products have no offers, so no deals: they aren't read.
+    Offer.distinct('productId').then((ids) =>
+      Product.aggregate([{ $match: { _id: { $in: ids } } }, { $project: { _id: 1 } }, ...offerStages(rates)]),
+    ),
     loadPricesAt(since),
     loadHistoricalRates(since, since),
   ]);
+  // Deals rest on current prices only. An offer with no lastSeenAt can't be shown
+  // to be current.
+  const oldestSeen = now.getTime() - MAX_OFFER_AGE_MS;
+  const products = catalog.map((product) => ({
+    ...product,
+    offers: product.offers.filter((offer) => offer.lastSeenAt?.getTime() >= oldestSeen),
+  }));
   const deals = [
     ...findMarketDeals(products),
     ...findDropDeals(products, pricesThen, (currency) => rateOn(currency, since), since),
@@ -186,7 +200,7 @@ export async function loadDeals(period, now = new Date()) {
   if (cached && cached.expiresAt > now.getTime() && cached.since.getTime() === since.getTime()) {
     return { since, ...(await cached.result) };
   }
-  const result = computeDeals(since);
+  const result = computeDeals(since, now);
   const entry = { since, expiresAt: now.getTime() + CACHE_MS, result };
   cache.set(period, entry);
   result.catch(() => {

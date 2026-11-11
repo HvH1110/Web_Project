@@ -126,6 +126,8 @@ One of two kinds (see "What counts as a deal" in `docs/PRODUCT.md`), told apart 
 - The offers in a deal (`cheapest.offer`, `dearest.offer`, `offer`) never have `origin: manual`.
 - `product.lowestPriceVnd` still counts manual offers, so it can be lower than a deal's prices. Show the deal's own prices on a deal.
 
+**Only current prices count.** An offer whose `lastSeenAt` is more than 14 days old is left out the same way: its page has probably gone. A product with only archived (`wayback`) history has no offers, so it never has a deal. Both still show on the product itself.
+
 **`market`: cheapest market.** Buying the product in its cheapest market instead of its most expensive one, comparing current prices in VND.
 ```json
 {
