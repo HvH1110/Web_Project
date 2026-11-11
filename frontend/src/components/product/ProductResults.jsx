@@ -83,7 +83,7 @@ function MoreFooter({ products, shown, total }) {
   return (
     <div className="mx-auto mt-20 grid max-w-xs justify-items-center gap-5 text-center">
       <p className="eyebrow text-muted-foreground" aria-live="polite">
-        Showing {shown} of {total}
+        Showing {shown.toLocaleString('en-US')} of {total.toLocaleString('en-US')}
       </p>
       <div className="h-px w-full bg-border">
         <div className="h-full bg-foreground" style={{ width: `${(shown / Math.max(total, 1)) * 100}%` }} />

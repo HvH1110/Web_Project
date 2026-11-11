@@ -77,9 +77,6 @@ export function lastKnownPrices(series) {
 // Whether any sample has a VND value: none does when no exchange rate is known.
 export const hasVndValues = (series) => series.some((s) => s.vnd.some((v) => v.priceVnd != null))
 
-// When the exchange-rate source starts (fx_rates in ../docs/DATA.md).
-export const RATES_START = 'February 2020'
-
 // What the VND view can show: the first date with a VND value (ms, or null),
 // whether some prices are older than that, and whether a rate is missing
 // between known values.

@@ -217,9 +217,10 @@ function CurrencyCharts({ data }) {
 
 // Hollow marker on prices not from the daily crawl, told apart by shape so it
 // doesn't rest on colour: a circle for an Internet Archive snapshot, a square
-// for a price checked by hand.
+// for a price checked by hand. A carried point is the range's start, not an
+// observation, so it gets none.
 function ArchiveDot({ cx, cy, payload, color }) {
-  if (cx == null) return null
+  if (cx == null || payload?.carried) return null
   const marker = { fill: 'var(--background)', stroke: color, strokeWidth: 2 }
   if (payload?.origin === 'wayback') return <circle cx={cx} cy={cy} r={4} {...marker} />
   if (payload?.origin === 'manual') return <rect x={cx - 4} y={cy - 4} width={8} height={8} {...marker} />
@@ -233,7 +234,7 @@ function CurrencyTooltip({ active, payload, label, series, style }) {
   const row = payload[0].payload
   return (
     <TooltipBox date={label}>
-      <TooltipRow style={style} name={MARKER_NAME[row.origin] ?? seriesName(series)}>
+      <TooltipRow style={style} name={(!row.carried && MARKER_NAME[row.origin]) || seriesName(series)}>
         {row.v != null ? formatPrice(row.v, series.currency) : 'No price shown'}
       </TooltipRow>
     </TooltipBox>

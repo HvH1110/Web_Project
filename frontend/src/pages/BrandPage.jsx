@@ -67,7 +67,7 @@ function Brand({ slug }) {
         title={b.name}
         description={
           b.productCount
-            ? `${b.name}: history, signature pieces and prices of ${b.productCount} tracked ${b.productCount === 1 ? 'piece' : 'pieces'} in Vietnam, Singapore and Hong Kong.`
+            ? `${b.name}: history, signature pieces and prices of ${b.productCount.toLocaleString('en-US')} tracked ${b.productCount === 1 ? 'piece' : 'pieces'} in Vietnam, Singapore and Hong Kong.`
             : `${b.name}: the history of the house and its signature pieces.`
         }
       />
@@ -86,7 +86,7 @@ function Brand({ slug }) {
                 All products
               </h2>
               <p className="text-sm text-muted-foreground">
-                {b.productCount} {b.productCount === 1 ? 'piece' : 'pieces'} tracked
+                {b.productCount.toLocaleString('en-US')} {b.productCount === 1 ? 'piece' : 'pieces'} tracked
               </p>
               {products.fx && hasCurrentPrices(products.items) && (
                 <p className="text-xs text-muted-foreground">
@@ -134,7 +134,7 @@ function Masthead({ brand }) {
     ['Founder', brand.founder],
     ...(brand.productCount
       ? [
-          ['Products tracked', brand.productCount],
+          ['Products tracked', brand.productCount.toLocaleString('en-US')],
           ...(brand.collections.length ? [['Collections', brand.collections.length]] : []),
         ]
       : [['Prices', 'Not available']]),
@@ -188,7 +188,7 @@ function Masthead({ brand }) {
           )}
           {brand.productCount ? (
             <a href="#products" className="link-underline">
-              All products <span className="text-muted-foreground">{brand.productCount}</span>
+              All products <span className="text-muted-foreground">{brand.productCount.toLocaleString('en-US')}</span>
             </a>
           ) : (
             <a href="#prices" className="link-underline">
@@ -317,12 +317,15 @@ function CollectionFilter({ collections, total, value, onChange }) {
               aria-pressed={active}
               onClick={() => onChange(c.name)}
               className={cn(
-                'h-10 gap-2 px-4 text-[0.6875rem] tracking-[0.16em] uppercase',
+                // A long name wraps inside its button rather than widening the page.
+                'h-auto min-h-10 max-w-full shrink gap-2 px-4 py-2 text-left text-[0.6875rem] tracking-[0.16em] whitespace-normal uppercase',
                 active && 'border-foreground bg-foreground text-background hover:bg-foreground hover:text-background',
               )}
             >
               {c.label ?? c.name}
-              <span className={active ? 'text-background/60' : 'text-muted-foreground'}>{c.productCount}</span>
+              <span className={active ? 'text-background/60' : 'text-muted-foreground'}>
+                {c.productCount.toLocaleString('en-US')}
+              </span>
             </Button>
           )
         })}

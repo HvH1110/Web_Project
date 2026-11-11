@@ -8,7 +8,7 @@ import { useApi } from '@/hooks/useApi'
 import { getProductHistory } from '@/lib/api'
 import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 import { RATE_SOURCE } from '@/lib/catalog'
-import { DEFAULT_RANGE, RANGES, RATES_START, hasVndValues, justStarted, seriesName, vndCoverage } from '@/lib/history'
+import { DEFAULT_RANGE, RANGES, hasVndValues, justStarted, seriesName, vndCoverage } from '@/lib/history'
 import { cn } from '@/lib/utils'
 
 const CURRENCIES = [
@@ -40,6 +40,9 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
   // With no exchange rate for any date, VND has nothing to show.
   const noVnd = Boolean(data?.series.length) && !hasVndValues(data.series)
   const currency = noVnd ? 'original' : asked
+  // Snapshots can be years apart, so a held line says less than with daily checks.
+  const archiveOnly =
+    Boolean(data?.series.length) && data.series.every((s) => s.points.every((p) => p.origin === 'wayback'))
 
   const set = (name, value, fallback) => {
     const next = new URLSearchParams(params)
@@ -57,8 +60,9 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
               Price history
             </h2>
             <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Official prices change a few times a year. Each line holds a price until the next
-              change we recorded.
+              {archiveOnly
+                ? 'These prices come from Internet Archive snapshots of the official page. Each line holds a price until the next snapshot, so a change shows at the date it was captured, not the date it happened.'
+                : 'Official prices change a few times a year. Each line holds a price until the next change we recorded.'}
             </p>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-3">
@@ -119,14 +123,15 @@ export default function PriceHistory({ brand, productRef, defaultRange = DEFAULT
 
 // Why some prices have no VND value, only where that shows.
 function VndNote({ series, view, currency }) {
-  const { hasEarlierPrices, hasGaps } = vndCoverage(series)
+  const { from, hasEarlierPrices, hasGaps } = vndCoverage(series)
   if (view === 'table') {
     return hasEarlierPrices || hasGaps ? ' A dash means no exchange rate is stored for that day.' : null
   }
   if (currency !== 'vnd') return null
   return (
     <>
-      {hasEarlierPrices && ` Our exchange rates start in ${RATES_START}, so earlier prices show only in the original currency.`}
+      {hasEarlierPrices &&
+        ` VND prices start on ${formatDate(from)}: earlier prices have no stored exchange rate, so they show only in the original currency.`}
       {hasGaps && ' Gaps mean no rate was known.'}
     </>
   )
@@ -134,7 +139,7 @@ function VndNote({ series, view, currency }) {
 
 // What the markers on the original-currency charts mean, for those present.
 function markerNote(series) {
-  const origins = new Set(series.flatMap((s) => s.points.map((p) => p.origin)))
+  const origins = new Set(series.flatMap((s) => s.points.filter((p) => !p.carried).map((p) => p.origin)))
   const meanings = [
     origins.has('wayback') && 'Hollow circles are Internet Archive snapshots',
     origins.has('manual') && `${origins.has('wayback') ? 'hollow' : 'Hollow'} squares are prices checked by hand`,
