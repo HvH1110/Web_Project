@@ -9,10 +9,11 @@ name: Nightly backfill
 on:
   workflow_dispatch:
   schedule:
-    # 00:37 UTC: after the 19:17 UTC daily crawl, even one that reaches its
-    # 300-minute timeout (00:17 UTC). It ends by 05:37 UTC at the latest. Off
-    # the hour, because runs at :00 are the most likely to be delayed or dropped
-    # by GitHub's scheduler.
+    # 00:37 UTC: 5 hours 20 minutes after the daily crawl's 19:17 UTC, which
+    # covers the crawl's 300-minute timeout. GitHub starts both hours late (the
+    # backfill 6 to 7 hours in the first week), and the concurrency group below
+    # is what really keeps them apart. Off the hour, because runs at :00 are the
+    # most likely to be delayed or dropped by GitHub's scheduler.
     - cron: '37 0 * * *'
 
 permissions:

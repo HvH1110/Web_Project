@@ -14,7 +14,8 @@ on:
   schedule:
     # 19:17 UTC = 02:17 in Vietnam, 03:17 in Singapore and Hong Kong: quiet
     # hours in every market. Off the hour, because runs at :00 are the most
-    # likely to be delayed or dropped by GitHub's scheduler.
+    # likely to be delayed or dropped by GitHub's scheduler. Real starts in the
+    # first week were 3.5 to 7 hours late; see devops/DEPLOY.md, Daily schedule.
     - cron: '17 19 * * *'
 
 permissions:
