@@ -20,6 +20,7 @@ export function iwcArchive({ market, path, currency }) {
     market,
     prefixes: [`www.iwc.com/${path}/watch-collections/`],
     isProductUrl: (url) => url.startsWith(`https://www.iwc.com/${path}/`) && WATCH_URL.test(url),
+    productKey: (url) => url.match(WATCH_URL)?.[2].toUpperCase(),
 
     parse(html, url) {
       const [, family, code] = url.match(WATCH_URL) ?? [];

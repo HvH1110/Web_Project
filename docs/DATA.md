@@ -81,5 +81,5 @@ One document per day, written by `npm run crawl`. Every date from the oldest pri
 
 ## Crawler-internal collections
 Used only by the crawler to resume the Wayback backfill between runs. The backend ignores them.
-- `wayback_snapshots`: one document per archived product page per quarter (queued, then `saved`, `no-price`, `no-data`, `missing` or `error`). `retries` counts how often a page that timed out, lost its connection or got a 5xx was queued again, at most 3.
+- `wayback_snapshots`: one document per archived product page per quarter (queued, then `saved`, `no-price`, `no-data`, `missing` or `error`). `retries` counts how often a page that timed out or got a 5xx was queued again, at most 3. Not every queued document is fetched: the backfill reads one snapshot per product per year plus the newest, products seen in the most years first, so many stay `pending` for good.
 - `wayback_index`: per archive source and URL prefix, the past years already indexed and the newest capture already queued.

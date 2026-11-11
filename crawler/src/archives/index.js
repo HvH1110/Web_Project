@@ -1,7 +1,9 @@
 // Registry of archive (Wayback Machine) adapters for `npm run backfill`. An
 // archive adapter is { id, name, type, market, prefixes, isProductUrl(url),
-// parse(html, url), firstYear? }; parse returns the same item shape as a live
-// source, firstYear is the oldest year to index when it isn't the default.
+// parse(html, url), firstYear?, productKey?(url) }; parse returns the same item
+// shape as a live source, firstYear is the oldest year to index when it isn't
+// the default, productKey names the product a URL is for when several URLs
+// show the same one (default: the URL), so lib/sample.js can group its snapshots.
 // The id is the source id its price points are filed under.
 import { diorArchive } from './dior.js';
 import { iwcArchive } from './iwc.js';

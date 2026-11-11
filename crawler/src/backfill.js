@@ -3,19 +3,26 @@
 // With no ids it runs every adapter in src/archives/index.js. Each run:
 //   1. asks the Wayback index for captures of each source's product pages
 //      newer than the last run, and queues at most one per page per quarter;
-//   2. fetches up to --limit queued snapshots (default 500, newest first,
-//      taking turns between sources) and saves the products and the prices
-//      the archived pages showed (price_points with origin "wayback").
+//   2. fetches up to --limit queued snapshots (default 500, taking turns
+//      between sources) and saves the products and the prices the archived
+//      pages showed (price_points with origin "wayback"). Not every queued
+//      snapshot: lib/sample.js picks one per product per year, the products
+//      with the longest history first.
 // Safe to re-run and to stop at any time; the next run continues the queue.
-// If the archive says it is busy (429/503) the run pauses and carries on; it
-// stops only when the archive stays busy (BUSY_PAUSES_MIN). Refused connections
-// in a row count as busy. Run one at a time: the delay between requests is per run.
-//   --oldest-first   fetch the oldest queued snapshots first, to reach far back sooner
+// If the archive says it is busy (429/503) or refuses connections, the run
+// pauses and carries on. It ends early, still with exit code 0, when the
+// archive stays busy (BUSY_PAUSES_MIN) or the time is up (--max-minutes): the
+// archive setting our pace is not a failure. Database and other unexpected
+// errors exit 1. Run one at a time: the delay between requests is per run.
+//   --oldest-first   among products with as long a history, oldest snapshots first
+//   --max-minutes=N  end the run after N minutes (default 270, for a job that
+//                    is cancelled at 300)
 //   --dry-run   no database: read one page of the index per source, fetch the
 //               newest --limit (default 3) product pages and print the items
 import { connectDB, disconnectDB } from './db.js';
 import { archives } from './archives/index.js';
 import { RobotsDisallowedError, politeFetch } from './lib/http.js';
+import { pickSnapshots } from './lib/sample.js';
 import { saveArchivedItem, validateItem } from './lib/store.js';
 import {
   ArchiveBusyError,
@@ -35,10 +42,12 @@ const limitFlag = flags.find((f) => f.startsWith('--limit='));
 const limit = limitFlag ? Number(limitFlag.slice('--limit='.length)) : dryRun ? 3 : 500;
 
 const oldestFirst = flags.includes('--oldest-first');
+const minutesFlag = flags.find((f) => f.startsWith('--max-minutes='));
+const maxMinutes = minutesFlag ? Number(minutesFlag.slice('--max-minutes='.length)) : 270;
 
-const badFlags = flags.filter((f) => f !== '--dry-run' && f !== '--oldest-first' && f !== limitFlag);
-if (badFlags.length || !(limit > 0)) {
-  console.error(`Unknown or invalid option(s): ${[...badFlags, limitFlag].filter(Boolean).join(', ')}`);
+const badFlags = flags.filter((f) => f !== '--dry-run' && f !== '--oldest-first' && f !== limitFlag && f !== minutesFlag);
+if (badFlags.length || !(limit > 0) || !(maxMinutes > 0)) {
+  console.error(`Unknown or invalid option(s): ${[...badFlags, limitFlag, minutesFlag].filter(Boolean).join(', ')}`);
   process.exit(1);
 }
 const unknown = wanted.filter((id) => !archives.some((a) => a.id === id));
@@ -49,20 +58,28 @@ if (unknown.length) {
 const selected = wanted.length ? archives.filter((a) => wanted.includes(a.id)) : archives;
 
 const MAX_ERRORS_IN_A_ROW = 10;
-// Pauses in a row, in minutes, while the archive keeps answering 429/503.
-// Stopping at the first one cost a run most of its pages (about 320 of 2,000 on
-// 2026-11-05). After the last pause: stop the run.
+// Pauses in a row, in minutes, while the archive keeps answering 429/503 or
+// refusing connections, with no page read in between. After the last one the
+// run ends. In the nightly runs of 6 to 10 November 2026 the archive answered
+// for about 150 seconds (some 27 pages), refused connections, and answered
+// again after the 2-minute pause, 34 to 45 times a night. A local run at 8 s
+// between requests was refused about as often, so the pace stays, and pauses
+// no longer end a run: only its time limit (--max-minutes) does.
 const BUSY_PAUSES_MIN = [2, 5, 15, 30];
-// Paused in all per run: the nightly job has about 100 minutes to spare before
-// its timeout, and a run that ends by itself still prints its summary.
-const MAX_BUSY_PAUSED_MIN = 90;
 const REFUSED_IN_A_ROW = 3;
-// A page that timed out, lost its connection or got a 5xx is tried again on
-// later runs, this many times. Other errors would only fail the same way.
+// A page that timed out or got a 5xx is tried again on later runs, this many
+// times. Other errors would only fail the same way.
 const MAX_RETRIES = 3;
 const RETRYABLE_ERROR = /^(fetch failed|The operation was aborted|HTTP 5\d\d)/;
 
+// The archive is still busy after every pause, or the time is up: the run ends
+// early, and that is not a failure.
+class EndOfRun extends Error {}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// "fetch failed" alone doesn't say why: add the cause (ECONNREFUSED, ECONNRESET, ...).
+const describe = (err) => (err.message === 'fetch failed' && err.cause ? `fetch failed (${err.cause.code ?? err.cause.message})` : err.message);
 
 // https, no port, query or fragment: one key per product page.
 function normalizeUrl(raw) {
@@ -126,13 +143,15 @@ async function indexSource(source) {
     }
     // true when the whole range was listed. A range that fails halfway is
     // listed again next time (the upserts make that harmless).
+    let refused = false;
     const list = async (from, to, label, pageSize) => {
       try {
         await listCaptures(prefix, { from, to, onPage, pageSize });
         return true;
       } catch (err) {
         if (err instanceof ArchiveBusyError) throw err;
-        console.error(`[${source.id}] index of ${prefix} (${label}) failed: ${err.message}`);
+        refused = err.message === 'fetch failed';
+        console.error(`[${source.id}] index of ${prefix} (${label}) failed: ${describe(err)}`);
         return false;
       }
     };
@@ -144,7 +163,9 @@ async function indexSource(source) {
         continue;
       }
       let complete = await list(slice.from, slice.to, String(slice.year));
-      if (!complete) {
+      // By quarter only when the year was too much for the index: after a
+      // refused connection the four quarters would be refused too.
+      if (!complete && !refused) {
         complete = true;
         for (const q of [1, 2, 3, 4]) {
           const month = (m) => `${slice.year}${String(m).padStart(2, '0')}`;
@@ -200,7 +221,7 @@ async function dryRunSource(source) {
       if (item) console.log(JSON.stringify(item, null, 2));
     } catch (err) {
       if (err instanceof ArchiveBusyError) throw err;
-      console.log(`[${source.id}] ${snap.url}: ${err.message}`);
+      console.log(`[${source.id}] ${snap.url}: ${describe(err)}`);
     }
   }
 }
@@ -212,32 +233,43 @@ async function processQueues(sources, queues) {
     { $set: { status: 'pending' }, $inc: { retries: 1 } },
   );
   for (const source of sources) {
-    const pending = (
-      await WaybackSnapshot.find({ sourceId: source.id, status: 'pending' }).sort({ timestamp: oldestFirst ? 1 : -1 }).limit(limit).lean()
-    ).map((snap) => ({ ...snap, url: normalizeUrl(snap.original) }));
-    queues.push({ source, pending, errorsInARow: 0, stats: { saved: 0, created: 0, points: 0, 'no-price': 0, 'no-data': 0, missing: 0, error: 0 } });
+    // Every snapshot that still has its URL, read or not: what was read decides
+    // what is still worth fetching (lib/sample.js).
+    const rows = [];
+    const cursor = WaybackSnapshot.find({ sourceId: source.id, original: { $exists: true } }, { original: 1, timestamp: 1, status: 1 }).lean().cursor();
+    for await (const snap of cursor) {
+      const url = normalizeUrl(snap.original);
+      if (url) rows.push({ ...snap, url, key: source.productKey?.(url) ?? url });
+    }
+    const picked = pickSnapshots(rows, { oldestFirst });
+    queues.push({
+      source,
+      picked: picked.length,
+      pending: picked.slice(0, limit),
+      errorsInARow: 0,
+      stats: { done: 0, saved: 0, created: 0, points: 0, 'no-price': 0, 'no-data': 0, missing: 0, error: 0 },
+    });
   }
 
+  const deadline = started + maxMinutes * 60000;
   let done = 0;
   let busyInARow = 0;
-  let busyPausedMin = 0;
   let refusedInARow = 0;
-  // Waits before the next try, longer each time; throws when it's been too long.
+  // Waits before the next try, longer each time. Ends the run when the archive
+  // has stayed busy through every pause, or the pause would pass the time limit.
   const pauseOrStop = async (err) => {
     const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, (err.retryAfterMs ?? 0) / 60000);
-    if (busyPausedMin + pauseMin > MAX_BUSY_PAUSED_MIN) {
-      err.message += ' Stopping; the next run continues the queue.';
-      throw err;
-    }
+    if (pauseMin === Infinity) throw new EndOfRun(`${err.message} It stayed busy through ${BUSY_PAUSES_MIN.length} pauses.`);
+    if (Date.now() + pauseMin * 60000 > deadline) throw new EndOfRun(`${err.message} No time left for another pause.`);
     console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
     busyInARow += 1;
-    busyPausedMin += pauseMin;
     await sleep(pauseMin * 60000);
   };
   let active = queues.filter((q) => q.pending.length);
   while (done < limit && active.length) {
     for (const q of active) {
       if (done >= limit) break;
+      if (Date.now() > deadline) throw new EndOfRun(`The ${maxMinutes} minutes are up.`);
       const snap = q.pending.shift();
       done += 1;
       const update = { checkedAt: new Date() };
@@ -254,14 +286,21 @@ async function processQueues(sources, queues) {
         busyInARow = 0;
         refusedInARow = 0;
       } catch (err) {
-        if (err instanceof ArchiveBusyError) {
-          await pauseOrStop(err);
+        // The archive also limits a client by refusing its connections, with no
+        // 429 or 503 to read: several in a row count as busy.
+        const refused = err.message === 'fetch failed';
+        if (err instanceof ArchiveBusyError || refused) {
           // Not this page's fault: it goes back to the front of its queue.
           q.pending.unshift(snap);
           done -= 1;
+          if (refused) refusedInARow += 1;
+          if (!refused) await pauseOrStop(err);
+          else if (refusedInARow >= REFUSED_IN_A_ROW) {
+            await pauseOrStop(new Error(`web.archive.org refused ${refusedInARow} connections in a row: ${describe(err)}.`));
+            refusedInARow = 0;
+          }
           continue;
         }
-        if (err.message === 'fetch failed') refusedInARow += 1;
         Object.assign(update, { status: err instanceof RobotsDisallowedError ? 'missing' : 'error', error: err.message });
         q.stats[update.status] += 1;
         if (update.status === 'error') {
@@ -273,16 +312,12 @@ async function processQueues(sources, queues) {
           }
         }
       }
+      q.stats.done += 1;
       // A page that is gone is never fetched again: its URL can go. A no-data
       // page keeps it, so it can be queued again if a parser learns to read it.
       // A page that worked on a retry no longer has an error.
       const drop = update.status === 'missing' ? { original: 1, error: 1 } : { error: 1 };
       await WaybackSnapshot.updateOne({ _id: snap._id }, { $set: update, ...(update.status === 'error' ? {} : { $unset: drop }) });
-      // The archive also limits a client by refusing its connections, with no
-      // 429 or 503 to read: treat several in a row as busy.
-      if (refusedInARow >= REFUSED_IN_A_ROW) {
-        await pauseOrStop(new Error(`web.archive.org refused ${refusedInARow} connections in a row.`));
-      }
     }
     active = active.filter((q) => q.pending.length);
   }
@@ -300,6 +335,7 @@ if (!dryRun) {
 
 const started = Date.now();
 let failed = false;
+let endedEarly = '';
 const queues = [];
 try {
   if (dryRun) {
@@ -320,18 +356,26 @@ try {
     await processQueues(selected, queues);
   }
 } catch (err) {
-  failed = true;
-  console.error(err.message);
+  if (err instanceof EndOfRun) {
+    endedEarly = err.message;
+  } else {
+    failed = true;
+    console.error(err.message);
+  }
 } finally {
-  for (const { source, stats } of queues) {
+  for (const { source, stats, picked } of queues) {
     const left = await WaybackSnapshot.countDocuments({ sourceId: source.id, status: 'pending' });
     console.log(
       `[${source.id}] ${stats.saved} saved (${stats.created} new products, ${stats.points} new price points), ` +
         `${stats['no-price']} without price, ${stats['no-data']} without product data, ${stats.missing} missing, ` +
-        `${stats.error} errors; ${left} still queued`,
+        `${stats.error} errors; ${picked - stats.done} still to fetch, of ${left} queued`,
     );
   }
   if (!dryRun) await disconnectDB();
+}
+if (endedEarly) {
+  // On GitHub this shows on the run's page; the job itself passes.
+  console.log(`${process.env.GITHUB_ACTIONS ? '::warning::' : ''}Backfill ended early: ${endedEarly} The next run continues the queue.`);
 }
 console.log(`Backfill done in ${((Date.now() - started) / 60000).toFixed(1)} min`);
 process.exitCode = failed ? 1 : 0;

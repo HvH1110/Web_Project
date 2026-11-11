@@ -13,6 +13,13 @@ Survey run 2026-10-12 from Vietnam with our own client (`npm run probe -- <url>`
 - `todo`: candidate found, not verified yet
 - `none`: no official or authorized online source found for this market
 
+## Backfill reach (2026-11-11)
+
+- The archive lets a nightly run read about 1,000 to 1,500 pages: it answers for about 150 seconds, refuses connections, and answers again after a 2-minute pause. That is not a failure, and the run now exits 0.
+- The queue is wide, not deep: Louis Vuitton has about 47,500 products per market, most captured in one or two years. Reading one snapshot per product per year only cuts 214,559 queued pages to 186,479.
+- So the order matters: products captured in 3 or more years come first (35,364 pages: LV SG 10,983, LV HK 19,429, Dior SG 405, Dior HK 1,542, IWC 152, Van Cleef 2,853). Estimate: IWC 1 night, Dior and Van Cleef 3 to 12 nights, LV 5 to 8 weeks. Everything picked would take LV about 5 to 6 months.
+- Open: Cartier rings store no price (about 440 offers per market). The page says "Select a size" and its HTML has no price; whether a per-size price can be read politely is not checked yet.
+
 ## Open: stored data waiting for the user's approval
 Both are written and tested on a local database, and neither has been applied to Atlas. Each touches only the fields named, saves the old values first and can be undone with `--restore=<same file>`. Run from `crawler/`. Without `--apply` they only print what would change.
 - **Cartier specs** (356 of 505 products on 2026-11-05, `specs` only): `npm run tidy-cartier-specs -- --apply=C:/Users/ADMIN/cartier-specs-backup.json`

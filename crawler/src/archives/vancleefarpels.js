@@ -39,6 +39,7 @@ export function vanCleefArchive({ market, path, currency }) {
     prefixes: [`www.vancleefarpels.com/${path}/collections/`],
     // Not fragrances: out of scope, so those pages are never fetched.
     isProductUrl: (url) => url.startsWith(`https://www.vancleefarpels.com/${path}/`) && PRODUCT_URL.test(url),
+    productKey: (url) => url.match(PRODUCT_URL)?.[2].toUpperCase(),
 
     parse(html, url) {
       const [, folders, code] = url.match(PRODUCT_URL) ?? [];

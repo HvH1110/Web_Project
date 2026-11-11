@@ -93,6 +93,8 @@ export function louisVuittonArchive({ market, hosts, locale, currency }) {
     firstYear: 2015,
     prefixes: hosts.map((host) => `${host}/${locale}/products/`),
     isProductUrl: (url) => pages.test(url),
+    // The same product on either host, with or without its SKU at the end.
+    productKey: (url) => url.split('/products/')[1].toLowerCase(),
     parse(html, url) {
       const $ = cheerio.load(html);
       const item = parseJsonLdProduct($, url, { brand: 'louis-vuitton', currency });

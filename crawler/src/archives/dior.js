@@ -37,6 +37,8 @@ export function diorArchive({ market, locale, currency }) {
     prefixes: [`www.dior.com/${locale}/fashion/products/`, `www.dior.com/${locale}/products/`],
     // Not beauty: out of scope, so those pages are never fetched.
     isProductUrl: (url) => new RegExp(`^https://www[.]dior[.]com/${locale}/(fashion/)?products/(?!beauty-)[^/]+`).test(url),
+    // The code is the same in the older and the newer URL of a product.
+    productKey: (url) => url.match(URL_CODE)?.[1].toUpperCase(),
     parse: (html, url) => {
       const $ = cheerio.load(html);
       const item = parseJsonLdProduct($, url, { brand: 'dior', currency, fallbackRef: url.match(URL_CODE)?.[1].toUpperCase() });
