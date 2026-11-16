@@ -91,7 +91,7 @@ Do the steps in order. Everything the site needs must be on GitHub first, becaus
 | 3 | Render: sign up, create the Blueprint, paste 5 values, wait for the deploy | 20 min |
 | 4 | Vercel: sign up, import the project, deploy | 10 min |
 | 5 | Checks 1 to 9, including an iPhone, a phone on mobile data and a 20-minute idle wait | 45 min |
-| 5 | Check 10 | 5 min, about a week later |
+| 5 | Check 11 | 5 min, about a week later |
 | 6 | Make yourself admin, drop the development catalog, restrict `webproject-dev`, crawl sample data | 15 min |
 | 7 | Create the value, add it to Vercel, ask the devops session to deploy the config, check, add it to Render, check | 25 min, on a later day |
 
@@ -165,7 +165,8 @@ Later deploys run on their own when a commit changing `backend/` passes CI.
 
 **If you get different addresses** (the name may be taken by the time you do this):
 - Render address differs: tell the devops session. The address is in `frontend/vercel.json` twice (`/api` and `/sitemap.xml`) and in `devops/vercel.proxy-secret.json` twice.
-- Vercel address differs: tell the devops session to change `CLIENT_ORIGIN` in `backend/render.yaml`, and the frontend session to change the `Sitemap:` line in `frontend/public/robots.txt`.
+- Vercel address differs: tell the devops session to change `CLIENT_ORIGIN` in `backend/render.yaml`. The backend also builds the sitemap's links from it. Nothing in the frontend changes: the build takes the address for the share image and the `Sitemap:` line in `robots.txt` from Vercel (`VERCEL_PROJECT_PRODUCTION_URL`).
+- Custom domain added later: the same `CLIENT_ORIGIN` change, then redeploy the frontend in Vercel so the share image and `robots.txt` pick up the new address.
 
 Then the changes are committed and pushed. `CLIENT_ORIGIN` must match the address people use exactly. A POST from any other address gets a 403.
 
@@ -193,7 +194,14 @@ Then the changes are committed and pushed. `CLIENT_ORIGIN` must match the addres
    curl.exe -s -o NUL -w "%{http_code} %{content_type}" https://maison-prix.vercel.app/sitemap.xml
    ```
    A 200 with `text/html` means the site's page fallback answered, so the `/sitemap.xml` rewrite is missing from `frontend/vercel.json`.
-10. **Gzip reaches Render's bandwidth (after about a week of traffic):** divide the outbound figure on Render's **Metrics** page by the page views for the same days. The backend session estimates about 6 KB per page view with gzip and about 35 KB without, which means about 880,000 or about 150,000 page views on the 5 GB limit. Near 35 KB means Vercel's proxy isn't getting gzip, so tell the backend and devops sessions. Very little traffic won't give a clear answer.
+10. **Share image and robots.txt:** run this:
+   ```powershell
+   foreach ($p in "/og.png", "/robots.txt") { "$p -> " + (curl.exe -s -o NUL -w "%{http_code} %{content_type}" "https://maison-prix.vercel.app$p") }
+   curl.exe -s https://maison-prix.vercel.app/robots.txt
+   curl.exe -s https://maison-prix.vercel.app/ | Select-String "og:image"
+   ```
+   Expect `200 image/png` and `200 text/plain`, a `Sitemap:` line and an `og:image` address that both start with `https://maison-prix.vercel.app`. Another address there means the build didn't get the production address: tell the frontend session. To see the card, paste the site's address into a chat app that shows link previews.
+11. **Gzip reaches Render's bandwidth (after about a week of traffic):** divide the outbound figure on Render's **Metrics** page by the page views for the same days. The backend session estimates about 6 KB per page view with gzip and about 35 KB without, which means about 880,000 or about 150,000 page views on the 5 GB limit. Near 35 KB means Vercel's proxy isn't getting gzip, so tell the backend and devops sessions. Very little traffic won't give a clear answer.
 
 ### Step 6: Finish up
 
@@ -224,11 +232,11 @@ The method is the one in [Vercel's docs](https://vercel.com/docs/routing/rewrite
 4. **Check Vercel, with Render still open.** Each should work as it did in step 5:
    ```powershell
    $site = "https://maison-prix.vercel.app"
-   foreach ($p in "/api/health", "/api/brands", "/api/products?limit=1", "/api/no-such-route", "/brands/dior", "/sitemap.xml") {
+   foreach ($p in "/api/health", "/api/brands", "/api/products?limit=1", "/api/no-such-route", "/brands/dior", "/sitemap.xml", "/robots.txt", "/og.png") {
      "$p -> " + (curl.exe -s -o NUL -w "%{http_code} %{content_type}" "$site$p")
    }
    ```
-   Expect 200 JSON, except 404 JSON for `/api/no-such-route`, 200 HTML for `/brands/dior` and 200 XML for `/sitemap.xml`. Also log in on the site. If anything fails, stop here: use **Deployments → Instant Rollback** in Vercel, and tell the devops session.
+   Expect 200 JSON, except 404 JSON for `/api/no-such-route`, 200 HTML for `/brands/dior`, 200 XML for `/sitemap.xml`, 200 text for `/robots.txt` and 200 PNG for `/og.png`. Also log in on the site. If anything fails, stop here: use **Deployments → Instant Rollback** in Vercel, and tell the devops session.
 5. **Render:** open **Environment**, add `PROXY_SECRET` with the same value, then **Save, rebuild, and deploy**. Wait until the deploy is live.
 6. **Check the lock:**
    ```powershell
@@ -315,5 +323,5 @@ In Atlas **Database Access**, find `webproject-crawler` and click **Edit → Edi
 - **With the daily crawl:** the two share a concurrency group, so they never run at once. The slots didn't meet in the first week: the crawl ended between 01:30 and 04:45 UTC, at least 3 hours before the backfill started. If a third run is queued while one is running and one is waiting, GitHub cancels the older waiting run. Waiting runs are rare, and the next night's run catches up.
 - **`--oldest-first`** matters less since `2758e22`: it only decides the order among products with equally long histories. It stays until the crawler session says otherwise. To remove it, delete the flag from the last line of `backfill.yml`, then commit and push.
 - **Failed runs:** 10 of the 11 nights from 2026-11-06 to 11-16 ended as failed, because the old script exits with an error when web.archive.org keeps refusing connections. The pages saved before that were kept. Commit `2758e22` makes such a run pass with a warning on its page, and it takes effect on the first night after it is pushed; the workflow's command doesn't change. After that, a failed backfill means a real error. How you hear about one is under "Daily schedule" above.
-- **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. It was 59.0 MB on 2026-11-05, 78.7 MB on 2026-11-10 and 87.8 MB on 2026-11-16: about 1.3 MB a day lately, which reaches 450 MB in about nine months. The rate may change once `2758e22` runs. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
+- **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. It was 59.0 MB on 2026-11-05, 78.7 MB on 2026-11-10 and 88.4 MB on 2026-11-16 at 19:40 UTC, of which `wayback_snapshots` was 65 MB: about 1.35 MB a day from 11-11 to 11-16 (2.35 MB a day since 11-06), which reaches 450 MB around August 2027 (April 2027 at the faster rate). The rate may change once `2758e22` runs. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
 - **Turning it off:** **Actions → Nightly backfill → ⋯ → Disable workflow**.

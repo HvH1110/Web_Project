@@ -29,6 +29,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 | `S3_ACCESS_KEY_ID` | backend | **Yes** | Empty                                                               | R2 API token, limited to that bucket. Set on Render. |
 | `S3_SECRET_ACCESS_KEY` | backend | **Yes** | Empty                                                           | R2 API token, shown once. Set on Render. |
 | `VITE_API_URL`  | frontend | No      | `http://localhost:5000/api`                                           | `/api`, set by `buildCommand` in `frontend/vercel.json`. Nothing to set on Vercel. |
+| `SITE_URL`      | frontend (build only) | No | Not set, so `https://maison-prix.vercel.app`. Only the share image and `robots.txt` use it. | Not set: the build uses Vercel's `VERCEL_PROJECT_PRODUCTION_URL`, which follows a custom domain. Set it only on another host. |
 
 ### Notes per variable
 
@@ -42,7 +43,7 @@ Maintained by the devops session. **Never write real secret values in this file*
   - The backend and the crawler must never log or print this value.
   - In GitHub Actions there is no `.env` file; the value arrives as a real environment variable. So `npm run crawl` must not require the file: `node --env-file=.env` exits with an error when it is missing, while `node --env-file-if-exists=.env` or `dotenv` work in both places.
 - **`PORT`**: the backend must read `process.env.PORT`, because hosts assign their own port.
-- **`CLIENT_ORIGIN`**: used for CORS and for the Origin check on every non-GET request. It must match the frontend's origin exactly: scheme, host and port, with no trailing slash. Requests from any other address, including Vercel previews, get a 403.
+- **`CLIENT_ORIGIN`**: used for CORS and for the Origin check on every non-GET request. It must match the frontend's origin exactly: scheme, host and port, with no trailing slash. Requests from any other address, including Vercel previews, get a 403. The sitemap's links are built from it too, so it changes with a custom domain.
 - **`COOKIE_SAME_SITE`**: stays `lax` in production because the browser sees one site. Don't switch to `none`: the tests in `DEPLOY.md` show login silently failing in browsers that block third-party cookies.
 - **`TRUST_PROXY`**: in production this is deliberately higher than the real number of proxies. Vercel overwrites `X-Forwarded-For` with the visitor's IP, so the leftmost address is the visitor, however many proxies Render adds. Tested locally: a value that is too low puts every visitor in one rate-limit bucket, so one person's attempts lock out everyone. A high value also keeps working if Render changes its proxies. Check 8 in `DEPLOY.md` confirms it on the real services.
 - **`VITE_API_URL`**: anything prefixed `VITE_` is **embedded in the built JavaScript and visible to every visitor**, so never put a secret in a frontend variable. Vite reads it at startup and build time, so restart `npm run dev` or rebuild after changing it. To build for production locally from Git Bash, use `MSYS_NO_PATHCONV=1 VITE_API_URL=/api npm run build`: without the first part, Git Bash turns `/api` into a Windows path.
