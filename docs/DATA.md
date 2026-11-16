@@ -17,7 +17,7 @@ Atlas free tier (M0) has 512 MB of storage, so history is stored as **price chan
 - Source ids are `<site>-<market>`. In use:
   - live (daily crawl, have `offers`): `dafc-vn` (Rolex VN, authorized dealer), `thehourglass-sg` (Rolex SG, authorized dealer), `orientalwatch-hk` (Rolex HK, authorized dealer), `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk` (official).
   - archive only (Wayback backfill, history but **no `offers`**): `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`, `vancleefarpels-sg`, `vancleefarpels-hk` (official sites that block crawlers; their pages as archived by the Internet Archive, from 2020 on, Louis Vuitton from 2015).
-  - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`, `vancleefarpels-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
+  - entered by hand (`npm run import-prices`, `manual` origin): the archive-only sites above and `chanel-*`. A person read the price from the official site in a normal browser. These sources have `offers` only for those 10 to 20 products per brand, with `lastSeenAt` the day it was read: it can be weeks old.
 - A product can therefore have price history but no current price: show its **last known price** (latest `price_points` entry per market) with its date, not as a current price.
 
 ## `products`
@@ -54,7 +54,7 @@ The current price of a product at one source. One document per product per sourc
 Indexes: unique `{ productId: 1, "source.id": 1 }`; `{ "source.market": 1 }`.
 
 ## `price_points`
-Price history. A new point is added only when the price changes (or the first time a price is seen). Wayback snapshots are processed in any date order, so for them "changes" means: differs from the point just before it in time. A `manual` point is added when the price differs from the point before it or that point isn't `manual`, so one source's series can mix `wayback` and `manual` points.
+Price history. A new point is added only when the price changes (or the first time a price is seen). Wayback snapshots are processed in any date order, so for them "changes" means: differs from the point just before it in time. A `manual` point is added when the price differs from the point before it or that point isn't `manual`, so one source's series can mix `wayback` and `manual` points. Importing the same product and date again corrects that day's `manual` point instead of adding another.
 
 | Field | Type | Notes |
 |---|---|---|
