@@ -213,6 +213,42 @@ describe('replies', () => {
     await other.patch(`/forum/replies/${reply.id}`, { body: 'Edited' });
     assert.equal((await other.get(`/forum/topics/${topic.id}`)).body.topic.lastActivityAt, after);
   });
+
+  it('moves lastActivityAt back when the latest reply is deleted or hidden, and the list follows', async () => {
+    const lastActivity = async (id) => (await moderator.get(`/forum/topics/${id}`)).body.topic.lastActivityAt;
+    const order = async () => (await author.get(`/forum/topics?author=${author.user.id}`)).body.items.map((item) => item.id);
+    const older = await newTopic();
+    const first = await newReply(older.id);
+    const newer = await newTopic();
+    const latest = await newReply(older.id);
+    assert.deepEqual(await order(), [older.id, newer.id], 'the reply bumped the older topic');
+
+    await hideReply(latest.id);
+    assert.equal(await lastActivity(older.id), first.createdAt);
+    assert.deepEqual(await order(), [newer.id, older.id]);
+    await hideReply(latest.id, false);
+    assert.equal(await lastActivity(older.id), latest.createdAt);
+
+    assert.equal((await other.delete(`/forum/replies/${latest.id}`)).status, 204);
+    assert.equal(await lastActivity(older.id), first.createdAt);
+    assert.equal((await moderator.delete(`/forum/replies/${first.id}`)).status, 204);
+    assert.equal(await lastActivity(older.id), older.createdAt, 'no replies left: when the topic was posted');
+    assert.equal(await replyCount(older.id), 0);
+  });
+
+  it('keeps one member away from another member’s reply', async () => {
+    const topic = await newTopic();
+    const reply = await newReply(topic.id);
+    const stranger = await app.member();
+    assert.equal((await stranger.patch(`/forum/replies/${reply.id}`, { body: 'Hacked' })).status, 403);
+    assert.equal((await stranger.delete(`/forum/replies/${reply.id}`)).status, 403);
+    assert.equal((await stranger.patch(`/forum/replies/${reply.id}`, { images: [] })).status, 403);
+    await hideReply(reply.id);
+    assert.equal((await stranger.delete(`/forum/replies/${reply.id}`)).status, 404, 'a hidden reply is not even there');
+    assert.equal((await stranger.patch(`/forum/replies/${reply.id}/moderation`, { hidden: false })).status, 403);
+    const { items } = (await other.get(`/forum/topics/${topic.id}/replies`)).body;
+    assert.equal(items[0].body, 'A reply');
+  });
 });
 
 describe('moderation', () => {
@@ -252,6 +288,18 @@ describe('moderation', () => {
 
     await hideTopic(topic.id, false);
     assert.equal((await other.get(`/forum/topics/${topic.id}`)).status, 200);
+  });
+
+  it('lists a hidden topic only for its author and moderators, whatever the filter', async () => {
+    const topic = await newTopic(author, { brand: 'rolex', title: 'Hiddenword topic title' });
+    await hideTopic(topic.id);
+    const finds = async (client, query) => (await client.get(`/forum/topics?${query}`)).body.items.find((item) => item.id === topic.id);
+    for (const query of [`author=${author.user.id}`, 'brand=rolex', 'q=hiddenword', 'sort=newest&limit=50']) {
+      assert.equal(await finds(other, query), undefined, query);
+      assert.equal((await finds(author, query))?.hidden.reason, 'Off-topic', query);
+      assert.ok(await finds(moderator, query), query);
+    }
+    assert.equal((await other.get(`/forum/topics?author=${author.user.id}`)).body.total, 0);
   });
 
   it('hides a reply from everyone but its author and moderators', async () => {

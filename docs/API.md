@@ -434,7 +434,7 @@ Updates the profile. Only `displayName` can be changed for now.
 - 409: `This display name is taken`.
 
 ### `PUT /api/me/password` (login required)
-Changes the password. Logs out every other session of this member; the current one stays logged in.
+Changes the password. Logs out every other session of this member. The current browser stays logged in with a new session cookie (sent with this response), so a copy of the old cookie stops working too.
 
 **Request**
 ```json
@@ -508,7 +508,7 @@ An item of the topic list.
 - `brand`: the brand the topic is about, or `null`.
 - `thumbnail`: the first image, or `null`.
 - `replyCount`: visible replies (hidden ones are not counted).
-- `lastActivityAt`: when the topic or its latest reply was posted.
+- `lastActivityAt`: when the topic or its latest visible reply was posted. Deleting or hiding the latest reply moves it back (and the topic down the list); unhiding moves it forward again.
 
 #### Topic
 ```json

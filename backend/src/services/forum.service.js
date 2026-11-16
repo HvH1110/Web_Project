@@ -82,6 +82,17 @@ export function replyRefusal(topic, user) {
   return null;
 }
 
+// Sets lastActivityAt back to the latest visible reply, or the topic's creation,
+// after a reply was deleted, hidden or unhidden. A reply posted at the same
+// moment can be missed; the next reply corrects it.
+export async function refreshLastActivity(topic) {
+  const latest = await ForumReply.findOne({ topicId: topic._id, hiddenAt: null })
+    .sort({ createdAt: -1, _id: -1 })
+    .select('createdAt')
+    .lean();
+  await ForumTopic.updateOne({ _id: topic._id }, { lastActivityAt: latest?.createdAt ?? topic.createdAt });
+}
+
 export function canDelete(post, user) {
   return sameId(post.authorId, user._id) || isModerator(user);
 }

@@ -54,9 +54,9 @@ export async function endSession(res, token) {
   res.clearCookie(SESSION_COOKIE, cookieOptions());
 }
 
-// Logs the user out everywhere except `keepSessionId`.
-export async function endOtherSessions(userId, keepSessionId) {
-  await Session.deleteMany({ userId, _id: { $ne: keepSessionId } });
+// Logs the user out everywhere.
+export async function endAllSessions(userId) {
+  await Session.deleteMany({ userId });
 }
 
 export function clearSessionCookie(res) {

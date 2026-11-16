@@ -219,10 +219,14 @@ describe('changing the password', () => {
     await otherDevice.post('/auth/login', { email: client.email, password: PASSWORD });
     assert.ok((await otherDevice.get('/me')).body.user);
 
+    const copied = app.client();
+    copied.cookie = client.cookie;
     const res = await client.put('/me/password', { currentPassword: PASSWORD, newPassword: 'a new password' });
     assert.equal(res.status, 204);
 
-    assert.ok((await client.get('/me')).body.user, 'this session stays');
+    assert.notEqual(client.cookie, copied.cookie, 'this browser gets a new token');
+    assert.ok((await client.get('/me')).body.user, 'this browser stays logged in');
+    assert.equal((await copied.get('/me')).body.user, null, 'a copy of the old cookie stops working');
     assert.equal((await otherDevice.get('/me')).body.user, null, 'the other session ended');
     assert.equal((await app.client().post('/auth/login', { email: client.email, password: PASSWORD })).status, 401);
     assert.equal((await app.client().post('/auth/login', { email: client.email, password: 'a new password' })).status, 200);

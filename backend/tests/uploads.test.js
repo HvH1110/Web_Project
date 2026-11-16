@@ -208,6 +208,37 @@ describe('attaching uploads to posts', () => {
     assert.equal((await topicWith(member, [mine.id])).status, 201, 'the refused attempts left it free');
   });
 
+  it('refuses a fifth image, and an image already in another of the member’s posts, also when editing', async () => {
+    const images = [];
+    for (let i = 0; i < 5; i += 1) {
+      images.push((await uploadOk(member, await png())).id);
+    }
+    assert.equal((await topicWith(member, images)).status, 400);
+    const { topic } = (await topicWith(member, images.slice(0, 4))).body;
+    assert.equal((await member.patch(`/forum/topics/${topic.id}`, { images })).status, 400);
+
+    const reply = await member.post(`/forum/topics/${topic.id}/replies`, { images: [images[0]] });
+    assert.equal(reply.status, 400, 'used by the topic already');
+    const ownReply = (await member.post(`/forum/topics/${topic.id}/replies`, { images: [images[4]] })).body.reply;
+    assert.equal((await member.patch(`/forum/replies/${ownReply.id}`, { images: [images[4], images[1]] })).status, 400);
+    assert.equal((await member.patch(`/forum/topics/${topic.id}`, { images: [images[4]] })).status, 400);
+
+    const kept = (await member.get(`/forum/topics/${topic.id}`)).body.topic.images.map((image) => image.id);
+    assert.deepEqual(kept, images.slice(0, 4), 'refused edits change nothing');
+    assert.ok(fs.existsSync(fileOf((await member.get(`/forum/topics/${topic.id}`)).body.topic.images[0])));
+  });
+
+  it('refuses another member’s upload, even one in their post, and keeps it theirs', async () => {
+    const theirs = await uploadOk(other, await png());
+    const { topic } = (await topicWith(other, [theirs.id])).body;
+    const mine = (await topicWith(member, [])).body.topic;
+    assert.equal((await member.patch(`/forum/topics/${mine.id}`, { images: [theirs.id] })).status, 400);
+    assert.equal((await member.post(`/forum/topics/${topic.id}/replies`, { images: [theirs.id] })).status, 400);
+    assert.equal((await member.delete(`/forum/topics/${mine.id}`)).status, 204);
+    assert.ok(fs.existsSync(fileOf(theirs)), 'deleting my topic leaves their file');
+    assert.deepEqual((await other.get(`/forum/topics/${topic.id}`)).body.topic.images.map((image) => image.id), [theirs.id]);
+  });
+
   it('deletes the file when an image is removed, or its post is deleted', async () => {
     const [a, b, c] = [await uploadOk(member, await png()), await uploadOk(member, await png()), await uploadOk(member, await png())];
     const { topic } = (await topicWith(member, [a.id, b.id])).body;

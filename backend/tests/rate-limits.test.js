@@ -123,4 +123,23 @@ describe('forum', () => {
     }
     assert429(await client.post('/forum/topics', { title: 'One topic too many', body: 'x' }));
   });
+
+  it('limits replies per member, not for other members', async () => {
+    const [client, someoneElse] = [await app.member(), await app.member()];
+    const topic = (await someoneElse.post('/forum/topics', { title: 'A topic to reply to', body: 'x' })).body.topic;
+    for (let i = 0; i < 30; i += 1) {
+      assert.equal((await client.post(`/forum/topics/${topic.id}/replies`, { body: `Reply ${i}` })).status, 201);
+    }
+    assert429(await client.post(`/forum/topics/${topic.id}/replies`, { body: 'One too many' }));
+    assert.equal((await someoneElse.post(`/forum/topics/${topic.id}/replies`, { body: 'Mine' })).status, 201);
+  });
+
+  it('limits uploads per member, counting refused ones', async () => {
+    const [client, someoneElse] = [await app.member(), await app.member()];
+    for (let i = 0; i < 40; i += 1) {
+      assert.equal((await client.post('/forum/uploads')).status, 400);
+    }
+    assert429(await client.post('/forum/uploads'));
+    assert.equal((await someoneElse.post('/forum/uploads')).status, 400);
+  });
 });

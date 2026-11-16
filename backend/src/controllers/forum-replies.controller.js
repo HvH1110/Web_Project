@@ -8,6 +8,7 @@ import {
   findReply,
   findTopic,
   loadAuthors,
+  refreshLastActivity,
   replyRefusal,
   replyResponse,
   saveWithImages,
@@ -109,6 +110,7 @@ export async function deleteReply(req, res) {
   // Hidden replies are already left out of replyCount.
   if (deleted && !deleted.hiddenAt) {
     await ForumTopic.updateOne({ _id: topic._id }, { $inc: { replyCount: -1 } });
+    await refreshLastActivity(topic);
   }
   await deleteUploads({ 'attachedTo.id': reply._id });
 

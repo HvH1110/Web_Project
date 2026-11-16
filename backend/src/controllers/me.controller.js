@@ -1,6 +1,6 @@
 import { User } from '../models/user.model.js';
 import { hashPassword, verifyPassword } from '../services/password.service.js';
-import { endOtherSessions } from '../services/session.service.js';
+import { endAllSessions, startSession } from '../services/session.service.js';
 import { toConflictError, toUserDto } from '../services/users.service.js';
 import { parseDisplayName, parseNewPassword, requiredString } from '../utils/account-fields.js';
 import { httpError } from '../utils/http-error.js';
@@ -32,7 +32,10 @@ export async function changePassword(req, res) {
     throw httpError(403, 'Current password is incorrect');
   }
   await User.updateOne({ _id: user._id }, { passwordHash: await hashPassword(newPassword) });
-  await endOtherSessions(user._id, req.sessionId);
+  // Every session ends, this one included, and this browser gets a new token: a
+  // stolen copy of the current cookie stops working too.
+  await endAllSessions(user._id);
+  await startSession(res, user._id);
 
   res.status(204).end();
 }

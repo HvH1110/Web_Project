@@ -1,7 +1,7 @@
 import { ForumReply } from '../models/forum-reply.model.js';
 import { ForumTopic } from '../models/forum-topic.model.js';
 import { User } from '../models/user.model.js';
-import { findReply, findTopic, replyResponse, topicResponse } from '../services/forum.service.js';
+import { findReply, findTopic, refreshLastActivity, replyResponse, topicResponse } from '../services/forum.service.js';
 import { isBanned } from '../services/users.service.js';
 import { OBJECT_ID, parseBoolean, parseReason } from '../utils/forum-fields.js';
 import { httpError } from '../utils/http-error.js';
@@ -63,6 +63,7 @@ export async function moderateReply(req, res) {
     ).lean();
     if (updated) {
       await ForumTopic.updateOne({ _id: topic._id }, { $inc: { replyCount: hidden ? -1 : 1 } });
+      await refreshLastActivity(topic);
     } else {
       updated = await ForumReply.findById(reply._id).lean();
     }
