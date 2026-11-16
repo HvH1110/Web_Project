@@ -22,10 +22,10 @@ Survey run 2026-10-12 from Vietnam with our own client (`npm run probe -- <url>`
 - So the order matters: products captured in 3 or more years come first (35,364 pages: LV SG 10,983, LV HK 19,429, Dior SG 405, Dior HK 1,542, IWC 152, Van Cleef 2,853). Estimate: IWC 1 night, Dior and Van Cleef 3 to 12 nights, LV 5 to 8 weeks. Everything picked would take LV about 5 to 6 months.
 - Cartier pages without a price (2026-11-11): 386 offers in VN, 436 in SG, 441 in HK, the same 466 products in every market, all but 8 jewellery: mostly rings, solitaires and wedding bands (Cartier Destinee, 1895, Panthere, LOVE, C de Cartier). The page HTML has an empty price element, a "Request Price" label and no Offer in its JSON-LD, e.g. Juste un Clou ring CRB4244800 (SG); the URL of one size (CRB4244852) redirects to the home page. So there is no price to read without running the page's scripts. Not checked: whether a browser shows a price after a size is chosen.
 
-## Open: stored data waiting for the user's approval
-Both are written and tested on a local database, and neither has been applied to Atlas. Each touches only the fields named, saves the old values first and can be undone with `--restore=<same file>`. Run from `crawler/`. Without `--apply` they only print what would change.
-- **Cartier specs** (356 of 505 products on 2026-11-05, `specs` only): `npm run tidy-cartier-specs -- --apply=C:/Users/ADMIN/cartier-specs-backup.json`
-- **Van Cleef & Arpels names and collection** (68 of 80 products on 2026-11-05, `name` and `collection` only: adds the material to names stored before the adapter did, corrects "Fleurs D Hawai"): `npm run tidy-vca-names -- --apply=C:/Users/ADMIN/vca-names-backup.json`
+## Stored-data fixes applied (2026-11-16)
+The user approved both one-offs and they ran on Atlas on 2026-11-16; a dry run afterwards shows 0 products left to change. Each touched only the fields named. The old values are in the backup files on the user's machine, and `--restore=<file>` writes them back (run from `crawler/`).
+- **Cartier specs**: 356 of 1,736 products, `specs` only. Backup: `C:/Users/ADMIN/cartier-specs-backup.json`, undo with `npm run tidy-cartier-specs -- --restore=C:/Users/ADMIN/cartier-specs-backup.json`.
+- **Van Cleef & Arpels names and collection**: 77 of 1,208 products, `name` and `collection` only. 3 products have no known material and keep their names. Backup: `C:/Users/ADMIN/vca-names-backup.json`, undo with `npm run tidy-vca-names -- --restore=C:/Users/ADMIN/vca-names-backup.json`.
 
 ## Coverage
 
