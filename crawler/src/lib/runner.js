@@ -27,13 +27,13 @@ const LIST_RETRY_PAUSE_MS = 60000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const retryable = (err) => Object.assign(err, { retryable: true });
 
-async function listUrls(source, log) {
+async function listUrls(source, log, pauseMs) {
   try {
     return await source.listUrls();
   } catch (err) {
     if (!(err.retryable || err.name === 'TimeoutError' || err.message === 'fetch failed')) throw err;
-    log(`[${source.id}] listing failed (${err.message}), trying once more in ${LIST_RETRY_PAUSE_MS / 1000} s`);
-    await sleep(LIST_RETRY_PAUSE_MS);
+    log(`[${source.id}] listing failed (${err.message}), trying once more in ${pauseMs / 1000} s`);
+    await sleep(pauseMs);
     return source.listUrls();
   }
 }
@@ -43,9 +43,9 @@ async function listUrls(source, log) {
 //
 // A source is { id, name, type, market, listUrls(), parse(html, url), select?(urls), timeoutMs? }.
 // parse() returns null for pages that are not product pages.
-export async function runSource(source, { save, limit = Infinity, log = console.log }) {
+export async function runSource(source, { save, limit = Infinity, log = console.log, listRetryPauseMs = LIST_RETRY_PAUSE_MS }) {
   const started = Date.now();
-  const listed = await listUrls(source, log);
+  const listed = await listUrls(source, log, listRetryPauseMs);
   const urls = (source.select ? source.select(listed) : listed).slice(0, limit);
   log(`[${source.id}] ${listed.length} product URLs listed, crawling ${urls.length}`);
 

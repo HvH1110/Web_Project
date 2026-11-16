@@ -22,7 +22,17 @@ export class ArchiveBusyError extends Error {
   constructor(res) {
     super(`web.archive.org answered HTTP ${res.status} (${res.url}).`);
     this.name = 'ArchiveBusyError';
+    this.status = res.status;
     this.retryAfterMs = retryAfterMs(res);
+  }
+}
+
+// Any other answer than 200 from the index (429 and 503 are ArchiveBusyError).
+export class IndexError extends Error {
+  constructor(prefix, status) {
+    super(`Wayback index answered HTTP ${status} for ${prefix}`);
+    this.name = 'IndexError';
+    this.status = status;
   }
 }
 
@@ -30,12 +40,27 @@ export function checkArchiveStatus(res) {
   if (res.status === 429 || res.status === 503) throw new ArchiveBusyError(res);
 }
 
+// One index request. A refused connection ("fetch failed") goes to
+// onRefused, which pauses (or throws to give up), and the same request is sent
+// again: restarting a long listing from its first page would cost more.
+async function askIndex(url, onRefused) {
+  for (;;) {
+    try {
+      return await politeFetch(url, { timeoutMs: CDX_TIMEOUT_MS });
+    } catch (err) {
+      if (!onRefused || err.message !== 'fetch failed') throw err;
+      await onRefused(err);
+    }
+  }
+}
+
 // Captures of every URL under `prefix` (e.g. "sg.louisvuitton.com/eng-sg/products/"),
 // HTTP 200 HTML only, between `from` and `to` (Wayback timestamps or
 // prefixes of one, e.g. "2019") when given.
 // Calls onPage([{ timestamp, url }]) for each page of the index. A smaller
 // pageSize means more requests, but each is quicker for the index to answer.
-export async function listCaptures(prefix, { from, to, onPage, pageSize = PAGE_SIZE }) {
+// A 429, or a 503 when retryBusy, is asked once more after a pause.
+export async function listCaptures(prefix, { from, to, onPage, onRefused, pageSize = PAGE_SIZE, retryBusy = true }) {
   let resumeKey;
   do {
     const params = new URLSearchParams({
@@ -53,14 +78,14 @@ export async function listCaptures(prefix, { from, to, onPage, pageSize = PAGE_S
     if (resumeKey) params.set('resumeKey', resumeKey);
 
     const url = `${CDX}?${params}`;
-    let res = await politeFetch(url, { timeoutMs: CDX_TIMEOUT_MS });
-    if (res.status === 429 || res.status === 503) {
+    let res = await askIndex(url, onRefused);
+    if (res.status === 429 || (res.status === 503 && retryBusy)) {
       // Back off once before giving up: the index is often briefly busy.
       await new Promise((resolve) => setTimeout(resolve, Math.max(BUSY_PAUSE_MS, retryAfterMs(res))));
-      res = await politeFetch(url, { timeoutMs: CDX_TIMEOUT_MS });
+      res = await askIndex(url, onRefused);
     }
     checkArchiveStatus(res);
-    if (!res.ok) throw new Error(`Wayback index answered HTTP ${res.status} for ${prefix}`);
+    if (!res.ok) throw new IndexError(prefix, res.status);
     const text = await res.text();
     const rows = text.trim() ? JSON.parse(text) : [];
 
@@ -73,6 +98,48 @@ export async function listCaptures(prefix, { from, to, onPage, pageSize = PAGE_S
     }
     await onPage(captures);
   } while (resumeKey);
+}
+
+// First characters of the path after a prefix, to split a query (lowercase:
+// the index compares URLs in lowercase).
+export const SPLIT_CHARS = [...'0123456789abcdefghijklmnopqrstuvwxyz-_.%'];
+const SPLIT_PAGE_SIZE = 1000;
+// Prefix, then one character, then two: a part that is still too large at two
+// characters is taken for a busy index.
+const MAX_SPLIT_DEPTH = 2;
+
+// The index sorts captures by URL, so a date range doesn't make it read less:
+// for a large prefix it answers 503 at once (or 504, or never) whatever the
+// years asked. On 16 Nov 2026 Louis Vuitton HK's products for 2021 answered 503
+// in 6 s, and the same year for paths starting with "a" answered 672 captures.
+const tooLarge = (err) =>
+  (err instanceof ArchiveBusyError && err.status === 503) || (err instanceof IndexError && err.status === 504) || err.name === 'TimeoutError';
+
+// listCaptures, but a prefix too large for one query is asked again one more
+// character at a time (onSplit(err, prefix) says so). A part that fails goes
+// to onError(err, part) and the rest carry on. Returns true when every capture
+// was listed. A busy index, and errors from onRefused or onPage, end the listing.
+export async function listCapturesSplit(prefix, options, depth = 0) {
+  const { from, to, onPage, onRefused, onSplit, onError, chars = SPLIT_CHARS } = options;
+  const last = depth >= MAX_SPLIT_DEPTH;
+  try {
+    await listCaptures(prefix, { from, to, onPage, onRefused, retryBusy: last, pageSize: depth ? SPLIT_PAGE_SIZE : undefined });
+    return true;
+  } catch (err) {
+    if (last || !tooLarge(err)) throw err;
+    onSplit?.(err, prefix);
+  }
+  let complete = true;
+  for (const c of chars) {
+    try {
+      if (!(await listCapturesSplit(prefix + c, options, depth + 1))) complete = false;
+    } catch (err) {
+      if (!(err instanceof IndexError || err.name === 'TimeoutError')) throw err;
+      onError?.(err, prefix + c);
+      complete = false;
+    }
+  }
+  return complete;
 }
 
 // The page exactly as archived, without the Wayback toolbar or rewritten links.

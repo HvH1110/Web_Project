@@ -29,6 +29,7 @@ import {
   archiveUrl,
   checkArchiveStatus,
   listCaptures,
+  listCapturesSplit,
   snapshotUrl,
   timestampToDate,
 } from './lib/wayback.js';
@@ -81,6 +82,34 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // "fetch failed" alone doesn't say why: add the cause (ECONNREFUSED, ECONNRESET, ...).
 const describe = (err) => (err.message === 'fetch failed' && err.cause ? `fetch failed (${err.cause.code ?? err.cause.message})` : err.message);
 
+// How the archive is treating us, shared by the index and the page fetches:
+// it limits this client as a whole.
+let deadline = Infinity;
+let busyInARow = 0;
+let refusedInARow = 0;
+const answered = () => {
+  busyInARow = 0;
+  refusedInARow = 0;
+};
+// Waits before the next try, longer each time. Ends the run when the archive
+// has stayed busy through every pause, or the pause would pass the time limit.
+async function pauseOrStop(err) {
+  const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, (err.retryAfterMs ?? 0) / 60000);
+  if (pauseMin === Infinity) throw new EndOfRun(`${err.message} It stayed busy through ${BUSY_PAUSES_MIN.length} pauses.`);
+  if (Date.now() + pauseMin * 60000 > deadline) throw new EndOfRun(`${err.message} No time left for another pause.`);
+  console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
+  busyInARow += 1;
+  await sleep(pauseMin * 60000);
+}
+// The archive also limits a client by refusing its connections, with no 429
+// or 503 to read: several in a row count as busy.
+async function refusedOnce(err) {
+  refusedInARow += 1;
+  if (refusedInARow < REFUSED_IN_A_ROW) return;
+  await pauseOrStop(new Error(`web.archive.org refused ${refusedInARow} connections in a row: ${describe(err)}.`));
+  refusedInARow = 0;
+}
+
 // https, no port, query or fragment: one key per product page.
 function normalizeUrl(raw) {
   try {
@@ -102,13 +131,18 @@ const FIRST_YEAR = 2020;
 // Past years indexed per URL prefix per run (newest first), so the first runs
 // don't spend all their time on the index. Later runs fill in older years.
 const PAST_YEARS_PER_RUN = 3;
-// Index page size when a year is asked again by quarter (the default is 5000).
-const FALLBACK_PAGE_SIZE = 1000;
+// Minutes from the start of a run after which no more past years are asked
+// (one being asked is finished). A year too large for one query takes some 40
+// to 80 small ones, so catching up can take a while; this keeps most of the
+// run for fetching pages. This year's captures are always asked.
+const PAST_YEARS_MINUTES = 60;
 
 // Step 1: queue new captures, one per product page per quarter (the first one
 // the index lists). The index is asked one year at a time (a whole-history
-// query times out on its side), and a year that times out too is asked again
-// one quarter at a time, in smaller pages.
+// query times out on its side). A year too large for one query is asked again
+// by the first characters of the page path (lib/wayback.js). Refused
+// connections pause the run like they do for pages, then the same request is
+// sent again.
 async function indexSource(source) {
   let queued = 0;
   const thisYear = new Date().getUTCFullYear();
@@ -119,6 +153,7 @@ async function indexSource(source) {
     let newest = state.lastTimestamp ?? '';
 
     const onPage = async (captures) => {
+      answered();
       const ops = [];
       for (const { timestamp, url: original } of captures) {
         const url = normalizeUrl(original);
@@ -143,14 +178,18 @@ async function indexSource(source) {
     }
     // true when the whole range was listed. A range that fails halfway is
     // listed again next time (the upserts make that harmless).
-    let refused = false;
-    const list = async (from, to, label, pageSize) => {
+    const list = async (from, to, label) => {
       try {
-        await listCaptures(prefix, { from, to, onPage, pageSize });
-        return true;
+        return await listCapturesSplit(prefix, {
+          from,
+          to,
+          onPage,
+          onRefused: refusedOnce,
+          onSplit: (err, part) => console.error(`[${source.id}] index of ${part} (${label}) is too large for one query (${describe(err)}): asking by the next character`),
+          onError: (err, part) => console.error(`[${source.id}] index of ${part} (${label}) failed: ${describe(err)}`),
+        });
       } catch (err) {
-        if (err instanceof ArchiveBusyError) throw err;
-        refused = err.message === 'fetch failed';
+        if (err instanceof ArchiveBusyError || err instanceof EndOfRun) throw err;
         console.error(`[${source.id}] index of ${prefix} (${label}) failed: ${describe(err)}`);
         return false;
       }
@@ -162,16 +201,11 @@ async function indexSource(source) {
         }
         continue;
       }
-      let complete = await list(slice.from, slice.to, String(slice.year));
-      // By quarter only when the year was too much for the index: after a
-      // refused connection the four quarters would be refused too.
-      if (!complete && !refused) {
-        complete = true;
-        for (const q of [1, 2, 3, 4]) {
-          const month = (m) => `${slice.year}${String(m).padStart(2, '0')}`;
-          if (!(await list(month(q * 3 - 2), month(q * 3), `${slice.year}Q${q}`, FALLBACK_PAGE_SIZE))) complete = false;
-        }
+      if (Date.now() > started + PAST_YEARS_MINUTES * 60000) {
+        console.log(`[${source.id}] ${PAST_YEARS_MINUTES} minutes of indexing are up: ${prefix} ${slice.year} and older wait for the next run`);
+        break;
       }
+      const complete = await list(slice.from, slice.to, String(slice.year));
       if (complete) {
         await WaybackIndex.updateOne({ _id: stateId }, { $addToSet: { yearsDone: slice.year }, $set: { indexedAt: new Date() } }, { upsert: true });
       }
@@ -251,20 +285,7 @@ async function processQueues(sources, queues) {
     });
   }
 
-  const deadline = started + maxMinutes * 60000;
   let done = 0;
-  let busyInARow = 0;
-  let refusedInARow = 0;
-  // Waits before the next try, longer each time. Ends the run when the archive
-  // has stayed busy through every pause, or the pause would pass the time limit.
-  const pauseOrStop = async (err) => {
-    const pauseMin = Math.max(BUSY_PAUSES_MIN[busyInARow] ?? Infinity, (err.retryAfterMs ?? 0) / 60000);
-    if (pauseMin === Infinity) throw new EndOfRun(`${err.message} It stayed busy through ${BUSY_PAUSES_MIN.length} pauses.`);
-    if (Date.now() + pauseMin * 60000 > deadline) throw new EndOfRun(`${err.message} No time left for another pause.`);
-    console.error(`${err.message} Pausing ${Math.ceil(pauseMin)} min.`);
-    busyInARow += 1;
-    await sleep(pauseMin * 60000);
-  };
   let active = queues.filter((q) => q.pending.length);
   while (done < limit && active.length) {
     for (const q of active) {
@@ -283,22 +304,14 @@ async function processQueues(sources, queues) {
         }
         q.stats[status] += 1;
         q.errorsInARow = 0;
-        busyInARow = 0;
-        refusedInARow = 0;
+        answered();
       } catch (err) {
-        // The archive also limits a client by refusing its connections, with no
-        // 429 or 503 to read: several in a row count as busy.
         const refused = err.message === 'fetch failed';
         if (err instanceof ArchiveBusyError || refused) {
           // Not this page's fault: it goes back to the front of its queue.
           q.pending.unshift(snap);
           done -= 1;
-          if (refused) refusedInARow += 1;
-          if (!refused) await pauseOrStop(err);
-          else if (refusedInARow >= REFUSED_IN_A_ROW) {
-            await pauseOrStop(new Error(`web.archive.org refused ${refusedInARow} connections in a row: ${describe(err)}.`));
-            refusedInARow = 0;
-          }
+          await (refused ? refusedOnce(err) : pauseOrStop(err));
           continue;
         }
         Object.assign(update, { status: err instanceof RobotsDisallowedError ? 'missing' : 'error', error: err.message });
@@ -334,6 +347,7 @@ if (!dryRun) {
 }
 
 const started = Date.now();
+deadline = started + maxMinutes * 60000;
 let failed = false;
 let endedEarly = '';
 const queues = [];

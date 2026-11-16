@@ -31,7 +31,7 @@ Update this section as you add scripts.
 - `npm run crawl [-- source-id ...]`: the single entry point for the schedule. Runs every registered source in `src/sources/index.js`, or only the ids given. Needs `MONGODB_URI`. Exits 1 if any source failed. Sources: `dafc-vn`, `thehourglass-sg`, `orientalwatch-hk`, `cartier-vn`, `cartier-sg`, `cartier-hk`, `omega-hk`. With no ids it first updates the exchange rates (`fx_rates`); the id `fx` does only that.
   - `--dry-run`: fetch and parse, print the items, write nothing (no `MONGODB_URI` needed)
   - `--limit=N`: at most N product pages per source, N past days of exchange rates (default 60), e.g. `npm run crawl -- cartier-sg --dry-run --limit=3`
-- `npm run backfill [-- archive-id ...]`: price history from Wayback Machine snapshots of official pages that block crawlers. Queues new captures (one per page per quarter, from 2020, Louis Vuitton from 2015; the index is asked one year at a time, or one quarter at a time in smaller pages when a year times out), then fetches up to `--limit` queued snapshots (default 500, about 45 min) and saves products and `wayback` price points, no offers. Resumes where the last run stopped. Archives: `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`, `vancleefarpels-sg`, `vancleefarpels-hk`.
+- `npm run backfill [-- archive-id ...]`: price history from Wayback Machine snapshots of official pages that block crawlers. Queues new captures (one per page per quarter, from 2020, Louis Vuitton from 2015; the index is asked one year at a time, and a year too large for one query by the first one or two characters of the page path; past years only in the first 60 minutes), then fetches up to `--limit` queued snapshots (default 500, about 45 min) and saves products and `wayback` price points, no offers. Resumes where the last run stopped. Archives: `louisvuitton-sg`, `louisvuitton-hk`, `dior-sg`, `dior-hk`, `iwc-sg`, `iwc-hk`, `vancleefarpels-sg`, `vancleefarpels-hk`.
   - Not every queued snapshot is fetched (`src/lib/sample.js`): one per product per year plus the newest, products captured in the most years first.
   - `--oldest-first`: among products with as long a history, the oldest snapshots first
   - `--max-minutes=N`: end the run after N minutes (default 270). Ending for this, or because the archive stays busy or keeps refusing connections, exits 0 with the summary; database and unexpected errors exit 1.
@@ -42,6 +42,7 @@ Update this section as you add scripts.
 - `npm run tidy-vca-names [-- --apply=<backup.json> | --restore=<backup.json>]`: one-off. Adds the material to stored Van Cleef & Arpels names and corrects one collection; with no option it only prints the changes. Both one-offs were applied on 2026-11-16: see `SOURCES.md` for the backups.
 - `npm run probe -- <url> [<url> ...]`: survey helper. Shows robots.txt rules and whether the page loads for our client (or bot protection answers instead), and where a price appears: JSON-LD, meta tags, embedded state, plain text. No database needed.
 - `npm run lint`: ESLint
+- `npm test`: unit tests in `test/` (Node's test runner; no network, no database)
 
 ## Layout
 - `src/config.js`: env vars, User-Agent
