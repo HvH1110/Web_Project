@@ -18,8 +18,25 @@ const RETRY_PAUSE_MS = 15000;
 const MAX_ERROR_SHARE = 0.2;
 const MIN_ERRORS_TO_FAIL = 5;
 
+// The list of product URLs is one or a few requests the whole source depends
+// on. On 14 Nov 2026 Cartier's Vietnam sitemap timed out once and none of that
+// day's Cartier Vietnam pages were checked. So a list that times out, loses its
+// connection or gets a 5xx is asked for once more. Never after 403/429/503.
+const LIST_RETRY_PAUSE_MS = 60000;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const retryable = (err) => Object.assign(err, { retryable: true });
+
+async function listUrls(source, log) {
+  try {
+    return await source.listUrls();
+  } catch (err) {
+    if (!(err.retryable || err.name === 'TimeoutError' || err.message === 'fetch failed')) throw err;
+    log(`[${source.id}] listing failed (${err.message}), trying once more in ${LIST_RETRY_PAUSE_MS / 1000} s`);
+    await sleep(LIST_RETRY_PAUSE_MS);
+    return source.listUrls();
+  }
+}
 
 // Crawls one source: list its product URLs, fetch each page politely, parse
 // it and hand the item to `save(source, item)`.
@@ -28,7 +45,7 @@ const retryable = (err) => Object.assign(err, { retryable: true });
 // parse() returns null for pages that are not product pages.
 export async function runSource(source, { save, limit = Infinity, log = console.log }) {
   const started = Date.now();
-  const listed = await source.listUrls();
+  const listed = await listUrls(source, log);
   const urls = (source.select ? source.select(listed) : listed).slice(0, limit);
   log(`[${source.id}] ${listed.length} product URLs listed, crawling ${urls.length}`);
 

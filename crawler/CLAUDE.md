@@ -47,7 +47,7 @@ Update this section as you add scripts.
 - `src/config.js`: env vars, User-Agent
 - `src/lib/http.js`: `politeFetch`, the only way to make requests: robots.txt check, Crawl-delay, at least `CRAWL_DELAY_MS` between requests per host
 - `src/models/`: Mongoose models for the collections in `../docs/DATA.md`
-- `src/lib/runner.js`: runs one source (list URLs, fetch, parse, save); stops the source on 403/429/503; pages that time out or answer 5xx get one retry at the end
+- `src/lib/runner.js`: runs one source (list URLs, fetch, parse, save); stops the source on 403/429/503; pages that time out or answer 5xx get one retry at the end, and so does a listing that fails that way, after 60 s
 - `src/lib/store.js`: the only code that writes to MongoDB (upserts and price points, safe to re-run)
 - `src/lib/fx.js`: daily exchange rates from Vietcombank, called from `crawl.js`
 - `src/sources/`: one adapter per source, registered in `index.js`. An adapter is `{ id, name, type, market, listUrls(), parse(html, url), select?(urls), timeoutMs? }`; `parse` returns `{ brand, ref, name, category, collection, description, specs, images: [{ url, alt }], url, currency, price, available }` or null
