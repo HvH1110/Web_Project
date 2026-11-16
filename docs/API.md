@@ -95,6 +95,7 @@ Images belong to their owners: always show a credit. `sourceId` matches an offer
 - `category`: `bags`, `accessories`, `shoes`, `clothing`, `jewelry` or `watches` (the crawler may add more).
 - `collection`: may be `null`.
 - `lowestPriceVnd`: the lowest `priceVnd` among the offers (only offers in the requested markets, when search is filtered by `market`). `null` when no offer has a VND price.
+- `offers`: can be empty. Most of the catalog is archive-only: products known only from Internet Archive snapshots, with no current price anywhere. Their `offers` is `[]` and `lowestPriceVnd` is `null`; their past prices are in the history endpoint.
 
 ### Fx
 The exchange rate used for every `priceVnd` in a response. `null` when no rate has been stored yet (then only VND offers have a `priceVnd`).
@@ -312,7 +313,8 @@ Price history for the chart: one series per source (normally one source per mark
 - A source whose line ends before `from` is left out of that range.
 - `points`: price changes in the original `currency`, oldest first.
   - `origin`: `crawl` (our daily crawl), `wayback` (Internet Archive snapshot; `archiveUrl` then links to it, so show it as the source) or `manual` (a person read it from the official site on that date, which has no time of day; `sourceUrl` then links to the page, so show it as the source). One series can mix origins.
-  - `carried: true` marks a synthetic first point at `from`: the price that was already in effect when the range starts. All other points are real observations.
+  - `carried: true` marks a synthetic first point at `from`: the price that was already in effect when the range starts. All other points are real observations. A carried point keeps the `origin`, `archiveUrl` and `sourceUrl` of the earlier point it copies, but nothing was observed at its `date`: don't mark it as a snapshot or a hand check.
+- Archive-only products: every point is `wayback`, `source.name`, `source.type` and `lastSeenAt` are `null`, and each line ends at its last snapshot. Snapshots can be years apart, so a price change shows at the date it was captured, not the date it happened, and `1y` is often empty while `all` is not.
 - `vnd`: the same series converted to VND for the "VND" toggle, oldest first. Sampled at the first point, then at midnight UTC every day for `1y` or every 7 days for `5y` and `all`, plus at each price change and at the end of the line. Each sample uses the exchange rate of its own day (or the closest earlier day, at most 7 days back), so the VND line moves with exchange rates even when the original price does not. `priceVnd` is `null` where no rate is known: leave a gap in the line there.
 
 **Errors**
