@@ -3,13 +3,17 @@ import { ActionButton, ActionDialog, BanControls } from '@/components/community/
 import { Author, HiddenNotice, PostBody, PostImages, PostTime } from '@/components/community/PostParts'
 import ReplyForm from '@/components/community/ReplyForm'
 import { useAuth } from '@/hooks/useAuth'
+import { useHasDraft } from '@/hooks/usePostDraft'
 import { deleteForumReply, moderateForumReply, updateForumReply } from '@/lib/api'
 
 // One reply, with the actions its `permissions` allow. `onChange(reply)` and
 // `onDelete(id)` tell the page what happened.
 export default function ReplyItem({ reply, onChange, onDelete }) {
   const { loginRequired } = useAuth()
-  const [editing, setEditing] = useState(false)
+  const draftKey = `reply:${reply.id}:edit`
+  // An edit left unsaved (say, the session ended) reopens with its draft.
+  const hasDraft = useHasDraft(draftKey)
+  const [editing, setEditing] = useState(hasDraft && reply.permissions.edit)
   const editButton = useRef(null)
   const { permissions } = reply
 
@@ -32,6 +36,7 @@ export default function ReplyItem({ reply, onChange, onDelete }) {
       {editing ? (
         <ReplyForm
           reply={reply}
+          draftKey={draftKey}
           submitLabel="Save reply"
           busyLabel="Saving…"
           onCancel={closeEditor}
@@ -59,7 +64,12 @@ export default function ReplyItem({ reply, onChange, onDelete }) {
                   confirmLabel="Delete reply"
                   destructive
                   onConfirm={async () => {
-                    await loginRequired(() => deleteForumReply(reply.id))
+                    try {
+                      await loginRequired(() => deleteForumReply(reply.id))
+                    } catch (err) {
+                      // Already deleted by its author or a moderator: same outcome.
+                      if (err.status !== 404) throw err
+                    }
                     onDelete(reply.id)
                   }}
                 />

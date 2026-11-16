@@ -1,31 +1,52 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import BrandSelect from '@/components/community/BrandSelect'
+import DraftNote from '@/components/community/DraftNote'
 import ImagePicker from '@/components/community/ImagePicker'
 import CtaButton from '@/components/CtaButton'
 import FormField from '@/components/FormField'
 import FormFooter from '@/components/FormFooter'
 import { useForm } from '@/hooks/useForm'
 import { useImageUploads } from '@/hooks/useImageUploads'
+import { useKeepDraft, usePostDraft } from '@/hooks/usePostDraft'
 import { fieldFromMessage } from '@/lib/forms'
 import { POST_FIELDS, TITLE_MAX, TOPIC_BODY_MAX, checkTitle, checkTopicBody } from '@/lib/forum'
 
 // Write or edit a topic. `onSubmit({ title, body, brand, images })` gets the
 // brand slug or null and the image ids; `topic` fills the form when editing.
-export default function TopicForm({ topic, submitLabel, busyLabel, onSubmit, onCancel }) {
+// What the member types is kept as a draft under `draftKey` until it is posted
+// or cancelled, so a session ending mid-post loses nothing.
+export default function TopicForm({ topic, draftKey, submitLabel, busyLabel, onSubmit, onCancel }) {
   const uid = useId()
-  const uploads = useImageUploads(topic?.images)
+  const draft = usePostDraft(
+    draftKey,
+    { title: topic?.title ?? '', body: topic?.body ?? '', brand: topic?.brand?.slug ?? '' },
+    topic?.images,
+  )
+  const [showDraftNote, setShowDraftNote] = useState(draft.restored)
+  const uploads = useImageUploads(draft.images)
   const form = useForm({
-    initial: { title: topic?.title ?? '', body: topic?.body ?? '', brand: topic?.brand?.slug ?? '' },
+    initial: draft.values,
     rules: { title: checkTitle, body: checkTopicBody },
-    onSubmit: ({ title, body, brand }) =>
-      onSubmit({ title: title.trim(), body, brand: brand || null, images: uploads.images.map((i) => i.id) }),
+    onSubmit: async ({ title, body, brand }) => {
+      await onSubmit({ title: title.trim(), body, brand: brand || null, images: uploads.images.map((i) => i.id) })
+      draft.clear()
+    },
     fieldFor: (error) => fieldFromMessage(error, POST_FIELDS),
   })
+  useKeepDraft(draft, form.values, uploads.images)
   const brandLabel = `${uid}-brand-label`
   const brand = form.field('brand')
 
+  const discard = () => {
+    form.reset(draft.start.values)
+    uploads.reset(draft.start.images)
+    draft.clear()
+    setShowDraftNote(false)
+  }
+
   return (
     <form noValidate onSubmit={form.handleSubmit} className="grid gap-7">
+      {showDraftNote && <DraftNote onDiscard={discard} />}
       <FormField
         id={`${uid}-title`}
         label="Title"
@@ -61,7 +82,14 @@ export default function TopicForm({ topic, submitLabel, busyLabel, onSubmit, onC
           {form.submitting ? busyLabel : submitLabel}
         </CtaButton>
         {onCancel && (
-          <CtaButton type="button" variant="outline" onClick={onCancel}>
+          <CtaButton
+            type="button"
+            variant="outline"
+            onClick={() => {
+              draft.clear()
+              onCancel()
+            }}
+          >
             Cancel
           </CtaButton>
         )}

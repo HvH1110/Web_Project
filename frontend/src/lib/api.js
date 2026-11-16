@@ -1,4 +1,5 @@
 // All backend calls go through this module. Endpoints are defined in ../docs/API.md.
+import { parseRetryAfter } from '@/lib/forms'
 import { trackRequest } from '@/lib/slowRequests'
 
 export const API_URL = (
@@ -50,10 +51,14 @@ async function send(path, { body, headers, ...options } = {}) {
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     // Error body per contract: { "error": { "message": "..." } }
-    throw new ApiError(
+    const error = new ApiError(
       data?.error?.message ?? `Request failed with status ${res.status}`,
       res.status,
     )
+    // Seconds to wait after a 429, or null. Cross-origin (local dev) the
+    // browser only shows the header if the API exposes it.
+    error.retryAfter = res.status === 429 ? parseRetryAfter(res.headers.get('Retry-After')) : null
+    throw error
   }
   // Only 204 has no body. Anything else that isn't JSON came from something in
   // front of the API, like the host's loading page while the server wakes up.

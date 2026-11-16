@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import BrandSelect from '@/components/community/BrandSelect'
@@ -11,8 +12,12 @@ import SearchBox from '@/components/search/SearchBox'
 import Segmented from '@/components/Segmented'
 import { useAuth } from '@/hooks/useAuth'
 import { usePaged } from '@/hooks/usePaged'
+import { usePoll } from '@/hooks/usePoll'
 import { getForumTopics } from '@/lib/api'
+import { BANNED, topicsSignature } from '@/lib/forum'
 
+// How often an open topic list checks for other members' posts.
+const LIST_POLL_MS = 60_000
 const SORTS = [
   { value: 'activity', label: 'Latest activity' },
   { value: 'newest', label: 'Newest' },
@@ -46,6 +51,31 @@ function Topics() {
   const busy = topics.loading || topics.refreshing
   const filtered = Boolean(q || brand || scope === 'mine')
 
+  // New topics and replies from other members: checked in the background and
+  // offered with a button, so the list never reorders under the reader.
+  const listKey = JSON.stringify(query)
+  const [staleKey, setStaleKey] = useState(null)
+  const stale = staleKey === listKey && !busy
+  usePoll(
+    async () => {
+      try {
+        const data = await loginRequired(() => getForumTopics({ ...query, page: 1, limit: 20 }))
+        const shown = topics.items.slice(0, data.items.length)
+        if (data.total !== topics.total || topicsSignature(data.items) !== topicsSignature(shown)) {
+          setStaleKey(listKey)
+        }
+      } catch {
+        // Try again at the next check.
+      }
+    },
+    LIST_POLL_MS,
+    !busy && !topics.error && staleKey !== listKey,
+  )
+  const refresh = () => {
+    setStaleKey(null)
+    topics.retry()
+  }
+
   const set = (name, value, fallback = '') => {
     const next = new URLSearchParams(params)
     if (value === fallback) next.delete(name)
@@ -67,10 +97,14 @@ function Topics() {
           </p>
         </div>
         <div className="lg:col-span-5 lg:justify-self-end lg:self-end">
-          <CtaButton render={<Link to="/community/new" />} nativeButton={false}>
-            <Plus className="size-4" strokeWidth={1.25} aria-hidden="true" />
-            New topic
-          </CtaButton>
+          {user.banned ? (
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground lg:text-right">{BANNED}</p>
+          ) : (
+            <CtaButton render={<Link to="/community/new" />} nativeButton={false}>
+              <Plus className="size-4" strokeWidth={1.25} aria-hidden="true" />
+              New topic
+            </CtaButton>
+          )}
         </div>
       </section>
 
@@ -97,11 +131,20 @@ function Topics() {
         </div>
 
         {!topics.error && (
-          <p className="mt-8 text-sm" aria-live="polite">
-            {busy
-              ? 'Looking for topics'
-              : `${topics.total.toLocaleString('en-US')} ${topics.total === 1 ? 'topic' : 'topics'}`}
-          </p>
+          <div className="mt-8 flex min-h-10 flex-wrap items-center gap-x-6 gap-y-2">
+            <p className="text-sm" aria-live="polite">
+              {busy
+                ? 'Looking for topics'
+                : `${topics.total.toLocaleString('en-US')} ${topics.total === 1 ? 'topic' : 'topics'}`}
+            </p>
+            <div aria-live="polite">
+              {stale && (
+                <button type="button" onClick={refresh} className="eyebrow link-underline h-10">
+                  New activity · Refresh the list
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="mt-6">
@@ -118,7 +161,7 @@ function Topics() {
                 message={topics.error?.status === 503 ? 'The forum is temporarily unavailable.' : 'We couldn’t load the forum.'}
               />
             }
-            empty={<NoTopics filtered={filtered} />}
+            empty={<NoTopics filtered={filtered} canPost={!user.banned} />}
           />
         </div>
       </div>
@@ -126,14 +169,14 @@ function Topics() {
   )
 }
 
-function NoTopics({ filtered }) {
+function NoTopics({ filtered, canPost }) {
   return (
     <div className="grid justify-items-center gap-4 bg-secondary px-6 py-20 text-center">
       <p className="eyebrow text-muted-foreground">No topics</p>
       <p className="max-w-xl font-serif text-display-sm text-balance">
         {filtered ? 'Nothing matches these filters.' : 'No one has started a topic yet.'}
       </p>
-      {!filtered && (
+      {!filtered && canPost && (
         <CtaButton render={<Link to="/community/new" />} nativeButton={false} className="mt-2">
           Start the first one
         </CtaButton>

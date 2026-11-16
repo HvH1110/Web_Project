@@ -1,24 +1,31 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import DraftNote from '@/components/community/DraftNote'
 import ImagePicker from '@/components/community/ImagePicker'
 import CtaButton from '@/components/CtaButton'
 import FormField from '@/components/FormField'
 import FormFooter from '@/components/FormFooter'
 import { useForm } from '@/hooks/useForm'
 import { useImageUploads } from '@/hooks/useImageUploads'
+import { useKeepDraft, usePostDraft } from '@/hooks/usePostDraft'
 import { fieldFromMessage } from '@/lib/forms'
 import { POST_FIELDS, REPLY_BODY_MAX, checkReplyBody } from '@/lib/forum'
 
 // Write or edit a reply. `onSubmit({ body, images })` gets the image ids and
 // may return a notice; `reply` fills the form when editing. A new reply's form
-// empties once it is posted.
-export default function ReplyForm({ reply, submitLabel, busyLabel, onSubmit, onCancel }) {
+// empties once it is posted. Unposted text is kept under `draftKey`, as in
+// TopicForm.
+export default function ReplyForm({ reply, draftKey, submitLabel, busyLabel, onSubmit, onCancel }) {
   const uid = useId()
-  const uploads = useImageUploads(reply?.images)
+  const draft = usePostDraft(draftKey, { body: reply?.body ?? '' }, reply?.images)
+  const [showDraftNote, setShowDraftNote] = useState(draft.restored)
+  const uploads = useImageUploads(draft.images)
   const form = useForm({
-    initial: { body: reply?.body ?? '' },
+    initial: draft.values,
     rules: { body: checkReplyBody(uploads.images.length) },
     onSubmit: async ({ body }, { reset }) => {
       const notice = await onSubmit({ body, images: uploads.images.map((i) => i.id) })
+      draft.clear()
+      setShowDraftNote(false)
       if (!reply) {
         reset({ body: '' })
         uploads.reset()
@@ -27,9 +34,18 @@ export default function ReplyForm({ reply, submitLabel, busyLabel, onSubmit, onC
     },
     fieldFor: (error) => fieldFromMessage(error, POST_FIELDS),
   })
+  useKeepDraft(draft, form.values, uploads.images)
+
+  const discard = () => {
+    form.reset(draft.start.values)
+    uploads.reset(draft.start.images)
+    draft.clear()
+    setShowDraftNote(false)
+  }
 
   return (
     <form noValidate onSubmit={form.handleSubmit} className="grid gap-6">
+      {showDraftNote && <DraftNote onDiscard={discard} />}
       <FormField
         id={`${uid}-body`}
         label={reply ? 'Your reply' : 'Reply'}
@@ -46,7 +62,14 @@ export default function ReplyForm({ reply, submitLabel, busyLabel, onSubmit, onC
           {form.submitting ? busyLabel : submitLabel}
         </CtaButton>
         {onCancel && (
-          <CtaButton type="button" variant="outline" onClick={onCancel}>
+          <CtaButton
+            type="button"
+            variant="outline"
+            onClick={() => {
+              draft.clear()
+              onCancel()
+            }}
+          >
             Cancel
           </CtaButton>
         )}

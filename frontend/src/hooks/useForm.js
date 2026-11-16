@@ -60,5 +60,12 @@ export function useForm({ initial, rules, onSubmit, fieldFor }) {
     }
   }
 
-  return { values, field, handleSubmit, submitting, formError, notice }
+  const reset = (next) => {
+    setValues(next)
+    setErrors({})
+    setFormError(null)
+    setNotice(null)
+  }
+
+  return { values, field, handleSubmit, submitting, formError, notice, reset }
 }

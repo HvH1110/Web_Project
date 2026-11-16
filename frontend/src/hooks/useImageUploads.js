@@ -15,14 +15,17 @@ export function useImageUploads(initial = []) {
   const [error, setError] = useState(null)
 
   async function add(fileList) {
-    const files = [...fileList]
-    const room = MAX_IMAGES - images.length
-    const problems = files.length > room ? [`A post can have at most ${MAX_IMAGES} images.`] : []
-    const queue = files.slice(0, Math.max(room, 0)).filter((file) => {
+    const problems = []
+    // Files that are too large are left out first, so they don't take the
+    // place of one that fits.
+    const files = [...fileList].filter((file) => {
       if (file.size <= MAX_IMAGE_BYTES) return true
       problems.push(`${file.name} is larger than 10 MB.`)
       return false
     })
+    const room = Math.max(MAX_IMAGES - images.length, 0)
+    if (files.length > room) problems.unshift(`A post can have at most ${MAX_IMAGES} images.`)
+    const queue = files.slice(0, room)
 
     setError(problems.join(' ') || null)
     setUploading(queue.length)
@@ -44,8 +47,9 @@ export function useImageUploads(initial = []) {
     error,
     add,
     remove: (id) => setImages((list) => list.filter((image) => image.id !== id)),
-    reset: () => {
-      setImages([])
+    // Back to `list` (none by default), e.g. after posting or discarding a draft.
+    reset: (list = []) => {
+      setImages(list)
       setError(null)
     },
   }

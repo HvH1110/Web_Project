@@ -12,11 +12,17 @@ import PageMeta from '@/components/PageMeta'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useApi } from '@/hooks/useApi'
 import { useAuth } from '@/hooks/useAuth'
+import { usePoll } from '@/hooks/usePoll'
+import { useHasDraft } from '@/hooks/usePostDraft'
 import { useReplies } from '@/hooks/useReplies'
 import { createForumReply, deleteForumTopic, getForumTopic, moderateForumTopic, updateForumTopic } from '@/lib/api'
+import { readDraft } from '@/lib/drafts'
 import { describeError } from '@/lib/forms'
+import { topicMoved } from '@/lib/forum'
 
 const FORUM_ERROR = 'We couldn’t load this topic.'
+// How often an open topic asks for what other members did.
+const POLL_MS = 30_000
 
 // /community/:id: a topic and its replies, with the forms and controls the
 // topic's `permissions` allow. Remounted per topic so no state leaks across.
@@ -33,12 +39,43 @@ function Topic({ id }) {
   const { loginRequired } = useAuth()
   const navigate = useNavigate()
   const result = useApi(id, (signal) => loginRequired(() => getForumTopic(id, { signal })))
-  // The API's latest answer after an edit or moderation; replaces the load.
+  // The API's latest answer after an edit, moderation or check; replaces the load.
   const [updated, setUpdated] = useState(null)
-  const [editing, setEditing] = useState(false)
+  // Deleted, or hidden from this member, since the page loaded.
+  const [gone, setGone] = useState(false)
+  const editDraft = `topic:${id}:edit`
+  // An edit left unsaved (say, the session ended) reopens with its draft.
+  const hasEditDraft = useHasDraft(editDraft)
+  const [editing, setEditing] = useState(hasEditDraft)
   const replies = useReplies(id)
   const repliesHeading = useRef(null)
   const editButton = useRef(null)
+  // Bumped by every change made here, so a check that started before one
+  // can't put back the older copy.
+  const changes = useRef(0)
+  const change = (topic) => {
+    changes.current += 1
+    setUpdated(topic)
+  }
+
+  // Other members' replies, edits, deletion and moderation, without a reload.
+  usePoll(
+    async () => {
+      const before = updated ?? result.data.topic
+      const version = changes.current
+      try {
+        const { topic: latest } = await loginRequired(() => getForumTopic(id))
+        if (version !== changes.current) return
+        setUpdated(latest)
+        if (topicMoved(before, latest)) await replies.checkNew()
+      } catch (err) {
+        if (err.status === 404) setGone(true)
+        // Anything else: try again at the next check.
+      }
+    },
+    POLL_MS,
+    Boolean(result.data) && !gone,
+  )
 
   if (result.error?.status === 404) return <TopicGone />
   if (result.error) {
@@ -52,8 +89,7 @@ function Topic({ id }) {
 
   const topic = updated ?? result.data.topic
   const { permissions } = topic
-  const moderate = async (fields) =>
-    setUpdated((await loginRequired(() => moderateForumTopic(id, fields))).topic)
+  const moderate = async (fields) => change((await loginRequired(() => moderateForumTopic(id, fields))).topic)
   const closeEditor = () => {
     setEditing(false)
     requestAnimationFrame(() => editButton.current?.focus())
@@ -83,18 +119,31 @@ function Topic({ id }) {
         </ol>
       </nav>
 
+      {gone && (
+        <div role="alert" className="mt-8 grid justify-items-start gap-3 border-l-2 border-destructive py-1 pl-4 text-sm">
+          <p>
+            This topic was deleted, or hidden by a moderator, while you were reading. Below is the copy you
+            had open; replies are closed.
+          </p>
+          <Link to="/community" className="eyebrow link-underline">
+            Back to the forum
+          </Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-12 pt-8 lg:grid-cols-12 lg:gap-8">
         <div className="grid min-w-0 grid-cols-1 content-start gap-12 lg:col-span-8">
-          {editing ? (
+          {editing && permissions.edit && !gone ? (
             <section aria-label="Edit topic">
               <h1 className="sr-only">Edit topic</h1>
               <TopicForm
                 topic={topic}
+                draftKey={editDraft}
                 submitLabel="Save topic"
                 busyLabel="Saving…"
                 onCancel={closeEditor}
                 onSubmit={async (fields) => {
-                  setUpdated((await loginRequired(() => updateForumTopic(id, fields))).topic)
+                  change((await loginRequired(() => updateForumTopic(id, fields))).topic)
                   closeEditor()
                 }}
               />
@@ -113,7 +162,7 @@ function Topic({ id }) {
               <HiddenNotice hidden={topic.hidden} of="topic" />
               <PostBody text={topic.body} className="max-w-3xl" />
               <PostImages images={topic.images} author={topic.author} />
-              {(permissions.edit || permissions.delete) && (
+              {!gone && (permissions.edit || permissions.delete) && (
                 <div className="flex flex-wrap items-center gap-x-6">
                   {permissions.edit && (
                     <ActionButton ref={editButton} onClick={() => setEditing(true)}>
@@ -128,7 +177,12 @@ function Topic({ id }) {
                       confirmLabel="Delete topic"
                       destructive
                       onConfirm={async () => {
-                        await loginRequired(() => deleteForumTopic(id))
+                        try {
+                          await loginRequired(() => deleteForumTopic(id))
+                        } catch (err) {
+                          // Already deleted (by a moderator, or in another tab).
+                          if (err.status !== 404) throw err
+                        }
                         navigate('/community', { replace: true })
                       }}
                     />
@@ -144,6 +198,7 @@ function Topic({ id }) {
             </h2>
             <RepliesList
               replies={replies}
+              onShowWaiting={replies.showWaiting}
               onDeleted={(replyId) => {
                 replies.remove(replyId)
                 // The deleted reply's button had focus, so move it somewhere useful.
@@ -152,6 +207,7 @@ function Topic({ id }) {
             />
             <ReplyArea
               topic={topic}
+              gone={gone}
               onSubmit={async (fields) => {
                 replies.add((await loginRequired(() => createForumReply(id, fields))).reply)
                 return 'Reply posted.'
@@ -160,7 +216,7 @@ function Topic({ id }) {
           </section>
         </div>
 
-        {permissions.moderate && <ModerationPanel topic={topic} moderate={moderate} />}
+        {!gone && permissions.moderate && <ModerationPanel topic={topic} moderate={moderate} />}
       </div>
     </div>
   )
@@ -225,7 +281,7 @@ function ModerationPanel({ topic, moderate }) {
   )
 }
 
-function RepliesList({ replies, onDeleted }) {
+function RepliesList({ replies, onDeleted, onShowWaiting }) {
   if (replies.error) {
     return <LoadError error={replies.error} onRetry={replies.retry} message="We couldn’t load the replies." />
   }
@@ -237,7 +293,25 @@ function RepliesList({ replies, onDeleted }) {
       </div>
     )
   }
-  if (!replies.items.length) return <p className="text-sm text-muted-foreground">No replies yet.</p>
+  const count = replies.waiting.length
+  // Always rendered, so screen readers hear when new replies arrive.
+  const waiting = (
+    <div aria-live="polite">
+      {count > 0 && (
+        <CtaButton variant="outline" onClick={onShowWaiting} className="w-full sm:w-auto">
+          Show {count} new {count === 1 ? 'reply' : 'replies'}
+        </CtaButton>
+      )}
+    </div>
+  )
+  if (!replies.items.length) {
+    return (
+      <div className="grid gap-6">
+        {!count && <p className="text-sm text-muted-foreground">No replies yet.</p>}
+        {waiting}
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 gap-8">
@@ -263,14 +337,16 @@ function RepliesList({ replies, onDeleted }) {
           Couldn’t load more. Please try again.
         </p>
       )}
+      {waiting}
     </div>
   )
 }
 
 // The reply form, or why there isn't one. Permissions leave out the reason, so
-// it is worked out: locked, hidden, otherwise the member must be banned.
-function ReplyArea({ topic, onSubmit }) {
-  if (topic.permissions.reply) {
+// it is worked out: gone, locked, hidden, otherwise the member must be banned.
+function ReplyArea({ topic, gone, onSubmit }) {
+  const draftKey = `topic:${topic.id}:reply`
+  if (topic.permissions.reply && !gone) {
     return (
       <div className="grid gap-4">
         {(topic.locked || topic.hidden) && (
@@ -278,18 +354,41 @@ function ReplyArea({ topic, onSubmit }) {
             This topic is {topic.locked ? 'locked' : 'hidden'}. You can still reply as a moderator.
           </p>
         )}
-        <ReplyForm submitLabel="Post reply" busyLabel="Posting…" onSubmit={onSubmit} />
+        <ReplyForm draftKey={draftKey} submitLabel="Post reply" busyLabel="Posting…" onSubmit={onSubmit} />
       </div>
     )
   }
   return (
-    <p className="border-y py-4 text-sm text-muted-foreground">
-      {topic.locked
-        ? 'This topic is locked, so replies are closed.'
-        : topic.hidden
-          ? 'This topic was hidden by a moderator, so replies are closed.'
-          : 'Your account is banned from posting, so you can’t reply.'}
-    </p>
+    <div className="grid gap-4 border-y py-4">
+      <p className="text-sm text-muted-foreground">
+        {gone
+          ? 'Replies are closed.'
+          : topic.locked
+            ? 'This topic is locked, so replies are closed.'
+            : topic.hidden
+              ? 'This topic was hidden by a moderator, so replies are closed.'
+              : 'Your account is banned from posting, so you can’t reply.'}
+      </p>
+      <UnsentReply draftKey={draftKey} />
+    </div>
+  )
+}
+
+// A reply the member was writing when replies closed, so it can be copied.
+function UnsentReply({ draftKey }) {
+  const { user } = useAuth()
+  const text = readDraft(draftKey, user.id)?.values.body?.trim()
+  if (!text) return null
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="text-muted-foreground">Your unsent reply, to copy:</span>
+      <textarea
+        readOnly
+        value={text}
+        rows={4}
+        className="w-full resize-y border bg-secondary px-3 py-2 leading-relaxed"
+      />
+    </label>
   )
 }
 

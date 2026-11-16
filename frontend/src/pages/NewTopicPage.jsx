@@ -4,7 +4,7 @@ import TopicForm from '@/components/community/TopicForm'
 import PageMeta from '@/components/PageMeta'
 import { useAuth } from '@/hooks/useAuth'
 import { createForumTopic } from '@/lib/api'
-import { topicPath } from '@/lib/forum'
+import { BANNED, topicPath } from '@/lib/forum'
 
 // /community/new: POST /api/forum/topics, then on to the new topic.
 export default function NewTopicPage() {
@@ -16,7 +16,7 @@ export default function NewTopicPage() {
 }
 
 function NewTopic() {
-  const { loginRequired } = useAuth()
+  const { user, loginRequired } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -35,16 +35,22 @@ function NewTopic() {
         </p>
       </div>
       <div className="lg:col-span-6 lg:col-start-7">
-        <TopicForm
-          submitLabel="Post topic"
-          busyLabel="Posting…"
-          onSubmit={async ({ brand, ...fields }) => {
-            // On create, no brand is left out rather than sent as null.
-            const body = brand ? { ...fields, brand } : fields
-            const { topic } = await loginRequired(() => createForumTopic(body))
-            navigate(topicPath(topic.id))
-          }}
-        />
+        {user.banned ? (
+          <p className="border-y py-6 text-sm leading-relaxed text-muted-foreground">{BANNED}</p>
+        ) : (
+          <TopicForm
+            draftKey="topic:new"
+            submitLabel="Post topic"
+            busyLabel="Posting…"
+            onSubmit={async ({ brand, ...fields }) => {
+              // On create, no brand is left out rather than sent as null.
+              const body = brand ? { ...fields, brand } : fields
+              const { topic } = await loginRequired(() => createForumTopic(body))
+              // Replaced, so Back goes to the list rather than an empty form.
+              navigate(topicPath(topic.id), { replace: true })
+            }}
+          />
+        )}
       </div>
     </section>
   )

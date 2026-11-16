@@ -55,7 +55,14 @@ export function ActionDialog({ label, title, description, confirmLabel, reasonLa
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        // A failure from last time doesn't greet the next attempt.
+        if (next) setError(null)
+      }}
+    >
       <AlertDialogTrigger render={<button type="button" className={ACTION} />}>
         <span className="link-underline">{label}</span>
       </AlertDialogTrigger>

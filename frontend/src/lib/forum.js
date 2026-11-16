@@ -12,6 +12,9 @@ export const REPLY_BODY_MAX = 5000
 
 export const topicPath = (id) => `/community/${id}`
 
+// What a banned member sees where the posting buttons would be.
+export const BANNED = 'Your account is banned from posting. You can still read the forum and delete your own posts.'
+
 // Lengths count characters, not UTF-16 units.
 const length = (text) => [...text.trim()].length
 
@@ -51,3 +54,20 @@ export const canBan = (viewer, author) =>
   author.id !== viewer.id &&
   author.role !== 'admin' &&
   (author.role !== 'moderator' || viewer.role === 'admin')
+
+// Replies in `fetched` that aren't in `shown` yet, oldest first.
+export function unseenReplies(shown, fetched) {
+  const ids = new Set(shown.map((reply) => reply.id))
+  return fetched
+    .filter((reply) => !ids.has(reply.id))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+}
+
+// Whether a later copy of a topic says something was posted, removed or
+// changed since `before`.
+export const topicMoved = (before, after) =>
+  before.replyCount !== after.replyCount || before.lastActivityAt !== after.lastActivityAt
+
+// What a topic list shows, to tell whether a later copy of it differs.
+export const topicsSignature = (topics) =>
+  topics.map((t) => [t.id, t.title, t.replyCount, t.lastActivityAt, t.pinned, t.locked].join('|')).join('\n')
