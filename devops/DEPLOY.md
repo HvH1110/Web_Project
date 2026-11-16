@@ -79,7 +79,23 @@ None are outstanding. All five requests made here are in the code as of 2026-11-
 
 You create the accounts and paste the secrets. Never paste a password, key or connection string into a chat or a tracked file.
 
-Do step 1 only after the first full crawl has finished, with no crawl running. Steps 2 to 4 can happen any time before that, but the site has no catalog until step 1 is done.
+Do the steps in order. Everything the site needs must be on GitHub first, because Render and Vercel build from there: check that `git status` doesn't say `ahead of 'origin/main'`, and ask the root session to push if it does.
+
+**What only you can do, in order.** The times are the devops session's estimates, not measured:
+
+| Step | What you do | Time |
+|---|---|---|
+| Before | Turn on email for failed runs and issues ("Daily schedule" below) | 5 min |
+| 1 | Install the database tools, create `webproject-prod`, copy the catalog, move the crawl's user and secret, run the check | 30 min, while no crawl or backfill is running or waiting |
+| 2 | Cloudflare R2: payment method, bucket, public address, API token | 15 min |
+| 3 | Render: sign up, create the Blueprint, paste 5 values, wait for the deploy | 20 min |
+| 4 | Vercel: sign up, import the project, deploy | 10 min |
+| 5 | Checks 1 to 9, including an iPhone, a phone on mobile data and a 20-minute idle wait | 45 min |
+| 5 | Check 10 | 5 min, about a week later |
+| 6 | Make yourself admin, drop the development catalog, restrict `webproject-dev`, crawl sample data | 15 min |
+| 7 | Create the value, add it to Vercel, ask the devops session to deploy the config, check, add it to Render, check | 25 min, on a later day |
+
+Steps 1 to 6 are about 2 hours 15 minutes in one sitting. The site has no catalog until step 1 is done.
 
 ### Step 1: Production database
 
@@ -87,7 +103,7 @@ Do step 1 only after the first full crawl has finished, with no crawl running. S
 2. **Create the backend's user.** In Atlas, under **Security**, open **Database Access** (newer layout: **Database & Network Access → Database Users**). Click **Add New Database User**.
    - Username `webproject-prod`, **Autogenerate Secure Password**, then **Copy**. Keep it in a password manager for step 3 of Render.
    - **Specific Privileges → Add Specific Privilege**: role `readWrite`, database `webproject_prod`, collection empty. Click **Add User**.
-3. **Check there's room.** The crawl log's `Check database` step shows how big `webproject_dev` is, or see **Data Explorer**. Copying needs that much free again. If it's over about 240 MB, tell the devops session before copying. On 2026-11-10 it was 78.7 MB and growing by about 4 MB a day, so the copy fits until about 2026-12-20.
+3. **Check there's room.** The crawl log's `Check database` step shows how big `webproject_dev` is, or see **Data Explorer**. Copying needs that much free again. If it's over about 240 MB, tell the devops session before copying. On 2026-11-16 it was 87.8 MB and growing by about 1.3 MB a day, so the copy fits for months.
 4. **Copy the catalog** to `webproject_prod`, leaving out development accounts and forum posts. In PowerShell, in your own terminal rather than a Claude session:
    ```powershell
    # The webproject-dev connection string from backend/.env (it ends in /webproject_dev?...)
@@ -101,7 +117,7 @@ Do step 1 only after the first full crawl has finished, with no crawl running. S
    Remove-Item Env:DEV_URI; $rootUri = $null
    ```
    Tested on a throwaway local database, not on Atlas: collections and indexes arrived, text search worked, and no user or forum data was copied. In Atlas **Data Explorer**, check that `webproject_prod` has `products`, `offers`, `price_points`, `fx_rates`, `brands`, `wayback_index` and `wayback_snapshots`.
-5. **Move the daily crawl and nightly backfill to production.** Both use the same secret, and neither workflow file changes. Do steps 4 and 5 together while neither is running, because anything written after the copy stays in development. GitHub starts both runs hours late (see "Daily schedule" below), so go by the **Actions** tab, not the clock: neither workflow may be running or waiting. In the first week, 12:00 to 19:00 UTC (19:00 to 02:00 in Vietnam) was always clear.
+5. **Move the daily crawl and nightly backfill to production.** Both use the same secret, and neither workflow file changes. Do steps 4 and 5 together while neither is running, because anything written after the copy stays in development. GitHub starts both runs hours late (see "Daily schedule" below), so go by the **Actions** tab, not the clock: neither workflow may be running or waiting. From 2026-11-06 to 11-16, 12:00 to 19:00 UTC (19:00 to 02:00 in Vietnam) was always clear.
    - In **Database Access**, edit `webproject-crawler`: change its privilege to `readWrite` on `webproject_prod`.
    - In its connection string, change the database name to `webproject_prod`. Update the [`MONGODB_URI` secret](https://github.com/HvH1110/Web_Project/settings/secrets/actions).
    - Run **Actions → Daily crawl → Run workflow** with **check only** ticked. The log should say `Connected to database "webproject_prod"`.
@@ -148,10 +164,10 @@ Later deploys run on their own when a commit changing `backend/` passes CI.
 4. In the project's **Settings → Git**, turn on skipping deployments when nothing changed in the root directory, so other areas' commits don't use up deployments.
 
 **If you get different addresses** (the name may be taken by the time you do this):
-- Render address differs: change `destination` in `frontend/vercel.json`.
-- Vercel address differs: change `CLIENT_ORIGIN` in `backend/render.yaml`.
+- Render address differs: tell the devops session. The address is in `frontend/vercel.json` twice (`/api` and `/sitemap.xml`) and in `devops/vercel.proxy-secret.json` twice.
+- Vercel address differs: tell the devops session to change `CLIENT_ORIGIN` in `backend/render.yaml`, and the frontend session to change the `Sitemap:` line in `frontend/public/robots.txt`.
 
-Then commit and push. `CLIENT_ORIGIN` must match the address people use exactly. A POST from any other address gets a 403.
+Then the changes are committed and pushed. `CLIENT_ORIGIN` must match the address people use exactly. A POST from any other address gets a 403.
 
 ### Step 5: Check that it works
 
@@ -235,7 +251,7 @@ The method is the one in [Vercel's docs](https://vercel.com/docs/routing/rewrite
 
 `.github/workflows/crawl.yml` runs `npm run crawl` in `crawler/` on a GitHub-hosted Ubuntu runner with Node 24. It installs Chromium only if the crawler depends on Playwright, and reads `MONGODB_URI` from a repository secret.
 
-**Status: on.** It is scheduled every day at 19:17 UTC (02:17 in Vietnam, 03:17 in Singapore and Hong Kong), and can also be started by hand. In the first week (2026-11-06 to 11-10) all 5 scheduled runs succeeded, each taking 2h30m to 3h.
+**Status: on.** It is scheduled every day at 19:17 UTC (02:17 in Vietnam, 03:17 in Singapore and Hong Kong), and can also be started by hand. From 2026-11-06 to 11-16, 10 of the 11 scheduled runs succeeded, each taking 2h30m to 3h. The run that started on 2026-11-14 at 22:59 UTC failed after 2h08m: `cartier-vn` timed out and the other six sources were saved. The crawler session is looking at it.
 
 ### Why Atlas has to allow `0.0.0.0/0`
 
@@ -278,7 +294,12 @@ To pause it, comment out the `schedule:` block in `crawl.yml` and push.
 - Cron times are UTC, and GitHub starts scheduled runs late. In the first week the crawl started between 22:46 and 02:10 UTC (3.5 to 7 hours late, 05:46 to 09:10 in Vietnam), and the backfill between 06:28 and 07:39 UTC (6 to 7 hours late). The times weren't changed: both were late by about the same amount, at least 3 hours stayed between them, and a different slot has no known delay to compare with.
 - Runs never overlap, including with the nightly backfill. A run that starts while another is still going waits for it to finish.
 - A run is cancelled after 300 minutes. Raise `timeout-minutes` if real crawls need longer (GitHub's maximum is 360).
-- **Noticing a failed run:** GitHub notifies the account that last changed the `cron` line, which is `HvH1110`. The 4 failed backfills of the first week each appeared at [github.com/notifications](https://github.com/notifications) as `workflow run failed`. Whether an email is sent too depends on **Settings → Notifications → Actions** in that account (**Email**, with **Only notify for failed workflows**), which only you can see. Nothing is sent for a run that never starts, so look at the **Actions** tab about once a week: each workflow should have a run for every day.
+- **Noticing a failed run:** from 2026-11-06 to 11-16, 10 backfills and 1 crawl failed and nobody noticed for ten days, so there are now two signals:
+  - **An issue.** `.github/workflows/notify.yml` opens an issue called `Scheduled run failed: Daily crawl` or `Scheduled run failed: Nightly backfill` when a scheduled run doesn't end in success, with a link to the run. Later failures add a comment to the same issue while it is open. See them at [Issues](https://github.com/HvH1110/Web_Project/issues); the tab shows a count while any are open. Close the issue once the failure is dealt with. This starts working once `notify.yml` is pushed, and it has not been tested by a real failure yet: the first failed run after the push is its test.
+  - **GitHub's own notice.** GitHub notifies the account that last changed the `cron` line, which is `HvH1110`. Each failed run appears at [github.com/notifications](https://github.com/notifications) as `workflow run failed`.
+  - **Email, which only you can check (5 minutes, once):** in GitHub, open your picture → **Settings → Notifications**. Under **Subscriptions → Watching**, tick **Email** (for the issues). Under **System → Actions**, tick **Email** and **Only notify for failed workflows**. Check the address under **Default notifications email** is one you read. Then open the repository, click **Watch**, and check it says **All Activity**.
+  - **What to do with a failure:** open the run from the issue and read the last lines of the `Crawl` or `Backfill` step. A source named in a `failed:` line goes to the crawler session. A failed `Check database` step is in the troubleshooting table of [Environment](ENVIRONMENT.md). One failed night loses nothing permanent: the next run crawls every source again and the backfill continues its queue.
+  - **Not covered:** nothing is sent for a run that never starts, so look at the **Actions** tab about once a week: each workflow should have a run for every day. Any Claude session can also check with `gh run list --limit 20`.
 - In a public repository, GitHub turns scheduled workflows off after 60 days without commits. To turn it back on: **Actions → Daily crawl → Enable workflow**.
 
 ### Change the password
@@ -289,9 +310,10 @@ In Atlas **Database Access**, find `webproject-crawler` and click **Edit → Edi
 
 `.github/workflows/backfill.yml` runs `npm run backfill -- --limit=2000 --oldest-first` in `crawler/` every night, scheduled at 00:37 UTC (07:37 in Vietnam, 08:37 in Singapore and Hong Kong) but really starting 6 to 7 hours later. It fills in price history from Wayback Machine snapshots and uses the same `MONGODB_URI` secret as the daily crawl. To run it by hand: **Actions → Nightly backfill → Run workflow**.
 
-- **Timing:** a run took between 3h10m and 4h45m in the first week, and is cancelled after 300 minutes. The next run continues the queue, so a cancelled run loses at most the page it was reading.
+- **Timing:** a run took between 3h and 4h45m from 2026-11-06 to 11-16. With the crawler's change of 2026-11-11 (commit `2758e22`) the script ends itself after 270 minutes, so expect about 4h35m every night, and GitHub cancels a hung run after 300 minutes. The next run continues the queue, so a cancelled run loses at most the page it was reading.
+- **How much it reads:** web.archive.org lets a night read about 1,000 to 1,500 pages, so `--limit=2000` is a ceiling that is rarely reached. The script reads one snapshot per product per year, products with the longest history first. The crawler session's estimates are in `crawler/SOURCES.md`, section Backfill reach.
 - **With the daily crawl:** the two share a concurrency group, so they never run at once. The slots didn't meet in the first week: the crawl ended between 01:30 and 04:45 UTC, at least 3 hours before the backfill started. If a third run is queued while one is running and one is waiting, GitHub cancels the older waiting run. Waiting runs are rare, and the next night's run catches up.
-- **Review `--oldest-first` around 2026-12-01.** It gets to the oldest prices first, but a week isn't enough: 2,000 pages a night shared between 6 sources is about 333 per source, so Louis Vuitton HK's 6,000+ pages from 2015 to 2018 take 18+ nights, after about 3 nights of indexing. That is about 2026-11-27 if every night runs. Before removing it, ask the crawler session whether those years are done. To remove it, delete the flag from the last line of `backfill.yml`, then commit and push.
-- **Failed runs:** 4 of the first 5 nights (2026-11-06 to 11-10) ended as failed, because web.archive.org refused connections and the script exits with an error after repeated refusals. The pages saved before that are kept. The crawler session is changing this, so the backfill command stays as it is until they report. How you hear about a failed run is under "Daily schedule" above.
-- **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. On 2026-11-10 it was 78.7 MB, up from 59.0 MB on 2026-11-05: about 4 MB a day, most of it from the backfill. At that rate it reaches 450 MB around mid-February 2027. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
+- **`--oldest-first`** matters less since `2758e22`: it only decides the order among products with equally long histories. It stays until the crawler session says otherwise. To remove it, delete the flag from the last line of `backfill.yml`, then commit and push.
+- **Failed runs:** 10 of the 11 nights from 2026-11-06 to 11-16 ended as failed, because the old script exits with an error when web.archive.org keeps refusing connections. The pages saved before that were kept. Commit `2758e22` makes such a run pass with a warning on its page, and it takes effect on the first night after it is pushed; the workflow's command doesn't change. After that, a failed backfill means a real error. How you hear about one is under "Daily schedule" above.
+- **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. It was 59.0 MB on 2026-11-05, 78.7 MB on 2026-11-10 and 87.8 MB on 2026-11-16: about 1.3 MB a day lately, which reaches 450 MB in about nine months. The rate may change once `2758e22` runs. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
 - **Turning it off:** **Actions → Nightly backfill → ⋯ → Disable workflow**.

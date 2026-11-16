@@ -4,6 +4,12 @@ name: Nightly backfill
 # Each run continues the queue where the last one stopped, so a run that fails
 # or is cancelled loses at most the page it was reading.
 #
+# web.archive.org sets the pace: it refuses connections every few minutes, and
+# the script pauses and carries on. A run that ends early for that, or because
+# its time is up, passes with a warning on the run's page. A run marked failed
+# means a real error (the database, or something unexpected), and
+# notify.yml opens an issue for it.
+#
 # Scheduled runs only happen on the default branch, and GitHub disables them
 # in a public repo after 60 days without commits (re-enable in the Actions tab).
 on:
@@ -30,7 +36,8 @@ jobs:
   backfill:
     name: Backfill price history
     runs-on: ubuntu-latest
-    # 2,000 pages at 5.3 s is about 3 hours, plus the Wayback index.
+    # The script ends itself after 270 minutes (its --max-minutes default), so
+    # this only stops a hung run. Keep it about 30 minutes above --max-minutes.
     timeout-minutes: 300
     defaults:
       run:
@@ -87,8 +94,10 @@ jobs:
             }
           '
 
-      # Review --oldest-first around 2026-12-01; see devops/DEPLOY.md, section
-      # Nightly backfill. Removing it makes runs go back to newest first.
+      # --limit is a ceiling the archive rarely lets a run reach (about 1,000 to
+      # 1,500 pages a night). --oldest-first only orders products with equally
+      # long histories; ask the crawler session before removing it. See
+      # devops/DEPLOY.md, section Nightly backfill.
       - name: Backfill
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
