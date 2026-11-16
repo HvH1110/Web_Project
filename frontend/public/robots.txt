@@ -1,6 +1,0 @@
-# Accounts and the members-only forum have nothing to index.
-User-agent: *
-Disallow: /account
-Disallow: /community
-
-Sitemap: https://maison-prix.vercel.app/sitemap.xml
