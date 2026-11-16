@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { ArrowDown, ArrowRight } from 'lucide-react'
-import SignatureCard from '@/components/brand/SignatureCard'
+import SignatureCard, { PhotoCredit } from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
@@ -10,7 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES, brandsIn } from '@/content/brands'
 import { MARKETS, SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { getBrands } from '@/lib/api'
+import { getHousePhotos } from '@/lib/housePhotos'
 import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +25,8 @@ const STATS = [
 // Home: hero, the idea, an index of the houses, then one section per brand
 // grouped in category chapters. Layout comes from content/brands.js so it
 // renders at once; each house's story, facts and signature pieces fill in from
-// GET /api/brands. Images are placeholders for now.
+// GET /api/brands. Each house is pictured by its own tracked products, named
+// and credited; the hero, and houses with nothing tracked, keep a plain backdrop.
 export default function HomePage() {
   const result = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
   const brands = {
@@ -228,10 +231,25 @@ const brandFacts = (info) => [
 
 const signaturesOf = (info) => info?.signatureProducts.slice(0, 3) ?? []
 
+// Photos for a house's section: per signature piece, and for the large image a
+// second product of the first piece that has any, so it differs from the cards.
+function useHousePhotos(brand, info) {
+  const pieces = signaturesOf(info)
+  const found = useApi(`${brand.slug}/photos/${info?.productCount ? pieces.length : 0}`, (signal) =>
+    info?.productCount ? getHousePhotos(brand, pieces, { signal }) : Promise.resolve({}),
+  )
+  const byPiece = found.data ?? {}
+  const lists = pieces.map((piece) => byPiece[piece.name] ?? [])
+  const lead = lists.find((photos) => photos.length) ?? []
+  const [[cover], markFailed] = useWorkingImages([...lead.slice(1), ...lists.flat()])
+  return { byPiece, cover, onCoverError: () => markFailed(cover) }
+}
+
 // Full-bleed image with the name over it, then story, facts and three pieces.
 function BrandFeature({ brand, info, loading }) {
   const nameId = `${brand.slug}-name`
   const pieces = signaturesOf(info)
+  const photos = useHousePhotos(brand, info)
 
   return (
     <article id={brand.slug} aria-labelledby={nameId} className="scroll-mt-header pt-16 pb-section">
@@ -239,6 +257,9 @@ function BrandFeature({ brand, info, loading }) {
         <ImagePlaceholder
           tone={brand.tone}
           category={brand.category}
+          photo={photos.cover}
+          onPhotoError={photos.onCoverError}
+          photoClassName="pb-[38%] sm:pb-52"
           className="group aspect-4/5 text-ivory sm:aspect-auto sm:h-[80svh] sm:max-h-240 sm:min-h-120"
         >
           <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 via-black/20 to-transparent pt-32 pb-10 sm:pb-14">
@@ -252,6 +273,7 @@ function BrandFeature({ brand, info, loading }) {
             </div>
           </div>
         </ImagePlaceholder>
+        {photos.cover && <PhotoCredit photo={photos.cover} className="page-container mt-3" />}
       </Reveal>
 
       <div className="page-container mt-12 grid gap-12 lg:mt-16 lg:grid-cols-12">
@@ -275,7 +297,12 @@ function BrandFeature({ brand, info, loading }) {
           <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
             {pieces.map((piece, i) => (
               <Reveal as="li" key={piece.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
-                <SignatureCard piece={piece} brand={brand} linked={info.productCount > 0} />
+                <SignatureCard
+                  piece={piece}
+                  brand={brand}
+                  photos={photos.byPiece[piece.name]}
+                  linked={info.productCount > 0}
+                />
               </Reveal>
             ))}
           </ul>
@@ -289,6 +316,7 @@ function BrandFeature({ brand, info, loading }) {
 function BrandSplit({ brand, info, loading, flip }) {
   const nameId = `${brand.slug}-name`
   const pieces = signaturesOf(info)
+  const photos = useHousePhotos(brand, info)
 
   return (
     <article
@@ -300,8 +328,11 @@ function BrandSplit({ brand, info, loading, flip }) {
         <ImagePlaceholder
           tone={brand.tone}
           category={brand.category}
+          photo={photos.cover}
+          onPhotoError={photos.onCoverError}
           className="group aspect-4/5"
         />
+        {photos.cover && <PhotoCredit photo={photos.cover} className="mt-3" />}
       </Reveal>
 
       <div
@@ -332,7 +363,13 @@ function BrandSplit({ brand, info, loading, flip }) {
             <ul className="grid grid-cols-3 gap-3 sm:gap-5">
               {pieces.map((piece) => (
                 <li key={piece.name}>
-                  <SignatureCard piece={piece} brand={brand} linked={info.productCount > 0} compact />
+                  <SignatureCard
+                    piece={piece}
+                    brand={brand}
+                    photos={photos.byPiece[piece.name]}
+                    linked={info.productCount > 0}
+                    compact
+                  />
                 </li>
               ))}
             </ul>

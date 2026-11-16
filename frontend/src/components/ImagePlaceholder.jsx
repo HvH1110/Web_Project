@@ -29,10 +29,33 @@ export default function ImagePlaceholder({
   tone = 'stone',
   category,
   label,
+  photo,
+  onPhotoError,
+  photoClassName,
   className,
   children,
 }) {
   const Icon = ICONS[category]
+  // A product `photo` ({ url, alt }) replaces the stand-in, set on ivory the
+  // way product cards show theirs. `onPhotoError` is told when it doesn't load;
+  // `photoClassName` adjusts its padding, e.g. to clear text laid over it.
+  if (photo) {
+    return (
+      <div className={cn('relative isolate overflow-hidden', className)}>
+        <div className="absolute inset-0 -z-10 bg-ivory transition-transform duration-1600 ease-lux group-hover:scale-[1.04] motion-reduce:transition-none">
+          <img
+            src={photo.url}
+            alt={photo.alt}
+            loading="lazy"
+            decoding="async"
+            onError={onPhotoError}
+            className={cn('absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply', photoClassName)}
+          />
+        </div>
+        {children}
+      </div>
+    )
+  }
   return (
     <div className={cn('relative isolate overflow-hidden', className)}>
       <div

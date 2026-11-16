@@ -1,19 +1,25 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { cn } from '@/lib/utils'
 
 // A brand's signature piece (Brand.signatureProducts in ../docs/API.md):
 // image, year introduced, name and one line about it. Links to the house's list
 // of signature pieces, which only links on to products that exist, unless
-// `linked` is false because the house has no products to find. `compact` is the
-// small three-up version, without the description.
-export default function SignatureCard({ piece, brand, compact = false, linked = true, className }) {
+// `linked` is false because the house has no products to find. `photos` are
+// tracked products that can picture the piece (see lib/housePhotos.js): the
+// first whose image loads is shown, named and credited. `compact` is the small
+// three-up version, without the description.
+export default function SignatureCard({ piece, brand, photos = [], compact = false, linked = true, className }) {
+  const [[photo], markFailed] = useWorkingImages(photos)
   return (
     <article className={cn('group relative grid content-start', compact ? 'gap-3' : 'gap-5', className)}>
       <ImagePlaceholder
         tone={brand.tone}
         category={brand.category}
         label={compact ? undefined : piece.name}
+        photo={photo}
+        onPhotoError={() => markFailed(photo)}
         className="aspect-4/5"
       />
       <div className={cn('grid', compact ? 'gap-1' : 'gap-1.5')}>
@@ -38,6 +44,21 @@ export default function SignatureCard({ piece, brand, compact = false, linked = 
           <p className="text-sm leading-relaxed text-muted-foreground">{piece.description}</p>
         )}
       </div>
+      {photo && <PhotoCredit photo={photo} />}
     </article>
+  )
+}
+
+// Which product a picture shows and whose image it is. `relative` keeps its
+// link above a card's stretched link.
+export function PhotoCredit({ photo, className }) {
+  return (
+    <p className={cn('relative text-[0.625rem] leading-relaxed text-muted-foreground', className)}>
+      Shown:{' '}
+      <Link to={photo.to} className="underline underline-offset-2 hover:text-foreground">
+        {photo.name}
+      </Link>
+      . Image: {photo.credit}
+    </p>
   )
 }
