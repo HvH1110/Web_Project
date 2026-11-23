@@ -10,7 +10,7 @@ Maintained by the devops session. Variables and Atlas details are in `ENVIRONMEN
 | Database | MongoDB Atlas (M0, Singapore) | `ENVIRONMENT.md` | database `webproject_prod` |
 | Daily crawl | GitHub Actions | `.github/workflows/crawl.yml` | see "Daily crawl" below |
 | Nightly backfill | GitHub Actions | `.github/workflows/backfill.yml` | see "Nightly backfill" below |
-| Fill product pictures (one-off, by hand) | GitHub Actions | `.github/workflows/fill-images.yml` | see "One-off crawler jobs" below |
+| Picture jobs (one-off, by hand) | GitHub Actions or your computer | `.github/workflows/picture-jobs.yml` | see "One-off crawler jobs" below |
 
 Browsers only ever talk to `maison-prix.vercel.app` (and R2 for images). Vercel forwards `/api/*` to Render.
 
@@ -331,19 +331,21 @@ In Atlas **Database Access**, find `webproject-crawler` and click **Edit → Edi
 
 ## One-off crawler jobs
 
-Some crawler commands are run once, by hand, and are never scheduled. Those that read web.archive.org **must never run at the same time as the backfill or the crawl**, because the archive limits each reader and the jobs would slow each other down and share its refusals.
+Some crawler commands are run once, by hand, and are never scheduled. Those that read web.archive.org **must never run at the same time as the backfill, the crawl or each other**: the archive limits each reader, so jobs running together slow each other down and share its refusals. Run one archive job at a time.
 
-### Fill product pictures
+Two picture jobs are one-offs (crawler commits `917bc13` and `725cde9`; details in `crawler/CLAUDE.md`). Both store picture addresses only, never image files, so their effect on storage is tiny (see Storage above). Run the repair first, then the fill.
 
-`npm run fill-images [-- brand ...] [--dry-run] [--per-product=N] [--max-minutes=N]` in `crawler/` (added in crawler commit `917bc13`, explained in `crawler/CLAUDE.md`). It gives products with fewer than 2 pictures more pictures from other archived snapshots of the brand's own pages. It only ever replaces a product's pictures with a longer list, and a re-run tries the next snapshots. It stores picture addresses only, so its effect on storage is tiny (see Storage above).
+- **`repair-images`**: `npm run repair-images [-- brand ...] [--dead-host=<host> ...] [--checked=<file> ...] [--apply=<backup.json> | --restore=<backup.json>] [--max-minutes=N]`. A picture on a dead host becomes its Wayback copy (`web.archive.org/web/<time>im_/<address>`), or is dropped where the archive has none, but a product never loses its last picture. It also drops Louis Vuitton video players stored as pictures and encodes spaces in addresses. Without `--apply` it only prints counts per host (swapped, dropped, kept) and writes nothing, although it still asks the archive for copies: at most about 60 index queries per host. `--apply` first saves the old pictures to the backup file and refuses one that already exists. `--restore=<file>` puts them back. The dead hosts on 2026-11-23: `wwws.dior.com`, `www.dior.com`, `media.dior.com` and `www.iwc.com`.
+- **`fill-images`**: `npm run fill-images [-- brand ...] [--dry-run] [--per-product=N] [--max-minutes=N]`. Products with fewer than 2 pictures get more, from other archived snapshots of the brand's own pages. It only ever replaces a product's pictures with a longer list, and a re-run tries the next snapshots.
 
-**From GitHub (preferred):** open **Actions → Fill product pictures → Run workflow**. Fill in brand slugs separated by spaces (such as `dior louis-vuitton`; leave it empty for every brand) and a time limit of 1 to 270 minutes. **Dry run** is ticked by default: it fetches and reports, and writes nothing. Untick it for the real run. The workflow shares the crawl's and backfill's concurrency group, so it waits while one of them is running and can't overlap them.
-- **When:** start it between about 13:00 and 22:00 UTC (20:00 to 05:00 in Vietnam). By then the backfill has ended (it ended by 12:53 UTC from 11-17 to 11-23) and the next crawl hasn't started (23:48 UTC at the earliest). Started at another time it waits in the queue. If a scheduled run is queued behind it too, GitHub cancels the older waiting run, which may be this one or a night's crawl.
-- **Reading the result:** the end of the `Fill pictures` step lists how many products got more pictures and which still have fewer than 2, with the reason. Give that list to the crawler session.
-- The button appears once `fill-images.yml` is on `main` on GitHub. A run that fails doesn't open an issue: only scheduled runs do.
+**The backup file:** keep it **outside the project folder**, next to the earlier one-off backups, for example `C:/Users/ADMIN/repair-images-backup-2026-11-23.json`, and don't delete it until the repaired pictures have been checked on the site. It holds only product ids and picture addresses, no secrets. Inside the project, the root `.gitignore` keeps `*backup*.json` out of commits. The crawler session records each real run and its backup's location in `crawler/SOURCES.md`. To undo: `npm run repair-images -- --restore=<file>` from `crawler/`, in the same time window.
 
-**From your own computer:** `npm run fill-images -- --dry-run` in `crawler/`, with `crawler/.env` pointing at the database. Nothing prevents an overlap here, so run it only in the same 13:00 to 22:00 UTC window, and check **Actions** first that no crawl or backfill is running.
+**From your own computer:** run from `crawler/`, with `crawler/.env` pointing at the database. Nothing prevents an overlap here, so run only between about 13:00 and 22:00 UTC (20:00 to 05:00 in Vietnam). By then the backfill has ended (by 12:53 UTC from 11-17 to 11-23), and the next crawl hasn't started (22:46 UTC at the earliest seen). Check **Actions** first that no crawl or backfill is running. The crawler session runs both jobs this way on 2026-11-23, one after the other and done before 23:30 UTC.
 
-### Repairing dead picture addresses
+**From GitHub:** open **Actions → Picture jobs (one-off) → Run workflow** (`.github/workflows/picture-jobs.yml`). Choose the job, then fill in brand slugs separated by spaces (such as `dior louis-vuitton`; empty means every brand), the dead hosts for `repair-images` (such as `wwws.dior.com www.iwc.com`), and a time limit of 1 to 270 minutes. **Dry run** is ticked by default: untick it for the real run. The workflow shares the crawl's and backfill's concurrency group, so it waits while one of them is running and can't overlap them.
+- **When:** the same 13:00 to 22:00 UTC window. Started at another time it waits in the queue. If a scheduled run is queued behind it too, GitHub cancels the older waiting run, which may be this one or a night's crawl.
+- **The backup:** a real `repair-images` run uploads its backup as an artifact called `repair-images-backup-<run id>`, kept for 90 days on the run's page. Download it, move it outside the project folder as above, and tell the crawler session where it is. To undo, run `--restore` from your own computer.
+- **Reading the result:** the end of the `Run fill-images` or `Run repair-images` step has the counts, and for `fill-images` the products still without 2 pictures and why. Give them to the crawler session.
+- The button appears once `picture-jobs.yml` is on `main` on GitHub. It hasn't run there yet. A failed run doesn't open an issue: only scheduled runs do.
 
-The crawler session may add another one-off that replaces dead brand picture addresses with `web.archive.org/web/<time>im_/<address>` copies. Run it the same way, never alongside the backfill. The devops session adds it to the workflow above, or gives it its own workflow in the same concurrency group, once the crawler names the command. Archived copies load on another site with nothing blocking them (checked on 2026-11-23), so no hosting change is needed.
+Archived picture copies load on another site with nothing blocking them (checked on 2026-11-23), so no hosting change is needed.

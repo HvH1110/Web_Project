@@ -25,3 +25,7 @@ Thumbs.db
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Backups written by the crawler one-offs (--apply=...). Keep them outside the
+# project; this only stops one from being committed by mistake.
+*backup*.json

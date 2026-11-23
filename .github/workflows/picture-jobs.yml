@@ -1,0 +1,139 @@
+name: Picture jobs (one-off)
+
+# Started by hand only. Runs one of the crawler's picture one-offs in crawler/
+# (see crawler/CLAUDE.md):
+# - fill-images: products with fewer than 2 pictures get more, from other
+#   archived snapshots of the brand's own pages.
+# - repair-images: picture URLs on a dead host become their Wayback copies
+#   (web.archive.org/web/<ts>im_/<url>), or are dropped where the archive has
+#   none. A real run keeps the old pictures in a backup, saved as an artifact.
+# Both read web.archive.org, so they must never run at the same time as the
+# crawl or the backfill: this shares their concurrency group. Start it between
+# about 13:00 and 22:00 UTC, after the backfill has ended and before the next
+# crawl. See devops/DEPLOY.md, section One-off crawler jobs.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job'
+        type: choice
+        options: [fill-images, repair-images]
+        default: fill-images
+      brands:
+        description: 'Brand slugs separated by spaces, e.g. "dior louis-vuitton". Empty means every brand.'
+        required: false
+        default: ''
+      dead_hosts:
+        description: 'repair-images only: dead picture hosts separated by spaces, e.g. "wwws.dior.com www.iwc.com"'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run: report only, write nothing'
+        type: boolean
+        default: true
+      max_minutes:
+        description: 'Stop after this many minutes (1 to 270)'
+        required: true
+        default: '240'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  picture-job:
+    name: ${{ inputs.job }}${{ inputs.dry_run && ' (dry run)' || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      # Inputs reach the shell only through env, and are checked here before
+      # they are used unquoted below.
+      - name: Check inputs
+        working-directory: .
+        env:
+          JOB: ${{ inputs.job }}
+          BRANDS: ${{ inputs.brands }}
+          DEAD_HOSTS: ${{ inputs.dead_hosts }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."
+            exit 1
+          fi
+          case "$BRANDS" in
+            *[!a-z\ -]*)
+              echo "::error::Brands may only contain lowercase letters, hyphens and spaces."
+              exit 1 ;;
+          esac
+          case "$DEAD_HOSTS" in
+            *[!a-z0-9.\ -]*)
+              echo "::error::Dead hosts may only contain lowercase letters, digits, dots, hyphens and spaces."
+              exit 1 ;;
+          esac
+          if [ "$JOB" = repair-images ] && [ -z "${DEAD_HOSTS// /}" ]; then
+            echo "::error::repair-images needs at least one dead host."
+            exit 1
+          fi
+          if [ "$JOB" = fill-images ] && [ -n "${DEAD_HOSTS// /}" ]; then
+            echo "::error::Dead hosts are for repair-images only."
+            exit 1
+          fi
+          case "$MAX_MINUTES" in
+            ''|*[!0-9]*)
+              echo "::error::max_minutes must be a whole number from 1 to 270."
+              exit 1 ;;
+          esac
+          if [ "$MAX_MINUTES" -lt 1 ] || [ "$MAX_MINUTES" -gt 270 ]; then
+            echo "::error::max_minutes must be a whole number from 1 to 270."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crawler/package-lock.json
+
+      - run: npm ci
+
+      - name: Run ${{ inputs.job }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          # Added to the User-Agent so site owners can reach us. Not a secret.
+          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
+          JOB: ${{ inputs.job }}
+          BRANDS: ${{ inputs.brands }}
+          DEAD_HOSTS: ${{ inputs.dead_hosts }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
+          BACKUP: ${{ runner.temp }}/repair-images-backup-${{ github.run_id }}.json
+        run: |
+          set -f  # unquoted words below must not be expanded as file patterns
+          if [ "$JOB" = fill-images ]; then
+            mode=""; [ "$DRY_RUN" = true ] && mode="--dry-run"
+            npm run fill-images -- $BRANDS $mode --max-minutes="$MAX_MINUTES"
+          else
+            hosts=""; for h in $DEAD_HOSTS; do hosts="$hosts --dead-host=$h"; done
+            mode=""; [ "$DRY_RUN" = true ] || mode="--apply=$BACKUP"
+            npm run repair-images -- $BRANDS $hosts $mode --max-minutes="$MAX_MINUTES"
+          fi
+
+      # The old pictures of every product a real repair changed: needed to undo
+      # it with --restore. Only picture URLs and product ids, no secrets.
+      - name: Keep the repair backup
+        if: ${{ always() && inputs.job == 'repair-images' && !inputs.dry_run }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: repair-images-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/repair-images-backup-${{ github.run_id }}.json
+          if-no-files-found: warn
+          retention-days: 90
