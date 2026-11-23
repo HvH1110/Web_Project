@@ -47,12 +47,12 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="grid gap-1">
-        <p className="eyebrow truncate text-muted-foreground">
+        <p lang={product.collection ? product.lang : undefined} className="eyebrow truncate text-muted-foreground">
           {product.collection ?? product.category}
         </p>
         <h3 className="font-serif text-xl leading-tight">
           {/* Stretched over the card so the whole card is one link. */}
-          <Link to={productPath(product)} className="after:absolute after:inset-0">
+          <Link to={productPath(product)} lang={product.lang} className="after:absolute after:inset-0">
             {product.name}
           </Link>
         </h3>

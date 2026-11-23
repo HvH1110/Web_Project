@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Photo from '@/components/Photo'
+import BrandAndCollection from '@/components/product/BrandAndCollection'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { OUT_OF_STOCK, productPath } from '@/lib/catalog'
@@ -42,10 +43,10 @@ export default function DealRow({ deal }) {
 
       <div className="grid content-start gap-1.5 lg:col-span-4">
         <p className="eyebrow text-muted-foreground">
-          {[product.brandName ?? product.brand, product.collection].filter(Boolean).join(' · ')}
+          <BrandAndCollection product={product} />
         </p>
         <h3 className="font-serif text-display-sm">
-          <Link to={path} className="link-underline">
+          <Link to={path} lang={product.lang} className="link-underline">
             {product.name}
           </Link>
         </h3>

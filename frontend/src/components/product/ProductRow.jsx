@@ -3,6 +3,7 @@ import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Photo from '@/components/Photo'
 import OfferTable from '@/components/product/OfferTable'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
+import BrandAndCollection from '@/components/product/BrandAndCollection'
 import { imageCredit, productPath } from '@/lib/catalog'
 
 // A search result: image, name and reference, then the price in every market
@@ -36,10 +37,10 @@ export default function ProductRow({ product }) {
 
       <div className="grid content-start gap-1.5 lg:col-span-4">
         <p className="eyebrow text-muted-foreground">
-          {[product.brandName ?? product.brand, product.collection].filter(Boolean).join(' · ')}
+          <BrandAndCollection product={product} />
         </p>
         <h3 className="font-serif text-display-sm">
-          <Link to={path} className="link-underline">
+          <Link to={path} lang={product.lang} className="link-underline">
             {product.name}
           </Link>
         </h3>

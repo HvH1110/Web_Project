@@ -6,6 +6,7 @@ import FactList from '@/components/FactList'
 import LoadError from '@/components/LoadError'
 import OfferTable from '@/components/product/OfferTable'
 import PageMeta from '@/components/PageMeta'
+import BrandAndCollection from '@/components/product/BrandAndCollection'
 import PriceHistory from '@/components/product/PriceHistory'
 import ProductCard from '@/components/product/ProductCard'
 import ProductGallery from '@/components/product/ProductGallery'
@@ -82,7 +83,7 @@ function Product({ brand, productRef }) {
               </Link>
             </li>
             <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-foreground">
+            <li aria-current="page" lang={product.lang} className="text-foreground">
               {product.name}
             </li>
           </ol>
@@ -95,9 +96,11 @@ function Product({ brand, productRef }) {
           <div className="grid min-w-0 grid-cols-1 content-start gap-10 lg:sticky lg:top-[calc(var(--spacing-header)+2rem)] lg:col-span-5 lg:self-start lg:pl-8">
             <div className="grid gap-3">
               <p className="eyebrow text-muted-foreground">
-                {[brandName, product.collection].filter(Boolean).join(' · ')}
+                <BrandAndCollection product={product} brandName={brandName} />
               </p>
-              <h1 className="font-serif text-display-lg text-balance">{product.name}</h1>
+              <h1 lang={product.lang} className="font-serif text-display-lg text-balance">
+                {product.name}
+              </h1>
               <p className="text-xs text-muted-foreground tabular-nums">Ref. {product.ref}</p>
             </div>
             {noOffers ? (
@@ -130,8 +133,14 @@ function Product({ brand, productRef }) {
             {product.description && (
               <div className="grid content-start gap-6 lg:col-span-6">
                 <h2 className="eyebrow">Description</h2>
-                <p className="text-lede whitespace-pre-line text-pretty">{product.description}</p>
-                <p className="text-xs text-muted-foreground">From the official product page.</p>
+                <p lang={product.lang} className="text-lede whitespace-pre-line text-pretty">
+                  {product.description}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {product.lang === 'vi'
+                    ? 'From the official product page in Vietnam, in Vietnamese.'
+                    : 'From the official product page.'}
+                </p>
               </div>
             )}
             {Object.keys(product.specs ?? {}).length > 0 && (
@@ -140,7 +149,9 @@ function Product({ brand, productRef }) {
               >
                 <h2 className="eyebrow">Specifications</h2>
                 {/* Some sources name a spec with an underscore, like gem_setting. */}
-                <FactList items={Object.entries(product.specs).map(([name, value]) => [name.replaceAll('_', ' '), value])} />
+                <div lang={product.lang}>
+                  <FactList items={Object.entries(product.specs).map(([name, value]) => [name.replaceAll('_', ' '), value])} />
+                </div>
               </div>
             )}
           </div>
@@ -313,7 +324,7 @@ function MoreFrom({ product, brandName }) {
       <div className="page-container py-section">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <h2 id="more-title" className="font-serif text-display-lg">
-            More from {product.collection ?? brandName}
+            More from {product.collection ? <span lang={product.lang}>{product.collection}</span> : brandName}
           </h2>
           <Link to={all} className="eyebrow group inline-flex items-center gap-2">
             <span className="link-underline">View all</span>

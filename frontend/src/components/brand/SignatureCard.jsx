@@ -73,7 +73,7 @@ export function PhotoCredit({ photo, className }) {
       ) : (
         <>
           Shown:{' '}
-          <Link to={photo.to} className={creditLink}>
+          <Link to={photo.to} lang={photo.lang} className={creditLink}>
             {photo.name}
           </Link>
           . Image: {photo.credit}

@@ -10,6 +10,7 @@ const coverPhoto = (cover) => ({
   ...cover.image,
   alt: cover.image.alt || cover.name,
   name: cover.name,
+  lang: cover.lang,
   to: productPath(cover),
   credit: cover.credit,
 })

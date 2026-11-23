@@ -35,7 +35,9 @@ export default function OfferTable({ product, className }) {
   return (
     <div className={className}>
       <table className="w-full border-b text-sm">
-        <caption className="sr-only">Prices for {product.name} by market</caption>
+        <caption className="sr-only">
+          Prices for <span lang={product.lang}>{product.name}</span> by market
+        </caption>
         <thead className="sr-only">
           <tr>
             <th scope="col">Market</th>
