@@ -30,8 +30,9 @@ on:
     # own nightly budget instead of a share of the run above. In the first week
     # GitHub started runs 5 to 7 hours late, so this should start around 13:00
     # to 15:00 UTC, after the run above. If that is still going, this waits.
-    # Remove it once Chanel's queue is empty: see devops/DEPLOY.md, section
-    # Nightly backfill. The step below checks this exact string.
+    # Remove it once its log says "0 still to fetch" for chanel-sg, chanel-hk
+    # and chanel-vn: see devops/DEPLOY.md, section Nightly backfill. The step
+    # below checks this exact string.
     - cron: '47 7 * * *'
 
 permissions:
