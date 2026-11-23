@@ -158,3 +158,32 @@ test('Dior: jewellery without a colour gets its gallery pictures', () => {
   const item = source('dior-sg').parse(html, 'https://www.dior.com/en_sg/fashion/products/JRDV95205_0000');
   assert.deepEqual(item.images.map((i) => new URL(i.url).pathname), ['/is/image/diorprod/JRDV95205_E01', '/is/image/diorprod/JRDV95205_E06']);
 });
+
+test('Chanel: 2026 pages give the hero and gallery pictures, and crumbs written as whole URLs', () => {
+  const code = 'AAB261B21473U2760';
+  const url = `https://www.chanel.com/vn/thoi-trang/p/${code}/bong-chup-tai-giu-am-long-cuu/`;
+  const pic = (id, w, crop = '') => `https://www.chanel.com/images///${crop}f_auto,q_auto:good,dpr_1.1/w_${w}/-${id}.jpg`;
+  const srcset = (id, crop) => [160, 640, 1280, 3200].map((w) => `${pic(id, w, crop)} ${w}w`).join(', ');
+  const ld = JSON.stringify({
+    '@type': 'Product', name: 'Bông chụp tai giữ ấm', material: 'Lông cừu', sku: code,
+    image: 'https://www.chanel.com/images///f_auto//-9570177155102.jpg',
+    offers: { '@type': 'Offer', price: '31800000', priceCurrency: 'VND' },
+  });
+  const crumbs = [
+    ['Global Home Page', 'https://www.chanel.com/vn/'],
+    ['Thời trang', 'https://www.chanel.com/vn/thoi-trang/'],
+    ['Phụ kiện dành cho tóc', 'https://www.chanel.com/vn/thoi-trang/phu-kien-danh-cho-toc/c/1x1x11/'],
+  ];
+  const extra = `<div class="cc-pdp">
+    <img data-testid="imgHero" srcset="${srcset('9570177155102', 'c_crop,w_1600,g_north,')}">
+    <ul class="media-grid__content"><li><img data-testid="imgGallery" srcset="${srcset('9569619771422')}"></li></ul>
+    <ul class="cc-suggestions-grid"><li><img data-testid="imgSuggestion" srcset="${srcset('9543206993950')}" alt="Large Classic Handbag - A58600Y01864C3906"></li></ul>
+  </div>`;
+  const item = source('chanel-vn').parse(page({ ld, crumbs, code, extra }), url);
+  assert.equal(item.category, 'accessories');
+  assert.equal(item.price, 31800000);
+  assert.deepEqual(item.images.map((i) => i.url), [
+    'https://www.chanel.com/images///f_auto//-9570177155102.jpg',
+    'https://www.chanel.com/images///f_auto,q_auto:good,dpr_1.1/w_1280/-9569619771422.jpg',
+  ]);
+});

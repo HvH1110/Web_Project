@@ -9,6 +9,8 @@
 //   code, e.g. ...-packshot-default-a92991b0340394305-8826165755934.jpg, each
 //   in several sizes;
 // - fine jewellery: its characteristics (material, stones) as ImageObjects.
+// 2026 pages name picture files by number only and write breadcrumb links as
+// whole URLs; the rest is the same.
 // Codes are the same in every market (AS2431B15875NU928 in SG and HK), so they
 // match products across markets. Vietnam's pages are in Vietnamese: their
 // details are stored with lang "vi" until an English page shows the product.
@@ -67,7 +69,14 @@ function crumbs(blocks) {
 }
 
 // The section slug after the division: /sg/fashion/handbags/c/1x1x1/ -> handbags.
-const sectionOf = (path) => path.split('/').filter(Boolean)[2];
+// 2026 pages write the whole URL (https://www.chanel.com/vn/thoi-trang/...).
+const sectionOf = (path) => {
+  try {
+    return new URL(path, 'https://www.chanel.com').pathname.split('/').filter(Boolean)[2];
+  } catch {
+    return undefined;
+  }
+};
 // Chanel's catalogue numbers: 1x1x1 = Fashion > Handbags, 3x2x5 = Fine
 // Jewellery > (collections) > Coco Crush, 3x1x2 = Fine Jewellery > (types) > Rings.
 const catalogueNumber = (path) => path.match(/\/[cl]\/(\d+(?:x\d+)+)\//)?.[1];
@@ -104,6 +113,25 @@ function galleryImages(html, code) {
   return [...byFile.entries()]
     .sort(([a], [b]) => Number(/-packshot-default-/.test(b)) - Number(/-packshot-default-/.test(a)))
     .map(([, src]) => src);
+}
+
+// 2026 pages: files are named by number only (.../w_1280/-9543171964958.jpg),
+// so the gallery is read from the page's own picture slots: the hero picture
+// (cropped there: its uncropped URL is the JSON-LD image) and the gallery grid,
+// not the suggestions further down. The 1280 px size, else the largest listed.
+function pageGallery($, ldImages) {
+  const fileOf = (src) => src.match(/-(\d+)\.(?:jpe?g|png|webp)$/i)?.[1];
+  const ldByFile = new Map(ldImages.map((src) => [fileOf(src), src]));
+  const found = [];
+  $('img[data-testid="imgHero"], img[data-testid="imgGallery"]').each((_, el) => {
+    // "<url> 160w, <url> 320w, ...": the URLs have commas of their own (f_auto,q_auto).
+    const sizes = String($(el).attr('srcset') ?? '').split(/\s+\d+w(?:,\s*|\s*$)/).map((s) => s.trim())
+      .filter((src) => /^https:\/\/www\.chanel\.com\/images\//.test(src) && fileOf(src));
+    if (!sizes.length) return;
+    const file = fileOf(sizes[0]);
+    found.push(ldByFile.get(file) ?? sizes.find((src) => src.includes('/w_1280/')) ?? sizes.at(-1));
+  });
+  return found;
 }
 
 // "SGD 6,920", "HKD 40,900", "VND 137 900 000": whole amounts. Anything else
@@ -174,7 +202,8 @@ export function chanelArchive({ market, path, lang = 'en', currency }) {
       }
       const prices = new Set([...printed.map((p) => p.price), offer ? Number(offer.price) : null].filter((p) => p > 0));
 
-      const images = [...new Set([...galleryImages(html, ref), ...[].concat(ld.image ?? []).filter((src) => typeof src === 'string')])];
+      const ldImages = [].concat(ld.image ?? []).filter((src) => typeof src === 'string' && /^https?:\/\//.test(src));
+      const images = [...new Set([...galleryImages(html, ref), ...pageGallery($, ldImages), ...ldImages])];
       const seen = new Set();
       return {
         brand: 'chanel',
