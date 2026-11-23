@@ -99,8 +99,12 @@ function classify(division, list, $, name) {
   return { category: division, collection: list.find((c) => /^\d+x2x\d+/.test(catalogueNumber(c.path) ?? ''))?.name };
 }
 
-// The product's own gallery: one URL per picture (the 1240 px wide one when
-// listed), default view first. Pictures of other products have another code.
+// The product's own gallery: one URL per picture, the widest the page lists.
+// Default view first, but pictures the page only shows as small swatches
+// (w_280 in the colour selector) after the large ones. Pictures of other
+// products have another code.
+const THUMBNAIL_MAX = 400;
+const widthOf = (src) => Number(src.match(/\/w_(\d+)\//)?.[1] ?? 0);
 function galleryImages(html, code) {
   const own = new RegExp(`-${code.toLowerCase()}-\\d+\\.(?:jpe?g|png|webp)$`);
   const byFile = new Map();
@@ -108,11 +112,10 @@ function galleryImages(html, code) {
     const file = src.split('/').at(-1);
     if (!own.test(file)) continue;
     const known = byFile.get(file);
-    if (!known || (!known.includes('/w_1240/') && src.includes('/w_1240/'))) byFile.set(file, src);
+    if (!known || widthOf(src) > widthOf(known)) byFile.set(file, src);
   }
-  return [...byFile.entries()]
-    .sort(([a], [b]) => Number(/-packshot-default-/.test(b)) - Number(/-packshot-default-/.test(a)))
-    .map(([, src]) => src);
+  const rank = ([file, src]) => (widthOf(src) && widthOf(src) <= THUMBNAIL_MAX ? 2 : 0) + (/-packshot-default-/.test(file) ? 0 : 1);
+  return [...byFile.entries()].sort((a, b) => rank(a) - rank(b)).map(([, src]) => src);
 }
 
 // 2026 pages: files are named by number only (.../w_1280/-9543171964958.jpg),

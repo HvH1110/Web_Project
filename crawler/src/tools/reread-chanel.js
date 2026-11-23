@@ -5,7 +5,8 @@
 // - category, from the page's section (a bag stored as clothing);
 // - collection, where the page names one (the bag family, Coco Crush, J12);
 //   a collection the page doesn't name is left as it is;
-// - images, only when the page shows more of them.
+// - images, only when the page shows more of them, or as many with a large
+//   picture first where the stored first is a small swatch (w_280).
 // --apply also queues again the Chanel pages that gave no product data
 // (`no-data`), for the next backfill.
 // The page read is the newest saved snapshot in the language the product's
@@ -109,7 +110,11 @@ try {
       const set = {};
       if (item.category !== p.category) set.category = item.category;
       if (item.collection && item.collection !== p.collection) set.collection = item.collection;
-      if (item.images.length > p.images.length) set.images = item.images.slice(0, 4).map((img) => ({ ...img, sourceId: snap.sourceId }));
+      // More pictures, or as many with a large one first where the stored
+      // first is a small swatch (w_280).
+      const small = (img) => Number(img?.url.match(/\/w_(\d+)\//)?.[1] ?? 0) > 0 && Number(img.url.match(/\/w_(\d+)\//)[1]) <= 400;
+      const better = item.images.length > p.images.length || (item.images.length === p.images.length && small(p.images[0]) && !small(item.images[0]));
+      if (better) set.images = item.images.slice(0, 4).map((img) => ({ ...img, sourceId: snap.sourceId }));
       if (!Object.keys(set).length) continue;
       changes.push({ _id: p._id, before: { category: p.category, collection: p.collection ?? null, images: p.images }, set, snap: snap._id });
       const what = [
