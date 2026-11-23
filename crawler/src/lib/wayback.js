@@ -55,12 +55,13 @@ async function askIndex(url, onRefused) {
 }
 
 // Captures of every URL under `prefix` (e.g. "sg.louisvuitton.com/eng-sg/products/"),
-// HTTP 200 HTML only, between `from` and `to` (Wayback timestamps or
+// HTTP 200 only, of `mimetype` (a pattern: default HTML, "image/.*" for
+// pictures), between `from` and `to` (Wayback timestamps or
 // prefixes of one, e.g. "2019") when given.
 // Calls onPage([{ timestamp, url }]) for each page of the index. A smaller
 // pageSize means more requests, but each is quicker for the index to answer.
 // A 429, or a 503 when retryBusy, is asked once more after a pause.
-export async function listCaptures(prefix, { from, to, onPage, onRefused, pageSize = PAGE_SIZE, retryBusy = true }) {
+export async function listCaptures(prefix, { from, to, onPage, onRefused, pageSize = PAGE_SIZE, retryBusy = true, mimetype = 'text/html' }) {
   let resumeKey;
   do {
     const params = new URLSearchParams({
@@ -72,7 +73,7 @@ export async function listCaptures(prefix, { from, to, onPage, onRefused, pageSi
       showResumeKey: 'true',
     });
     params.append('filter', 'statuscode:200');
-    params.append('filter', 'mimetype:text/html');
+    params.append('filter', `mimetype:${mimetype}`);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (resumeKey) params.set('resumeKey', resumeKey);
@@ -120,10 +121,10 @@ const tooLarge = (err) =>
 // to onError(err, part) and the rest carry on. Returns true when every capture
 // was listed. A busy index, and errors from onRefused or onPage, end the listing.
 export async function listCapturesSplit(prefix, options, depth = 0) {
-  const { from, to, onPage, onRefused, onSplit, onError, chars = SPLIT_CHARS } = options;
+  const { from, to, onPage, onRefused, onSplit, onError, mimetype, chars = SPLIT_CHARS } = options;
   const last = depth >= MAX_SPLIT_DEPTH;
   try {
-    await listCaptures(prefix, { from, to, onPage, onRefused, retryBusy: last, pageSize: depth ? SPLIT_PAGE_SIZE : undefined });
+    await listCaptures(prefix, { from, to, onPage, onRefused, mimetype, retryBusy: last, pageSize: depth ? SPLIT_PAGE_SIZE : undefined });
     return true;
   } catch (err) {
     if (last || !tooLarge(err)) throw err;
@@ -145,6 +146,12 @@ export async function listCapturesSplit(prefix, options, depth = 0) {
 // The page exactly as archived, without the Wayback toolbar or rewritten links.
 export function snapshotUrl(timestamp, url) {
   return `https://web.archive.org/web/${timestamp}id_/${url}`;
+}
+
+// A picture as archived, for showing on our pages: the archive serves it as
+// the image itself (one redirect to the exact capture).
+export function imageCopyUrl(timestamp, url) {
+  return `https://web.archive.org/web/${timestamp}im_/${url}`;
 }
 
 // The page as people browse it on the Wayback Machine (stored as archiveUrl).

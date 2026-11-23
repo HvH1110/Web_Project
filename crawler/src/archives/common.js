@@ -49,11 +49,17 @@ export function categorize($, name) {
   return { category: undefined };
 }
 
-// Image URLs from JSON-LD `image` (a string, strings or ImageObjects).
+// A video player (player.louisvuitton.com/embed/..., player.freecaster.com/embed/...)
+// that a page lists among its pictures: not a picture.
+export const isPlayer = (src) => /^https?:\/\/player\.|\/embed\//i.test(src);
+
+// Image URLs from JSON-LD `image` (a string, strings or ImageObjects), with
+// raw spaces encoded ("..._PM2_Front view.jpg").
 export function ldImages(image) {
   return [].concat(image ?? [])
     .map((img) => (typeof img === 'string' ? img : img?.url ?? img?.contentUrl))
-    .filter((src) => typeof src === 'string' && /^https?:\/\//.test(src));
+    .filter((src) => typeof src === 'string' && /^https?:\/\//.test(src) && !isPlayer(src))
+    .map((src) => src.trim().replace(/ /g, '%20'));
 }
 
 // Product pages with schema.org JSON-LD (Product + Offer + BreadcrumbList), as
