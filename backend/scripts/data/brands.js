@@ -9,6 +9,11 @@
 // This file is the source of truth for the `brands` collection: the seed script
 // overwrites the database with it. `city` / `country` are where the house was
 // founded. `signatureProducts[].year` is the year introduced (null when not stated).
+//
+// `photo`: a boutique photo from Wikimedia Commons, picked on 2026-11-23. Each
+// file's page was checked for a free license (CC0, CC BY or CC BY-SA) and for being
+// a photographer's own work, not a brand asset; `credit` is the author it names.
+// `url` is Commons' 1280px copy, checked to load. Check a replacement the same way.
 
 export const brands = [
   {
@@ -53,6 +58,14 @@ export const brands = [
         description: 'Roomy tote with side laces that cinch its shape.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Louis_Vuitton_store_at_Terminal_1_at_Changi_Singapore_2025.jpg/1280px-Louis_Vuitton_store_at_Terminal_1_at_Changi_Singapore_2025.jpg',
+      alt: 'Louis Vuitton store at Terminal 1, Changi Airport, Singapore',
+      credit: 'Vadelmavene',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Louis_Vuitton_store_at_Terminal_1_at_Changi_Singapore_2025.jpg',
+      license: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -92,6 +105,14 @@ export const brands = [
         description: 'Embroidered canvas tote introduced by Maria Grazia Chiuri.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Madrid_-_Boutique_de_Dior_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset_6%29_1.jpg/1280px-Madrid_-_Boutique_de_Dior_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset_6%29_1.jpg',
+      alt: 'Dior boutique on Calle de José Ortega y Gasset, Madrid',
+      credit: 'Zarateman',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Madrid_-_Boutique_de_Dior_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset_6%29_1.jpg',
+      license: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -136,6 +157,14 @@ export const brands = [
         description: "Karl Lagerfeld's update of the 2.55, with the interlocking CC clasp.",
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Boulevard_de_Waterloo_%C3%A0_Bruxelles%2C_boutique_Chanel_%28d%C3%A9cembre_2019%29_-_2.jpg/1280px-Boulevard_de_Waterloo_%C3%A0_Bruxelles%2C_boutique_Chanel_%28d%C3%A9cembre_2019%29_-_2.jpg',
+      alt: 'Chanel boutique on Boulevard de Waterloo, Brussels',
+      credit: 'Benoît Prieur',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Boulevard_de_Waterloo_%C3%A0_Bruxelles%2C_boutique_Chanel_%28d%C3%A9cembre_2019%29_-_2.jpg',
+      license: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -179,6 +208,14 @@ export const brands = [
         description: 'Bracelet in the shape of a nail, created in New York in the 1970s by Aldo Cipullo.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Cartier_Building_December_2024.jpg/1280px-Cartier_Building_December_2024.jpg',
+      alt: 'The Cartier Building',
+      credit: 'Kidfly182',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Cartier_Building_December_2024.jpg',
+      license: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -218,6 +255,14 @@ export const brands = [
         description: 'Gold jewellery edged with rows of small gold beads.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/20230417_Van_Cleef_%26_Arpels_store_at_David_Plaza.jpg/1280px-20230417_Van_Cleef_%26_Arpels_store_at_David_Plaza.jpg',
+      alt: 'Van Cleef & Arpels store at David Plaza, Zhengzhou',
+      credit: 'Windmemories',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:20230417_Van_Cleef_%26_Arpels_store_at_David_Plaza.jpg',
+      license: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -261,6 +306,14 @@ export const brands = [
         description: 'Chronograph for motor racing, named after the Daytona racetrack in the United States.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Rolex-store-helsinki-12-2018.jpg/1280px-Rolex-store-helsinki-12-2018.jpg',
+      alt: 'Rolex store window in Helsinki',
+      credit: 'Arto Alanenpää',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Rolex-store-helsinki-12-2018.jpg',
+      license: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -299,6 +352,14 @@ export const brands = [
         description: 'Divers\' watch worn by James Bond since GoldenEye (1995).',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Omega_Boutique_%2851396233684%29.jpg/1280px-Omega_Boutique_%2851396233684%29.jpg',
+      alt: 'An Omega boutique',
+      credit: 'ajay_suresh',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Omega_Boutique_%2851396233684%29.jpg',
+      license: 'CC BY 2.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
+    },
     contentStatus: 'reviewed',
   },
   {
@@ -337,6 +398,14 @@ export const brands = [
         description: 'Soft-iron inner case protects the movement from magnetic fields.',
       },
     ],
+    photo: {
+      url: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Madrid_-_IWC_Schaffhausen_Boutique_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset%2C_15%29.jpg/1280px-Madrid_-_IWC_Schaffhausen_Boutique_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset%2C_15%29.jpg',
+      alt: 'IWC Schaffhausen boutique on Calle de José Ortega y Gasset, Madrid',
+      credit: 'Zarateman',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Madrid_-_IWC_Schaffhausen_Boutique_%28Calle_de_Jos%C3%A9_Ortega_y_Gasset%2C_15%29.jpg',
+      license: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    },
     contentStatus: 'reviewed',
   },
 ];

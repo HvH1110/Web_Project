@@ -1,5 +1,6 @@
 import { Brand } from '../models/brand.model.js';
 import { MARKETS, Offer } from '../models/offer.model.js';
+import { toImageDtos } from '../utils/images.js';
 
 // The product fields a ProductSummary needs, for $project.
 export const SUMMARY_FIELDS = { brand: 1, ref: 1, name: 1, category: 1, collection: 1, images: 1, createdAt: 1 };
@@ -94,11 +95,7 @@ export function toProductSummary(doc, brandNames) {
     name: doc.name,
     category: doc.category ?? null,
     collection: doc.collection ?? null,
-    images: (doc.images ?? []).map((image) => ({
-      url: image.url,
-      alt: image.alt ?? null,
-      sourceId: image.sourceId ?? null,
-    })),
+    images: toImageDtos(doc.images),
     lowestPriceVnd: doc.lowestPriceVnd ?? null,
     offers: (doc.offers ?? [])
       .map(toOfferDto)

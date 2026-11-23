@@ -36,7 +36,9 @@ The single source of truth between `frontend/` and `backend/`.
     { "name": "Submariner", "year": 1953, "description": "One sentence." }
   ],
   "contentStatus": "draft",
-  "productCount": 42
+  "photo": { /* BrandPhoto, or null */ },
+  "productCount": 42,
+  "covers": [ /* BrandCover */ ]
 }
 ```
 - `category`: `fashion`, `jewelry` or `watches`. This is the brand's category, not the product category used by search.
@@ -44,6 +46,41 @@ The single source of truth between `frontend/` and `backend/`.
 - `signatureProducts[].year`: year introduced, or `null` when not stated.
 - `contentStatus`: `draft` (editorial text not yet reviewed) or `reviewed`.
 - `productCount`: number of tracked products for this brand.
+- `photo`: a freely licensed real photo of the house (a boutique, from Wikimedia Commons), or `null`. It is not a product picture: use it when no cover loads, e.g. for a house with no products yet.
+- `covers`: tracked products with a picture, to illustrate the house and its signature pieces. `[]` when the brand has no product with a picture.
+
+### BrandCover
+```json
+{
+  "piece": "Submariner",
+  "brand": "rolex",
+  "ref": "126610LN",
+  "name": "Submariner Date",
+  "collection": "Submariner",
+  "image": { /* Image */ },
+  "credit": "The Hour Glass (Official Rolex Retailer)"
+}
+```
+- Order: up to 3 per signature piece, pieces in `signatureProducts` order, then up to 6 for the house itself (`piece: null`). Within each group, best first: pictures from image hosts known to load come before the others, and products with several pictures before those with one.
+- `piece`: the `signatureProducts[].name` the product was chosen for, found the way `GET /api/products?q=<piece name>&brand=<slug>` would find it. `null` for the house picks, which come one per collection first. A product appears only once.
+- `brand` + `ref` link to the product page, like a ProductSummary.
+- `image`: the product's best picture. It can still fail to load (see Image); try the next cover of the same group.
+- `credit`: who owns the picture: the store whose offer it came from, else the brand's name.
+- Chosen again at most once an hour, so a product the crawler just added can take that long to appear.
+
+### BrandPhoto
+```json
+{
+  "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/.../1280px-....jpg",
+  "alt": "Rolex store window in Helsinki",
+  "credit": "Arto Alanenpää",
+  "sourceUrl": "https://commons.wikimedia.org/wiki/File:....jpg",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+```
+- Always show it with its credit: `credit` (the photographer), `license` linked to `licenseUrl`, and a link to `sourceUrl` (the file's page, which states the license). `license` is `CC0`, `CC BY` or `CC BY-SA` with a version. `licenseUrl` can be `null` (e.g. a plain public-domain file); then link `license` to `sourceUrl`.
+- `url` is a 1280-pixel-wide copy, about 200 to 600 KB. All 8 houses have one.
 
 ### Offer
 The current price of a product at one official store or authorized dealer. Used for "where to buy".
@@ -74,6 +111,8 @@ The current price of a product at one official store or authorized dealer. Used 
 { "url": "https://example.com/image.jpg", "alt": "Submariner Date, front", "sourceId": "rolex-sg" }
 ```
 Images belong to their owners: always show a credit. `sourceId` matches an offer's `source.id`, so the credit can name that store and link to its offer URL.
+- `url` is always `http` or `https` and percent-encoded (stored URLs with spaces come out with `%20`). Video players and other non-pictures stored among a product's images are left out, so `images` can be shorter than what the crawler stored.
+- A picture can fail to load, mostly old ones on brand hosts that have since moved them: show the next one, or a placeholder.
 
 ### ProductSummary
 ```json

@@ -13,6 +13,22 @@ const signatureProductSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// A freely licensed photo of the house (e.g. a boutique from Wikimedia Commons),
+// shown when no product picture loads. Credit and license must be shown with it.
+const photoSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true, trim: true, match: /^https:\/\// },
+    alt: { type: String, required: true, trim: true },
+    // The photographer, as the license asks to credit them.
+    credit: { type: String, required: true, trim: true },
+    // The file's page, where the license is stated.
+    sourceUrl: { type: String, required: true, trim: true, match: /^https:\/\// },
+    license: { type: String, required: true, trim: true },
+    licenseUrl: { type: String, default: null, trim: true },
+  },
+  { _id: false },
+);
+
 const brandSchema = new mongoose.Schema(
   {
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -27,6 +43,7 @@ const brandSchema = new mongoose.Schema(
     country: { type: String, required: true, trim: true },
     history: { type: String, required: true, trim: true },
     signatureProducts: { type: [signatureProductSchema], default: [] },
+    photo: { type: photoSchema, default: null },
     // `draft` until the editorial text has been reviewed.
     contentStatus: { type: String, enum: ['draft', 'reviewed'], default: 'draft' },
   },
