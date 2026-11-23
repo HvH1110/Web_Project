@@ -17,7 +17,8 @@
     "fill-images": "node src/tools/fill-images.js",
     "repair-images": "node src/tools/repair-images.js",
     "lint": "eslint .",
-    "test": "node --test --test-timeout=30000"
+    "test": "node --test --test-timeout=30000",
+    "reread-chanel": "node src/tools/reread-chanel.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
