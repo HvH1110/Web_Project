@@ -14,6 +14,11 @@ name: Nightly backfill
 # in a public repo after 60 days without commits (re-enable in the Actions tab).
 on:
   workflow_dispatch:
+    inputs:
+      chanel_only:
+        description: 'Only the Chanel archives (the catch-up run)'
+        type: boolean
+        default: false
   schedule:
     # 00:37 UTC: 5 hours 20 minutes after the daily crawl's 19:17 UTC, which
     # covers the crawl's 300-minute timeout. GitHub starts both hours late (the
@@ -21,6 +26,13 @@ on:
     # is what really keeps them apart. Off the hour, because runs at :00 are the
     # most likely to be delayed or dropped by GitHub's scheduler.
     - cron: '37 0 * * *'
+    # Chanel catch-up, Chanel archives only, so the three new sources get their
+    # own nightly budget instead of a share of the run above. In the first week
+    # GitHub started runs 5 to 7 hours late, so this should start around 13:00
+    # to 15:00 UTC, after the run above. If that is still going, this waits.
+    # Remove it once Chanel's queue is empty: see devops/DEPLOY.md, section
+    # Nightly backfill. The step below checks this exact string.
+    - cron: '47 7 * * *'
 
 permissions:
   contents: read
@@ -98,9 +110,17 @@ jobs:
       # 1,500 pages a night). --oldest-first only orders products with equally
       # long histories; ask the crawler session before removing it. See
       # devops/DEPLOY.md, section Nightly backfill.
+      # The Chanel catch-up stops after 240 minutes instead of the script's
+      # default 270, to stay clear of the next crawl.
       - name: Backfill
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           # Added to the User-Agent so site owners can reach us. Not a secret.
           CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
-        run: npm run backfill -- --limit=2000 --oldest-first
+          CHANEL_ONLY: ${{ github.event.schedule == '47 7 * * *' || inputs.chanel_only == true }}
+        run: |
+          if [ "$CHANEL_ONLY" = true ]; then
+            npm run backfill -- chanel-sg chanel-hk chanel-vn --limit=2000 --oldest-first --max-minutes=240
+          else
+            npm run backfill -- --limit=2000 --oldest-first
+          fi
