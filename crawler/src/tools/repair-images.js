@@ -1,5 +1,6 @@
 // Repairs stored picture URLs so `images` lists only pictures that load:
 //   npm run repair-images [-- [brand ...] [--checked=<file> ...] [--dead-host=<host> ...]
+//                            [--by-file=<host> ...] [--cache=<file>]
 //                            [--apply=<backup.json> | --restore=<backup.json>] [--max-minutes=N]]
 // - drops video players stored as pictures (player.louisvuitton.com/embed/...);
 // - encodes raw spaces ("..._PM2_Front view.jpg" -> "Front%20view.jpg");
@@ -16,13 +17,15 @@
 // 5xx is not taken as dead (bot protection answers that to clients it doesn't
 // like, while browsers get the picture).
 // With no --apply it prints what would change and writes nothing; the archive
-// is still asked for copies. --apply saves the old images to the file first
+// is still asked for copies, and its answers go to the --cache file, so the
+// --apply run after it reuses them. --max-minutes bounds the asking: pictures
+// not asked about by then keep their URLs. --apply saves the old images to the file first
 // (never over an existing file); --restore puts them back. Asks web.archive.org:
 // not at the same time as a backfill or fill-images.
 import fs from 'node:fs';
 import { connectDB, disconnectDB } from '../db.js';
 import { isPlayer } from '../archives/common.js';
-import { ArchiveBusyError, imageCopyUrl, listCapturesSplit } from '../lib/wayback.js';
+import { ArchiveBusyError, imageCopyUrl, latestCapture, listCapturesSplit } from '../lib/wayback.js';
 import { Product } from '../models/index.js';
 
 const args = process.argv.slice(2);
@@ -31,10 +34,12 @@ const brands = args.filter((a) => !a.startsWith('--'));
 const valuesOf = (name) => flags.filter((f) => f.startsWith(`--${name}=`)).map((f) => f.slice(name.length + 3));
 const checkedFiles = valuesOf('checked');
 const deadHosts = new Set(valuesOf('dead-host').map((h) => h.toLowerCase()));
+const byFileHosts = new Set(valuesOf('by-file').map((h) => h.toLowerCase()));
+const [cacheFile] = valuesOf('cache');
 const [backup] = valuesOf('apply');
 const [restore] = valuesOf('restore');
 const maxMinutes = Number(valuesOf('max-minutes')[0] ?? 120);
-const known = /^--(checked|dead-host|apply|restore|max-minutes)=./;
+const known = /^--(checked|dead-host|by-file|cache|apply|restore|max-minutes)=./;
 if (flags.some((f) => !known.test(f)) || !(maxMinutes > 0) || (backup && restore)) {
   console.error(`Unknown or invalid option(s): ${flags.join(' ')}`);
   process.exit(1);
@@ -103,17 +108,81 @@ function folders(keys) {
   return new Map([[`${paths[0][0]}/`, keys]]);
 }
 
+const copyOf = (c) => imageCopyUrl(c.timestamp, c.url.replace(/^(https?:\/\/[^/]+?):(?:80|443)\//i, '$1/'));
+
+// The index's answers so far, from --cache: URL key -> copy URL, or '' for
+// "no copy". Saved after every folder and every 25 files, so a later run
+// (the --apply after a dry run, or a run cut short) doesn't ask again.
+const cache = new Map(cacheFile && fs.existsSync(cacheFile) ? Object.entries(JSON.parse(fs.readFileSync(cacheFile, 'utf8'))) : []);
+const saveCache = () => cacheFile && fs.writeFileSync(cacheFile, JSON.stringify(Object.fromEntries(cache)));
+
+// --by-file hosts: one exact query per picture (the newest capture), for a
+// host whose folders are too large for the index (www.iwc.com: a prefix query
+// for one folder answers 503 even split by two characters; one file answers
+// in about 6 s).
+async function askByFile(keys, stop) {
+  let asked = 0;
+  for (const key of keys) {
+    if (stop()) return;
+    try {
+      const c = await latestCapture(key, { mimetype: 'image/.*', onRefused: (err) => pauseOrStop(`web.archive.org: ${err.message}`) });
+      pausesInARow = 0;
+      cache.set(key, c ? copyOf(c) : '');
+    } catch (err) {
+      if (/giving up/.test(err.message)) throw err;
+      if (err instanceof ArchiveBusyError) await pauseOrStop(`web.archive.org: ${err.message}`);
+      else console.error(`index of ${key}: ${err.message}; kept this run`);
+    }
+    asked += 1;
+    if (asked % 25 === 0) {
+      saveCache();
+      console.log(`  ${asked} of ${keys.length} files asked`);
+    }
+  }
+}
+
 // URL key -> Wayback copy URL (the newest 200 image capture), for the keys
-// given, and the keys whose index request failed (left as they are). A
-// capture of the same file with another query (?imwidth=430) counts too.
+// given, and the keys the index wasn't asked about or didn't answer for (left
+// as they are). Folder queries: a capture of the same file with another query
+// (?imwidth=430) counts too. When the time is up, or the archive stays busy,
+// the rest are left as they are and the run carries on with what it has.
 async function findCopies(keys) {
+  const todo = [...keys].filter((k) => !cache.has(k));
   const byHost = new Map();
-  for (const key of keys) byHost.set(key.split('/')[0], [...(byHost.get(key.split('/')[0]) ?? []), key]);
+  for (const key of todo) byHost.set(key.split('/')[0], [...(byHost.get(key.split('/')[0]) ?? []), key]);
   const groups = new Map();
-  for (const hostKeys of byHost.values()) for (const [folder, members] of folders(hostKeys)) groups.set(folder, members);
-  console.log(`asking the index for ${keys.size} pictures in ${groups.size} folders`);
+  const fileKeys = [];
+  for (const [host, hostKeys] of byHost) {
+    if (byFileHosts.has(host)) fileKeys.push(...hostKeys);
+    else for (const [folder, members] of folders(hostKeys)) groups.set(folder, members);
+  }
+  console.log(`${keys.size - todo.length} pictures answered before (--cache); asking the index for ${todo.length - fileKeys.length} in ${groups.size} folders and ${fileKeys.length} one by one`);
+  let stopped = '';
+  const stop = () => {
+    if (!stopped && Date.now() > deadline) stopped = `the ${maxMinutes} minutes are up`;
+    return Boolean(stopped);
+  };
+  try {
+    await askFolders(groups, stop);
+    saveCache();
+    await askByFile(fileKeys, stop);
+  } catch (err) {
+    if (!/giving up/.test(err.message)) throw err;
+    stopped = err.message;
+  } finally {
+    saveCache();
+  }
+  if (stopped) console.error(`Stopped asking the index: ${stopped}. Pictures not asked about keep their URLs this run.`);
   const copies = new Map();
   const unasked = new Set();
+  for (const key of keys) {
+    if (!cache.has(key)) unasked.add(key);
+    else if (cache.get(key)) copies.set(key, cache.get(key));
+  }
+  return { copies, unasked };
+}
+
+async function askFolders(groups, stop) {
   let asked = 0;
   for (const [folder, members] of groups) {
     const wanted = new Set(members);
@@ -124,8 +193,9 @@ async function findCopies(keys) {
       if (!(map.get(key)?.timestamp > c.timestamp)) map.set(key, c);
     };
     const failed = [];
+    let busyTries = 0;
     for (;;) {
-      if (Date.now() > deadline) throw new Error(`the ${maxMinutes} minutes are up`);
+      if (stop()) return;
       try {
         await listCapturesSplit(folder, {
           mimetype: 'image/.*',
@@ -144,11 +214,14 @@ async function findCopies(keys) {
         });
         break;
       } catch (err) {
-        if (err instanceof ArchiveBusyError) {
+        if (/giving up/.test(err.message)) throw err;
+        // Busy even split by two characters: once more after a pause, then
+        // the folder is left for another run (it doesn't start over forever).
+        if (err instanceof ArchiveBusyError && busyTries < 1) {
+          busyTries += 1;
           await pauseOrStop(`web.archive.org: ${err.message}`);
           continue;
         }
-        if (/giving up/.test(err.message)) throw err;
         console.error(`index of ${folder}: ${err.message}; its pictures keep their URLs this run`);
         failed.push(folder.toLowerCase());
         break;
@@ -156,13 +229,13 @@ async function findCopies(keys) {
     }
     for (const key of members) {
       const c = exact.get(key) ?? samePath.get(key);
-      if (c) copies.set(key, imageCopyUrl(c.timestamp, c.url.replace(/^(https?:\/\/[^/]+?):(?:80|443)\//i, '$1/')));
-      else if (failed.some((part) => key.toLowerCase().startsWith(part))) unasked.add(key);
+      if (c) cache.set(key, copyOf(c));
+      else if (!failed.some((part) => key.toLowerCase().startsWith(part))) cache.set(key, '');
     }
     asked += 1;
-    if (asked % 10 === 0) console.log(`  ${asked} of ${groups.size} folders asked, ${copies.size} copies found so far`);
+    saveCache();
+    if (asked % 10 === 0) console.log(`  ${asked} of ${groups.size} folders asked`);
   }
-  return { copies, unasked };
 }
 
 await connectDB();

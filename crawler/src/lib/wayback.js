@@ -143,6 +143,22 @@ export async function listCapturesSplit(prefix, options, depth = 0) {
   return complete;
 }
 
+// The newest HTTP 200 capture of exactly this URL, of `mimetype`, as
+// { timestamp, url }, or null when there is none. One quick request (the
+// index reads from the newest end), where a prefix query over a large folder
+// can answer 503.
+export async function latestCapture(url, { mimetype = 'text/html', onRefused } = {}) {
+  const params = new URLSearchParams({ url, output: 'json', fl: 'timestamp,original', limit: '-1', fastLatest: 'true' });
+  params.append('filter', 'statuscode:200');
+  params.append('filter', `mimetype:${mimetype}`);
+  const res = await askIndex(`${CDX}?${params}`, onRefused);
+  checkArchiveStatus(res);
+  if (!res.ok) throw new IndexError(url, res.status);
+  const text = await res.text();
+  const row = (text.trim() ? JSON.parse(text) : []).slice(1).find((r) => r.length === 2);
+  return row ? { timestamp: row[0], url: row[1] } : null;
+}
+
 // The page exactly as archived, without the Wayback toolbar or rewritten links.
 export function snapshotUrl(timestamp, url) {
   return `https://web.archive.org/web/${timestamp}id_/${url}`;
