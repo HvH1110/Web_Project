@@ -1,10 +1,13 @@
 // Registry of archive (Wayback Machine) adapters for `npm run backfill`. An
 // archive adapter is { id, name, type, market, prefixes, isProductUrl(url),
-// parse(html, url), firstYear?, productKey?(url) }; parse returns the same item
-// shape as a live source, firstYear is the oldest year to index when it isn't
-// the default, productKey names the product a URL is for when several URLs
-// show the same one (default: the URL), so lib/sample.js can group its snapshots.
+// parse(html, url), firstYear?, productKey?(url), keepWithoutPrice? }; parse
+// returns the same item shape as a live source, firstYear is the oldest year
+// to index when it isn't the default, productKey names the product a URL is
+// for when several URLs show the same one (default: the URL), so
+// lib/sample.js can group its snapshots, and keepWithoutPrice stores the
+// product from a page that shows no price (the default stores nothing then).
 // The id is the source id its price points are filed under.
+import { chanelArchive } from './chanel.js';
 import { diorArchive } from './dior.js';
 import { iwcArchive } from './iwc.js';
 import { louisVuittonArchive } from './louisvuitton.js';
@@ -19,4 +22,7 @@ export const archives = [
   iwcArchive({ market: 'HK', path: 'hk/en', currency: 'HKD' }),
   vanCleefArchive({ market: 'SG', path: 'sg/en', currency: 'SGD' }),
   vanCleefArchive({ market: 'HK', path: 'hk/en', currency: 'HKD' }),
+  chanelArchive({ market: 'SG', path: 'sg', currency: 'SGD' }),
+  chanelArchive({ market: 'HK', path: 'hk-en', currency: 'HKD' }),
+  chanelArchive({ market: 'VN', path: 'vn', lang: 'vi', currency: 'VND' }),
 ];

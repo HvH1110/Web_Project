@@ -20,6 +20,7 @@ const waybackSnapshotSchema = new mongoose.Schema(
     price: Number,
     error: String,
     retries: Number, // times queued again after a timeout, dropped connection or 5xx
+    pictures: Number, // the product's own pictures on the page, set by npm run fill-images
     checkedAt: Date,
   },
   { collection: 'wayback_snapshots', versionKey: false },

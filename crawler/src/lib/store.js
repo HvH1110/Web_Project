@@ -160,9 +160,32 @@ export async function saveManualPrice(source, item, observedAt) {
   return { created, point, offerUpdated };
 }
 
+// A product an archived page showed without a price, from an adapter with
+// keepWithoutPrice: its details only, no price point.
+export async function saveArchivedProduct(source, item) {
+  validateItem(source, item);
+  const { created } = await upsertProduct(source, item);
+  return { created };
+}
+
+// Pictures from another page of a product already stored (npm run
+// fill-images): they replace its images only when there are more of them.
+// Never creates a product and changes nothing else. True when it changed.
+export async function improveImages(source, item) {
+  const images = (item.images ?? []).slice(0, 4).map((img) => ({ ...img, sourceId: source.id }));
+  if (!images.length) return false;
+  const result = await Product.updateOne(
+    { brand: item.brand, ref: normalizeRef(item.ref), [`images.${images.length - 1}`]: { $exists: false } },
+    { $set: { images } },
+  );
+  return result.modifiedCount > 0;
+}
+
 // products: upsert by { brand, ref }. The first source to see a product sets
 // its details; later sources only fill fields that are still empty, and
-// replace the images with a longer list (so they only ever improve).
+// replace the images with a longer list (so they only ever improve). Details
+// written from a page in Vietnamese (`lang: "vi"`) are replaced by the first
+// English page of the product.
 async function upsertProduct(source, item) {
   const ref = normalizeRef(item.ref);
   const images = (item.images ?? []).slice(0, 4).map((img) => ({ ...img, sourceId: source.id }));
@@ -173,6 +196,7 @@ async function upsertProduct(source, item) {
     description: item.description,
     specs: item.specs ?? {},
     images,
+    ...(item.lang ? { lang: item.lang } : {}),
   };
 
   // $setOnInsert never touches an existing product, so `value` is also the
@@ -185,7 +209,16 @@ async function upsertProduct(source, item) {
   const product = result.value;
   const created = !result.lastErrorObject?.updatedExisting;
 
-  if (!created) {
+  if (!created && product.lang && !item.lang) {
+    const set = { name: details.name, category: details.category, specs: details.specs };
+    const unset = { lang: 1 };
+    for (const key of ['collection', 'description']) {
+      if (details[key]) set[key] = details[key];
+      else unset[key] = 1;
+    }
+    if (images.length) set.images = images;
+    await Product.updateOne({ _id: product._id }, { $set: set, $unset: unset });
+  } else if (!created) {
     const missing = {};
     for (const key of ['collection', 'description']) {
       if (!product[key] && details[key]) missing[key] = details[key];

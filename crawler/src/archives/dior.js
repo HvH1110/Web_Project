@@ -13,15 +13,19 @@ import { parseJsonLdProduct } from './common.js';
 // .../products/couture-151V33A6842_X0831-shirt or .../products/3de343zrk_h969-shoe.
 const URL_CODE = /\/products\/(?:couture-)?([0-9a-z]+_[0-9a-z]+)(?=[-_]|$)/i;
 
+// Jewellery has no colour (JRDV95205_0000): its pictures are named after the
+// style alone, .../diorprod/JRDV95205_E01, or with a finish, JRDV94221_SBG_E01.
 function galleryImages($, ref) {
+  const [style, colour] = ref.split('_');
   const current = new RegExp(`/diorprod/${ref.replace('_', '')}_`);
+  const noColour = colour === '0000' ? new RegExp(`/diorprod/${style}_(?:[A-Z0-9]{1,4}_)?E[0-9]+$`) : null;
   const older = new RegExp(`_${ref}_(E[0-9]+)_`);
   const byView = new Map();
   $('img[src]').each((_, el) => {
     const src = $(el).attr('src');
     if (!/^https:\/\//.test(src)) return;
     const path = new URL(src).pathname;
-    const view = path.match(older)?.[1] ?? (current.test(path) ? path : null);
+    const view = path.match(older)?.[1] ?? (current.test(path) || noColour?.test(path) ? path : null);
     if (view && !byView.has(view)) byView.set(view, src);
   });
   return [...byView.values()];

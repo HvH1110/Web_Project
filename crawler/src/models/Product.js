@@ -21,6 +21,10 @@ const productSchema = new mongoose.Schema(
     description: String,
     specs: { type: mongoose.Schema.Types.Mixed, default: {} },
     images: [imageSchema],
+    // "vi" when name, collection, description and specs are in Vietnamese (from
+    // a page of chanel.com/vn/); absent means English. An English page of the
+    // same product replaces them.
+    lang: String,
   },
   // `collection` is a field here, so name the MongoDB collection explicitly.
   { timestamps: true, collection: 'products', suppressReservedKeysWarning: true },

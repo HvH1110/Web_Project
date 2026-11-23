@@ -23,7 +23,7 @@ import { connectDB, disconnectDB } from './db.js';
 import { archives } from './archives/index.js';
 import { RobotsDisallowedError, politeFetch } from './lib/http.js';
 import { pickSnapshots } from './lib/sample.js';
-import { saveArchivedItem, validateItem } from './lib/store.js';
+import { saveArchivedItem, saveArchivedProduct, validateItem } from './lib/store.js';
 import {
   ArchiveBusyError,
   archiveUrl,
@@ -301,6 +301,9 @@ async function processQueues(sources, queues) {
           const result = await saveArchivedItem(q.source, item, timestampToDate(timestamp), archiveUrl(timestamp, snap.original));
           if (result.created) q.stats.created += 1;
           if (result.priceChanged) q.stats.points += 1;
+        } else if (status === 'no-price' && q.source.keepWithoutPrice) {
+          // Chanel: many pages show no price, and the product is still worth having.
+          if ((await saveArchivedProduct(q.source, item)).created) q.stats.created += 1;
         }
         q.stats[status] += 1;
         q.errorsInARow = 0;

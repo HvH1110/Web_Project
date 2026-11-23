@@ -14,6 +14,7 @@
     "import-prices": "node src/tools/import-prices.js",
     "tidy-cartier-specs": "node src/tools/tidy-cartier-specs.js",
     "tidy-vca-names": "node src/tools/tidy-vca-names.js",
+    "fill-images": "node src/tools/fill-images.js",
     "lint": "eslint .",
     "test": "node --test --test-timeout=30000"
   },
