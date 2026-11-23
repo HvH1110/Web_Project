@@ -49,16 +49,36 @@ export default function SignatureCard({ piece, brand, photos = [], compact = fal
   )
 }
 
-// Which product a picture shows and whose image it is. `relative` keeps its
-// link above a card's stretched link.
+const creditLink = 'underline underline-offset-2 hover:text-foreground'
+
+// Which product a picture shows and whose image it is, or for the house's own
+// photo (a `license` is set, see lib/housePhotos.js) its photographer and
+// license. `relative` keeps its links above a card's stretched link.
 export function PhotoCredit({ photo, className }) {
   return (
     <p className={cn('relative text-[0.625rem] leading-relaxed text-muted-foreground', className)}>
-      Shown:{' '}
-      <Link to={photo.to} className="underline underline-offset-2 hover:text-foreground">
-        {photo.name}
-      </Link>
-      . Image: {photo.credit}
+      {photo.license ? (
+        <>
+          Photo:{' '}
+          <a href={photo.sourceUrl} target="_blank" rel="noopener noreferrer" className={creditLink}>
+            {photo.credit}
+          </a>
+          ,{' '}
+          <a href={photo.licenseUrl ?? photo.sourceUrl} target="_blank" rel="noopener noreferrer license" className={creditLink}>
+            {photo.license}
+          </a>
+          , via Wikimedia Commons
+          <span className="sr-only"> (links open in a new tab)</span>
+        </>
+      ) : (
+        <>
+          Shown:{' '}
+          <Link to={photo.to} className={creditLink}>
+            {photo.name}
+          </Link>
+          . Image: {photo.credit}
+        </>
+      )}
     </p>
   )
 }

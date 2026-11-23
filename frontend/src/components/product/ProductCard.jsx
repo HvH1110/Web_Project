@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import Photo from '@/components/Photo'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { NO_CURRENT_PRICE, handChecked, imageCredit, leadPrice, productPath } from '@/lib/catalog'
@@ -20,24 +21,22 @@ export default function ProductCard({ product }) {
       <div className="relative aspect-4/5 overflow-hidden bg-secondary">
         {image ? (
           <>
-            <img
+            <Photo
               src={image.url}
               alt={image.alt || product.name}
               loading="lazy"
-              decoding="async"
-              onError={() => markFailed(image)}
+              onFail={() => markFailed(image)}
               className={cn(
                 'absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition duration-700 ease-lux',
                 hoverImage ? 'group-hover:opacity-0' : 'group-hover:scale-[1.03]',
               )}
             />
             {hoverImage && (
-              <img
+              <Photo
                 src={hoverImage.url}
                 alt=""
                 loading="lazy"
-                decoding="async"
-                onError={() => markFailed(hoverImage)}
+                onFail={() => markFailed(hoverImage)}
                 className="absolute inset-0 size-full object-contain p-[8%] opacity-0 mix-blend-multiply transition-opacity duration-700 ease-lux group-hover:opacity-100"
               />
             )}

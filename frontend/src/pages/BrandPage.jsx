@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { PhotoCredit } from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
+import ImagePlaceholder from '@/components/ImagePlaceholder'
 import LoadError from '@/components/LoadError'
 import PageMeta from '@/components/PageMeta'
 import ProductResults from '@/components/product/ProductResults'
@@ -13,9 +15,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BRANDS, CATEGORIES } from '@/content/brands'
 import { useApi } from '@/hooks/useApi'
 import { useProducts } from '@/hooks/useProducts'
+import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { getBrand, getProducts } from '@/lib/api'
 import { DEFAULT_SORT, RATE_SOURCE, hasCurrentPrices, matchCollection, pricesUnavailable } from '@/lib/catalog'
 import { formatDate, pad2 } from '@/lib/format'
+import { housePhotos, piecePhotos } from '@/lib/housePhotos'
 import { cn } from '@/lib/utils'
 import NotFoundPage from '@/pages/NotFoundPage'
 
@@ -177,6 +181,8 @@ function Masthead({ brand }) {
           </Reveal>
         </div>
 
+        <HouseCover brand={brand} />
+
         <nav aria-label="On this page" className="eyebrow flex flex-wrap gap-x-8 gap-y-3 border-t py-5">
           <a href="#history" className="link-underline">
             History
@@ -201,6 +207,27 @@ function Masthead({ brand }) {
   )
 }
 
+// The placeholder backdrop of a house (content/brands.js).
+const toneOf = (slug) => BRANDS.find((b) => b.slug === slug)?.tone
+
+// A wide picture of the house: its first tracked product picture that loads,
+// else its own licensed photo (see lib/housePhotos.js), credited below it.
+function HouseCover({ brand }) {
+  const [[cover], markFailed] = useWorkingImages(housePhotos(brand))
+  return (
+    <Reveal delay={250} className="mb-12">
+      <ImagePlaceholder
+        tone={toneOf(brand.slug)}
+        category={brand.category}
+        photo={cover}
+        onPhotoError={() => markFailed(cover)}
+        className="group aspect-4/5 sm:aspect-video lg:aspect-21/9"
+      />
+      {cover && <PhotoCredit photo={cover} className="mt-3" />}
+    </Reveal>
+  )
+}
+
 function History({ brand }) {
   return (
     <section
@@ -221,9 +248,11 @@ function History({ brand }) {
   )
 }
 
-// Each piece links to its collection below when the brand has one by that
-// name, otherwise to a search for it, but only once that search is known to
-// find something. Many signature pieces are never sold with a public price.
+// Each piece is pictured by a tracked product its name finds (Brand.covers),
+// or keeps the house's backdrop when nothing tracked matches. It links to its
+// collection below when the brand has one by that name, otherwise to a search
+// for it, but only once that search is known to find something. Many signature
+// pieces are never sold with a public price.
 function Signatures({ brand }) {
   const toSearch = brand.signatureProducts.filter((piece) => !matchCollection(piece.name, brand.collections))
   const found = useApi(`${brand.slug}/signatures`, (signal) =>
@@ -243,48 +272,67 @@ function Signatures({ brand }) {
           Signature pieces
         </Reveal>
         <ol className="mt-14 border-b">
-          {brand.signatureProducts.map((piece, i) => {
-            const collection = matchCollection(piece.name, brand.collections)
-            return (
-              <Reveal
-                as="li"
-                key={piece.name}
-                delay={i * 80}
-                className="grid gap-x-8 gap-y-2 border-t py-8 md:grid-cols-12 md:items-baseline"
-              >
-                <span className="eyebrow text-muted-foreground md:col-span-1">{pad2(i + 1)}</span>
-                <h3 className="font-serif text-display-sm md:col-span-4">{piece.name}</h3>
-                <p className="eyebrow text-muted-foreground md:col-span-2">
-                  {piece.year && `Since ${piece.year}`}
-                </p>
-                <p className="max-w-prose text-sm leading-relaxed text-muted-foreground md:col-span-3">
-                  {piece.description}
-                </p>
-                {(collection || found.data?.[piece.name] > 0) && (
-                  <Link
-                    to={
-                      collection
-                        ? { search: `?collection=${encodeURIComponent(collection.name)}`, hash: '#products' }
-                        : `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
-                    }
-                    className="eyebrow group mt-3 inline-flex items-center gap-2 justify-self-start md:col-span-2 md:mt-0 md:justify-self-end"
-                  >
-                    <span className="link-underline">
-                      {collection ? `View ${collection.productCount}` : 'Search'}
-                    </span>
-                    <ArrowRight
-                      className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
-                      strokeWidth={1.25}
-                      aria-hidden="true"
-                    />
-                  </Link>
-                )}
-              </Reveal>
-            )
-          })}
+          {brand.signatureProducts.map((piece, i) => (
+            <SignatureRow
+              key={piece.name}
+              brand={brand}
+              piece={piece}
+              number={i + 1}
+              searchTotal={found.data?.[piece.name] ?? 0}
+            />
+          ))}
         </ol>
       </div>
     </section>
+  )
+}
+
+function SignatureRow({ brand, piece, number, searchTotal }) {
+  const collection = matchCollection(piece.name, brand.collections)
+  const [[photo], markFailed] = useWorkingImages(piecePhotos(brand, piece.name))
+
+  return (
+    <Reveal
+      as="li"
+      delay={(number - 1) * 80}
+      className="grid grid-cols-[5.5rem_1fr] gap-x-5 gap-y-3 border-t py-8 sm:grid-cols-[8rem_1fr] md:grid-cols-12 md:gap-x-8"
+    >
+      <ImagePlaceholder
+        tone={toneOf(brand.slug)}
+        category={brand.category}
+        photo={photo}
+        onPhotoError={() => markFailed(photo)}
+        className="row-span-3 aspect-4/5 self-start md:col-span-2 md:row-span-1"
+      />
+      <div className="grid content-start gap-2 md:col-span-4">
+        <p className="eyebrow text-muted-foreground">
+          {pad2(number)}
+          {piece.year && ` · Since ${piece.year}`}
+        </p>
+        <h3 className="font-serif text-display-sm">{piece.name}</h3>
+      </div>
+      <div className="grid max-w-prose content-start gap-3 md:col-span-4">
+        <p className="text-sm leading-relaxed text-muted-foreground">{piece.description}</p>
+        {photo && <PhotoCredit photo={photo} />}
+      </div>
+      {(collection || searchTotal > 0) && (
+        <Link
+          to={
+            collection
+              ? { search: `?collection=${encodeURIComponent(collection.name)}`, hash: '#products' }
+              : `/search?brand=${brand.slug}&q=${encodeURIComponent(piece.name)}`
+          }
+          className="eyebrow group inline-flex items-center gap-2 self-start justify-self-start md:col-span-2 md:justify-self-end"
+        >
+          <span className="link-underline">{collection ? `View ${collection.productCount}` : 'Search'}</span>
+          <ArrowRight
+            className="size-3.5 transition-transform duration-500 ease-lux group-hover:translate-x-1"
+            strokeWidth={1.25}
+            aria-hidden="true"
+          />
+        </Link>
+      )}
+    </Reveal>
   )
 }
 

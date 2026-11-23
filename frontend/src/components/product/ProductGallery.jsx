@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import Photo from '@/components/Photo'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { imageCredit } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -23,13 +24,13 @@ export default function ProductGallery({ product, archived = [] }) {
   return (
     <div className="grid gap-4">
       <div className="relative aspect-4/5 overflow-hidden bg-secondary">
-        <img
+        <Photo
           key={image.url}
           src={image.url}
           alt={image.alt || product.name}
           fetchPriority="high"
-          onError={() => markFailed(image)}
-          className="absolute inset-0 size-full object-contain p-[6%] mix-blend-multiply animate-in fade-in duration-500"
+          onFail={() => markFailed(image)}
+          className="absolute inset-0 size-full object-contain p-[6%] mix-blend-multiply"
         />
       </div>
 
@@ -48,7 +49,7 @@ export default function ProductGallery({ product, archived = [] }) {
                     img === image ? 'border-foreground' : 'border-transparent hover:border-border',
                   )}
                 >
-                  <img src={img.url} alt="" loading="lazy" onError={() => markFailed(img)} className="absolute inset-0 size-full object-contain p-1.5 mix-blend-multiply" />
+                  <Photo src={img.url} alt="" loading="lazy" onFail={() => markFailed(img)} className="absolute inset-0 size-full object-contain p-1.5 mix-blend-multiply" />
                 </button>
               </li>
             ))}

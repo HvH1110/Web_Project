@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import Photo from '@/components/Photo'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { OUT_OF_STOCK, productPath } from '@/lib/catalog'
@@ -27,12 +28,11 @@ export default function DealRow({ deal }) {
         className="group relative block aspect-4/5 overflow-hidden bg-secondary lg:col-span-2"
       >
         {image ? (
-          <img
+          <Photo
             src={image.url}
             alt=""
             loading="lazy"
-            decoding="async"
-            onError={() => markFailed(image)}
+            onFail={() => markFailed(image)}
             className="absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition-transform duration-700 ease-lux group-hover:scale-[1.04]"
           />
         ) : (

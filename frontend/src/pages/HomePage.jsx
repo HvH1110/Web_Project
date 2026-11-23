@@ -12,7 +12,7 @@ import { MARKETS, SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { getBrands } from '@/lib/api'
-import { getHousePhotos } from '@/lib/housePhotos'
+import { housePhotos, piecePhotos } from '@/lib/housePhotos'
 import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +26,8 @@ const STATS = [
 // grouped in category chapters. Layout comes from content/brands.js so it
 // renders at once; each house's story, facts and signature pieces fill in from
 // GET /api/brands. Each house is pictured by its own tracked products, named
-// and credited; the hero, and houses with nothing tracked, keep a plain backdrop.
+// and credited, or by a licensed photo of a boutique when none of those load;
+// the hero keeps a plain backdrop.
 export default function HomePage() {
   const result = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
   const brands = {
@@ -231,25 +232,18 @@ const brandFacts = (info) => [
 
 const signaturesOf = (info) => info?.signatureProducts.slice(0, 3) ?? []
 
-// Photos for a house's section: per signature piece, and for the large image a
-// second product of the first piece that has any, so it differs from the cards.
-function useHousePhotos(brand, info) {
-  const pieces = signaturesOf(info)
-  const found = useApi(`${brand.slug}/photos/${info?.productCount ? pieces.length : 0}`, (signal) =>
-    info?.productCount ? getHousePhotos(brand, pieces, { signal }) : Promise.resolve({}),
-  )
-  const byPiece = found.data ?? {}
-  const lists = pieces.map((piece) => byPiece[piece.name] ?? [])
-  const lead = lists.find((photos) => photos.length) ?? []
-  const [[cover], markFailed] = useWorkingImages([...lead.slice(1), ...lists.flat()])
-  return { byPiece, cover, onCoverError: () => markFailed(cover) }
+// The large picture of a house: the first of its pictures that loads (see
+// lib/housePhotos.js), and the callback that skips one that doesn't.
+function useHouseCover(info) {
+  const [[cover], markFailed] = useWorkingImages(housePhotos(info))
+  return { cover, onCoverError: () => markFailed(cover) }
 }
 
 // Full-bleed image with the name over it, then story, facts and three pieces.
 function BrandFeature({ brand, info, loading }) {
   const nameId = `${brand.slug}-name`
   const pieces = signaturesOf(info)
-  const photos = useHousePhotos(brand, info)
+  const photos = useHouseCover(info)
 
   return (
     <article id={brand.slug} aria-labelledby={nameId} className="scroll-mt-header pt-16 pb-section">
@@ -300,7 +294,7 @@ function BrandFeature({ brand, info, loading }) {
                 <SignatureCard
                   piece={piece}
                   brand={brand}
-                  photos={photos.byPiece[piece.name]}
+                  photos={piecePhotos(info, piece.name)}
                   linked={info.productCount > 0}
                 />
               </Reveal>
@@ -316,7 +310,7 @@ function BrandFeature({ brand, info, loading }) {
 function BrandSplit({ brand, info, loading, flip }) {
   const nameId = `${brand.slug}-name`
   const pieces = signaturesOf(info)
-  const photos = useHousePhotos(brand, info)
+  const photos = useHouseCover(info)
 
   return (
     <article
@@ -366,7 +360,7 @@ function BrandSplit({ brand, info, loading, flip }) {
                   <SignatureCard
                     piece={piece}
                     brand={brand}
-                    photos={photos.byPiece[piece.name]}
+                    photos={piecePhotos(info, piece.name)}
                     linked={info.productCount > 0}
                     compact
                   />

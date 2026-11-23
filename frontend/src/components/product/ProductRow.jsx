@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import ImagePlaceholder from '@/components/ImagePlaceholder'
+import Photo from '@/components/Photo'
 import OfferTable from '@/components/product/OfferTable'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { imageCredit, productPath } from '@/lib/catalog'
@@ -21,12 +22,11 @@ export default function ProductRow({ product }) {
         className="group relative block aspect-4/5 overflow-hidden bg-secondary lg:col-span-2"
       >
         {image ? (
-          <img
+          <Photo
             src={image.url}
             alt=""
             loading="lazy"
-            decoding="async"
-            onError={() => markFailed(image)}
+            onFail={() => markFailed(image)}
             className="absolute inset-0 size-full object-contain p-[8%] mix-blend-multiply transition-transform duration-700 ease-lux group-hover:scale-[1.04]"
           />
         ) : (
