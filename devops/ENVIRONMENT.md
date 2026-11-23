@@ -9,9 +9,9 @@ Maintained by the devops session. **Never write real secret values in this file*
 | Variable        | App      | Secret? | Local (`.env`)                                                        | Production                                                    |
 |-----------------|----------|---------|-----------------------------------------------------------------------|---------------------------------------------------------------|
 | `MONGODB_URI`   | backend  | **Yes** | Atlas connection string for user `webproject-dev`, database `webproject_dev`. You paste it into `backend/.env` yourself. | Atlas connection string for user `webproject-prod`, database `webproject_prod`. Set on Render when the Blueprint is created. |
-| `MONGODB_URI`   | crawler  | **Yes** | The same string as `backend/.env` (user `webproject-dev`, database `webproject_dev`). You paste it into `crawler/.env` yourself. | GitHub Actions repository secret `MONGODB_URI`: user `webproject-crawler`, database `webproject_dev` until step 1 in `DEPLOY.md` moves it to `webproject_prod`. Only `.github/workflows/crawl.yml` and `backfill.yml` read it. |
+| `MONGODB_URI`   | crawler  | **Yes** | The same string as `backend/.env` (user `webproject-dev`, database `webproject_dev`). You paste it into `crawler/.env` yourself. | GitHub Actions repository secret `MONGODB_URI`: user `webproject-crawler`, database `webproject_dev` until step 1 in `DEPLOY.md` moves it to `webproject_prod`. Only `.github/workflows/crawl.yml`, `backfill.yml` and `fill-images.yml` read it. |
 | `CRAWL_DELAY_MS` | crawler | No | `5000` (the default if unset). Minimum time between two requests to the same site; anything below `3000` is raised to `3000`. | Not set in GitHub Actions, so `5000`. |
-| `CRAWL_CONTACT` | crawler | No | Optional, e.g. `https://github.com/HvH1110/Web_Project`. Added to the User-Agent so site owners can reach us. | Set in `crawl.yml` to this repository's URL. |
+| `CRAWL_CONTACT` | crawler | No | Optional, e.g. `https://github.com/HvH1110/Web_Project`. Added to the User-Agent so site owners can reach us. | Set in `crawl.yml`, `backfill.yml` and `fill-images.yml` to this repository's URL. |
 | `CARTIER_ROTATION_DAYS` | crawler | No | `7` (the default if unset). Each run checks 1/N of Cartier's ~1,700 products per market, so each product comes round every N days. `1` crawls everything in one very long run. | Not set in GitHub Actions, so `7`. |
 | `PORT`          | backend  | No      | `5000` (the default if unset)                                         | Set by Render. Don't set it by hand. |
 | `NODE_VERSION`  | Render   | No      | Not used                                                              | `24`, the same as CI, in `backend/render.yaml`. |
@@ -51,7 +51,7 @@ Maintained by the devops session. **Never write real secret values in this file*
 ### GitHub Actions
 
 - **CI** (`.github/workflows/ci.yml`) sets **no variables and uses no secrets**. The frontend builds with the default `VITE_API_URL`. The backend tests use their own in-memory MongoDB. The backend smoke test runs with only `PORT=5000` and no `MONGODB_URI`, so `/api/health` reports `db: "disconnected"` and CI never touches Atlas. The crawler job installs, lints and imports every module. It never crawls a site.
-- **Daily crawl** (`.github/workflows/crawl.yml`) and **Nightly backfill** (`.github/workflows/backfill.yml`) are the only workflows that get a secret: `MONGODB_URI`, passed only to their `Check database` and `Crawl` or `Backfill` steps. GitHub masks the value in logs and never gives it to workflows started by pull requests from forks.
+- **Daily crawl** (`.github/workflows/crawl.yml`), **Nightly backfill** (`.github/workflows/backfill.yml`) and **Fill product pictures** (`.github/workflows/fill-images.yml`, started by hand) are the only workflows that get a secret: `MONGODB_URI`, passed only to their `Check database`, `Check inputs`, `Crawl`, `Backfill` or `Fill pictures` steps. GitHub masks the value in logs and never gives it to workflows started by pull requests from forks.
 
 ## Where the files are
 

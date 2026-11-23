@@ -1,0 +1,84 @@
+name: Fill product pictures
+
+# One-off, started by hand: `npm run fill-images` in crawler/. Products with
+# fewer than 2 pictures get them from other archived snapshots of the brand's
+# own pages. See crawler/CLAUDE.md. It reads web.archive.org like the backfill,
+# so it must never run at the same time as one: it shares their concurrency
+# group. Start it between about 13:00 and 22:00 UTC, after the backfill has
+# ended and before the next crawl, so it doesn't wait or get cancelled in a
+# queue. See devops/DEPLOY.md, section One-off crawler jobs.
+on:
+  workflow_dispatch:
+    inputs:
+      brands:
+        description: 'Brand slugs separated by spaces, e.g. "dior louis-vuitton". Empty means every brand.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run: fetch and report, write nothing'
+        type: boolean
+        default: true
+      max_minutes:
+        description: 'Stop after this many minutes (1 to 270)'
+        required: true
+        default: '240'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  fill-images:
+    name: Fill product pictures
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      # Inputs reach the shell only through env and are checked before use.
+      - name: Check inputs
+        env:
+          BRANDS: ${{ inputs.brands }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "$MONGODB_URI" ]; then
+            echo "::error::Repository secret MONGODB_URI is not set. See devops/DEPLOY.md, section Daily crawl."
+            exit 1
+          fi
+          case "$BRANDS" in
+            *[!a-z\ -]*)
+              echo "::error::Brands may only contain lowercase letters, hyphens and spaces."
+              exit 1 ;;
+          esac
+          if ! printf '%s' "$MAX_MINUTES" | grep -Eq '^[0-9]+$' || [ "$MAX_MINUTES" -lt 1 ] || [ "$MAX_MINUTES" -gt 270 ]; then
+            echo "::error::max_minutes must be a whole number from 1 to 270."
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: crawler/package-lock.json
+
+      - run: npm ci
+
+      - name: Fill pictures
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          # Added to the User-Agent so site owners can reach us. Not a secret.
+          CRAWL_CONTACT: ${{ github.server_url }}/${{ github.repository }}
+          BRANDS: ${{ inputs.brands }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        # $BRANDS and $DRY_RUN are unquoted on purpose: each brand is its own
+        # argument, and an empty value adds none. Both were checked above.
+        run: npm run fill-images -- $BRANDS $DRY_RUN --max-minutes="$MAX_MINUTES"

@@ -10,6 +10,7 @@ Maintained by the devops session. Variables and Atlas details are in `ENVIRONMEN
 | Database | MongoDB Atlas (M0, Singapore) | `ENVIRONMENT.md` | database `webproject_prod` |
 | Daily crawl | GitHub Actions | `.github/workflows/crawl.yml` | see "Daily crawl" below |
 | Nightly backfill | GitHub Actions | `.github/workflows/backfill.yml` | see "Nightly backfill" below |
+| Fill product pictures (one-off, by hand) | GitHub Actions | `.github/workflows/fill-images.yml` | see "One-off crawler jobs" below |
 
 Browsers only ever talk to `maison-prix.vercel.app` (and R2 for images). Vercel forwards `/api/*` to Render.
 
@@ -320,9 +321,29 @@ In Atlas **Database Access**, find `webproject-crawler` and click **Edit → Edi
 `.github/workflows/backfill.yml` runs `npm run backfill -- --limit=2000 --oldest-first` in `crawler/` every night, scheduled at 00:37 UTC (07:37 in Vietnam, 08:37 in Singapore and Hong Kong) but really starting 6 to 7 hours later. It fills in price history from Wayback Machine snapshots and uses the same `MONGODB_URI` secret as the daily crawl. To run it by hand: **Actions → Nightly backfill → Run workflow**.
 
 - **Timing:** a run took between 3h and 4h45m from 2026-11-06 to 11-16. With the crawler's change of 2026-11-11 (commit `2758e22`) the script ends itself after 270 minutes, so expect about 4h35m every night, and GitHub cancels a hung run after 300 minutes. The next run continues the queue, so a cancelled run loses at most the page it was reading.
-- **How much it reads:** web.archive.org lets a night read about 1,000 to 1,500 pages, so `--limit=2000` is a ceiling that is rarely reached. The script reads one snapshot per product per year, products with the longest history first. The crawler session's estimates are in `crawler/SOURCES.md`, section Backfill reach.
+- **Sources:** every archive source in `crawler/src/archives/index.js`, with no list in the workflow. Crawler commit `917bc13` adds `chanel-sg`, `chanel-hk` and `chanel-vn` (11 sources instead of 8). They start on the first night after it is pushed, and the workflow doesn't change.
+- **How much it reads:** web.archive.org lets a night read about 1,000 to 1,500 pages, so `--limit=2000` is a ceiling that is rarely reached. Raising it wouldn't help Chanel: the archive's pace and the 270-minute end decide how much a night reads. With 11 sources, each brand's history takes longer to fill in. The script reads one snapshot per product per year, products with the longest history first. The crawler session's estimates are in `crawler/SOURCES.md`, section Backfill reach.
 - **With the daily crawl:** the two share a concurrency group, so they never run at once. The slots didn't meet in the first week: the crawl ended between 01:30 and 04:45 UTC, at least 3 hours before the backfill started. If a third run is queued while one is running and one is waiting, GitHub cancels the older waiting run. Waiting runs are rare, and the next night's run catches up.
 - **`--oldest-first`** matters less since `2758e22`: it only decides the order among products with equally long histories. It stays until the crawler session says otherwise. To remove it, delete the flag from the last line of `backfill.yml`, then commit and push.
 - **Failed runs:** 10 of the 11 nights from 2026-11-06 to 11-16 ended as failed, because the old script exits with an error when web.archive.org keeps refusing connections. The pages saved before that were kept. Commit `2758e22` makes such a run pass with a warning on its page, and it takes effect on the first night after it is pushed; the workflow's command doesn't change. It did: all 7 nights from 2026-11-17 to 11-23 succeeded, each ending itself after about 4h30m. A failed backfill now means a real error. How you hear about one is under "Daily schedule" above.
 - **Storage:** the run stops before fetching anything once this database reaches 450 MB of the 512 MB free tier, and warns from 400 MB. It was 59.0 MB on 2026-11-05, 88.4 MB on 2026-11-16 and 93.9 MB on 2026-11-23 (data plus indexes): `wayback_snapshots` 66.6 MB for 235,000 snapshots, `products` 18.0 MB for 12,090 products (about 1.5 KB each), `price_points` 7.2 MB, everything else under 3 MB. Growth slowed to about 0.8 MB a day after `2758e22` (1.35 MB a day the week before), which reaches 450 MB around early 2028. Pictures are stored as addresses only, never image files. Rewriting a picture address to a `web.archive.org/web/<time>im_/` copy adds about 45 bytes, so repairing every picture would add about 2 MB. A new source adds about 1.5 KB per product, plus about 0.3 KB per snapshot and price point. Check the `Check database` step's log, and see [Environment](ENVIRONMENT.md) for how usage is counted. To free space, ask the crawler session what can go. Only raise the 450 MB limit if the whole cluster still has room, because the limit doesn't count other databases.
 - **Turning it off:** **Actions → Nightly backfill → ⋯ → Disable workflow**.
+
+## One-off crawler jobs
+
+Some crawler commands are run once, by hand, and are never scheduled. Those that read web.archive.org **must never run at the same time as the backfill or the crawl**, because the archive limits each reader and the jobs would slow each other down and share its refusals.
+
+### Fill product pictures
+
+`npm run fill-images [-- brand ...] [--dry-run] [--per-product=N] [--max-minutes=N]` in `crawler/` (added in crawler commit `917bc13`, explained in `crawler/CLAUDE.md`). It gives products with fewer than 2 pictures more pictures from other archived snapshots of the brand's own pages. It only ever replaces a product's pictures with a longer list, and a re-run tries the next snapshots. It stores picture addresses only, so its effect on storage is tiny (see Storage above).
+
+**From GitHub (preferred):** open **Actions → Fill product pictures → Run workflow**. Fill in brand slugs separated by spaces (such as `dior louis-vuitton`; leave it empty for every brand) and a time limit of 1 to 270 minutes. **Dry run** is ticked by default: it fetches and reports, and writes nothing. Untick it for the real run. The workflow shares the crawl's and backfill's concurrency group, so it waits while one of them is running and can't overlap them.
+- **When:** start it between about 13:00 and 22:00 UTC (20:00 to 05:00 in Vietnam). By then the backfill has ended (it ended by 12:53 UTC from 11-17 to 11-23) and the next crawl hasn't started (23:48 UTC at the earliest). Started at another time it waits in the queue. If a scheduled run is queued behind it too, GitHub cancels the older waiting run, which may be this one or a night's crawl.
+- **Reading the result:** the end of the `Fill pictures` step lists how many products got more pictures and which still have fewer than 2, with the reason. Give that list to the crawler session.
+- The button appears once `fill-images.yml` is on `main` on GitHub. A run that fails doesn't open an issue: only scheduled runs do.
+
+**From your own computer:** `npm run fill-images -- --dry-run` in `crawler/`, with `crawler/.env` pointing at the database. Nothing prevents an overlap here, so run it only in the same 13:00 to 22:00 UTC window, and check **Actions** first that no crawl or backfill is running.
+
+### Repairing dead picture addresses
+
+The crawler session may add another one-off that replaces dead brand picture addresses with `web.archive.org/web/<time>im_/<address>` copies. Run it the same way, never alongside the backfill. The devops session adds it to the workflow above, or gives it its own workflow in the same concurrency group, once the crawler names the command. Archived copies load on another site with nothing blocking them (checked on 2026-11-23), so no hosting change is needed.
