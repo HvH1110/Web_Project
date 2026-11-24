@@ -35,6 +35,60 @@ export function Author({ author }) {
   )
 }
 
+// A member's monogram: their initials in the display face, on one of the house
+// neutrals picked from their name, so the same member always looks the same.
+// Decoration only: the name is always written next to it.
+const AVATAR_TONES = [
+  'bg-stone text-ink',
+  'bg-sand text-ink',
+  'bg-taupe text-ink',
+  'bg-graphite text-ivory',
+  'bg-[#26221d] text-ivory',
+]
+
+function initials(name) {
+  const words = name.split(/\s+/).filter(Boolean)
+  const letters = words.length > 1 ? words[0][0] + words.at(-1)[0] : (words[0] ?? '?').slice(0, 2)
+  return letters.toUpperCase()
+}
+
+export function Avatar({ author, className }) {
+  const name = authorName(author)
+  const tone = author
+    ? AVATAR_TONES[[...name].reduce((sum, c) => sum + c.codePointAt(0), 0) % AVATAR_TONES.length]
+    : 'bg-secondary text-muted-foreground'
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'grid size-10 shrink-0 place-items-center rounded-full font-serif text-[0.9375rem] tracking-wide select-none',
+        tone,
+        className,
+      )}
+    >
+      {author ? initials(name) : '?'}
+    </span>
+  )
+}
+
+// Who wrote a post and when: the name stands out, its role badge and the time
+// sit beside it, quieter.
+export function Byline({ author, iso, edited, className }) {
+  const role = author && roleLabel(author.role)
+  return (
+    <p className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1', className)}>
+      <span className={cn('font-medium [overflow-wrap:anywhere]', author ? 'text-foreground' : 'text-muted-foreground')}>
+        {authorName(author)}
+      </span>
+      {role && <Tag>{role}</Tag>}
+      <span className="text-xs text-muted-foreground">
+        <PostTime iso={iso} />
+        {edited && ' · Edited'}
+      </span>
+    </p>
+  )
+}
+
 export function PostTime({ iso }) {
   return (
     <time dateTime={iso} className="tabular-nums">

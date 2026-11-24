@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ActionButton, ActionDialog, BanControls } from '@/components/community/PostActions'
-import { Author, HiddenNotice, PostBody, PostImages, PostTime, TopicTags } from '@/components/community/PostParts'
+import { Avatar, Byline, HiddenNotice, PostBody, PostImages, TopicTags } from '@/components/community/PostParts'
 import ReplyForm from '@/components/community/ReplyForm'
 import ReplyItem from '@/components/community/ReplyItem'
 import RequireMember from '@/components/community/RequireMember'
@@ -153,11 +153,10 @@ function Topic({ id }) {
               <div className="grid gap-4">
                 <TopicTags topic={topic} />
                 <h1 className="font-serif text-display-lg text-balance [overflow-wrap:anywhere]">{topic.title}</h1>
-                <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <Author author={topic.author} />
-                  <PostTime iso={topic.createdAt} />
-                  {topic.editedAt && <span>Edited</span>}
-                </p>
+                <div className="flex items-center gap-3">
+                  <Avatar author={topic.author} />
+                  <Byline author={topic.author} iso={topic.createdAt} edited={topic.editedAt} />
+                </div>
               </div>
               <HiddenNotice hidden={topic.hidden} of="topic" />
               <PostBody text={topic.body} className="max-w-3xl" />
@@ -317,7 +316,7 @@ function RepliesList({ replies, onDeleted, onShowWaiting }) {
     <div className="grid grid-cols-1 gap-8">
       <ul className="grid grid-cols-1 border-b">
         {replies.items.map((reply) => (
-          <li key={reply.id} className="border-t">
+          <li key={reply.id} className="border-t border-border/60">
             <ReplyItem reply={reply} onChange={replies.replace} onDelete={onDeleted} />
           </li>
         ))}
