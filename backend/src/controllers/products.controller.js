@@ -15,12 +15,30 @@ import { httpError } from '../utils/http-error.js';
 import { enumParam, intParam, listParam, nonNegativeNumberParam, stringParam } from '../utils/query.js';
 import { MAX_SEARCH_LENGTH, searchTerms, termRegex } from '../utils/search.js';
 
+// Products without a picture come after those with one; in a price sort, after
+// those with a price, and before the products without a price.
 const SORTS = {
-  newest: { createdAt: -1, _id: -1 },
-  name: { name: 1, _id: 1 },
-  // Products without a price come last.
-  price_asc: { hasPrice: -1, lowestPriceVnd: 1, _id: 1 },
-  price_desc: { hasPrice: -1, lowestPriceVnd: -1, _id: 1 },
+  newest: { hasImage: -1, createdAt: -1, _id: -1 },
+  name: { hasImage: -1, name: 1, _id: 1 },
+  price_asc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: 1, _id: 1 },
+  price_desc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: -1, _id: 1 },
+};
+// True when the product has an http(s) picture, as toImageDtos() would show.
+const HAS_IMAGE = {
+  $anyElementTrue: [
+    {
+      $map: {
+        input: { $ifNull: ['$images', []] },
+        as: 'image',
+        in: {
+          $regexMatch: {
+            input: { $cond: [{ $eq: [{ $type: '$$image.url' }, 'string'] }, '$$image.url', ''] },
+            regex: /^\s*https?:\/\/\S/i,
+          },
+        },
+      },
+    },
+  ],
 };
 // History responses state their end time. Rounding it up keeps the ETag the same
 // between requests, and nothing can be observed after a time in the future.
@@ -123,6 +141,7 @@ export async function searchProducts(req, res) {
     }
     pipeline.push({ $set: { hasPrice: { $ne: ['$lowestPriceVnd', null] } } });
   }
+  pipeline.push({ $set: { hasImage: HAS_IMAGE } });
   pipeline.push({
     $facet: {
       total: [{ $count: 'count' }],

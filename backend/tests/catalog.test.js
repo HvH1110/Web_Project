@@ -197,6 +197,25 @@ describe('filters and sorting', () => {
     }
   });
 
+  it('lists products without a picture after those with one, in every sort', async () => {
+    const products = app.db.collection('products');
+    const picture = [{ url: 'https://example.test/p.jpg', sourceId: 'x' }];
+    await products.updateOne({ ref: 'P1' }, { $set: { images: picture } });
+    await products.updateOne({ ref: 'NOPRICE' }, { $set: { images: picture } });
+    await products.updateOne({ ref: 'R2' }, { $set: { images: [{ url: 'javascript:alert(1)' }] } });
+    try {
+      assert.deepEqual(refs(await client.get('/products')), ['NOPRICE', 'P1', 'R2', 'R1', 'P2']);
+      assert.deepEqual(refs(await client.get('/products?q=rolex&sort=name')), ['NOPRICE', 'R2', 'R1']);
+      assert.deepEqual(refs(await client.get('/products?sort=name')), ['P1', 'NOPRICE', 'R2', 'R1', 'P2']);
+      assert.deepEqual(refs(await client.get('/products?sort=price_asc')), ['P1', 'P2', 'R1', 'R2', 'NOPRICE'], 'a price still comes first');
+      assert.deepEqual(refs(await client.get('/products?sort=price_desc')), ['P1', 'R2', 'R1', 'P2', 'NOPRICE']);
+      assert.deepEqual(refs(await client.get('/products?limit=2&page=2')), ['R2', 'R1'], 'paging follows the same order');
+      assert.equal((await client.get('/products')).body.total, 5);
+    } finally {
+      await products.updateMany({}, { $unset: { images: '' } });
+    }
+  });
+
   it('counts only the chosen markets for lowestPriceVnd', async () => {
     const res = await client.get('/products?market=HK&collection=Tank');
     assert.equal(res.body.items[0].lowestPriceVnd, 20000 * HKD);
