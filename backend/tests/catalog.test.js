@@ -132,7 +132,7 @@ describe('search', () => {
   });
 
   it('searches the brand, collection and reference too', async () => {
-    assert.deepEqual(refs(await client.get('/products?q=rolex&sort=name')), ['NOPRICE', 'R2', 'R1']);
+    assert.deepEqual(refs(await client.get('/products?q=rolex&sort=name')), ['R2', 'R1', 'NOPRICE'], 'a current price first');
     assert.deepEqual(refs(await client.get('/products?q=r1')), ['R1']);
     assert.deepEqual(refs(await client.get('/products?q=tank')), ['P2']);
   });
@@ -212,15 +212,36 @@ describe('filters and sorting', () => {
     // One that loads among dead ones is enough.
     await products.updateOne({ ref: 'R1' }, { $set: { images: [deadHost, picture] } });
     try {
-      assert.deepEqual(refs(await client.get('/products')), ['NOPRICE', 'R1', 'P1', 'R2', 'P2']);
-      assert.deepEqual(refs(await client.get('/products?q=rolex&sort=name')), ['NOPRICE', 'R1', 'R2']);
-      assert.deepEqual(refs(await client.get('/products?sort=name')), ['P1', 'NOPRICE', 'R1', 'R2', 'P2']);
+      // A current price first, then a picture, then the chosen order.
+      assert.deepEqual(refs(await client.get('/products')), ['R1', 'P1', 'R2', 'P2', 'NOPRICE']);
+      assert.deepEqual(refs(await client.get('/products?q=rolex&sort=name')), ['R1', 'R2', 'NOPRICE']);
+      assert.deepEqual(refs(await client.get('/products?sort=name')), ['P1', 'R1', 'R2', 'P2', 'NOPRICE']);
       assert.deepEqual(refs(await client.get('/products?sort=price_asc')), ['P1', 'R1', 'P2', 'R2', 'NOPRICE'], 'a price still comes first');
       assert.deepEqual(refs(await client.get('/products?sort=price_desc')), ['R1', 'P1', 'R2', 'P2', 'NOPRICE']);
-      assert.deepEqual(refs(await client.get('/products?limit=2&page=2')), ['P1', 'R2'], 'paging follows the same order');
+      assert.deepEqual(refs(await client.get('/products?limit=2&page=2')), ['R2', 'P2'], 'paging follows the same order');
       assert.equal((await client.get('/products')).body.total, 5);
     } finally {
       await products.updateMany({}, { $unset: { images: '' } });
+    }
+  });
+
+  it('gives each result its last recorded price, in VND at the rate of its day', async () => {
+    const [noPrice] = await app.db.collection('products').find({ ref: 'NOPRICE' }).toArray();
+    const points = app.db.collection('price_points');
+    await points.insertMany([
+      { productId: noPrice._id, sourceId: 'x', market: 'SG', currency: 'SGD', price: 1400, observedAt: new Date('2024-01-01'), origin: 'wayback' },
+      { productId: noPrice._id, sourceId: 'x', market: 'HK', currency: 'HKD', price: 9000, observedAt: new Date(), origin: 'wayback' },
+    ]);
+    try {
+      const items = (await client.get('/products?q=datejust')).body.items;
+      const { observedAt, ...rest } = items[0].lastPrice;
+      assert.deepEqual(rest, { price: 9000, currency: 'HKD', priceVnd: 9000 * HKD, market: 'HK' });
+      assert.ok(observedAt);
+      const p2 = (await client.get('/products?q=tank')).body.items[0];
+      assert.equal(p2.lastPrice.price, 2000, 'the newest point');
+      assert.equal((await client.get('/products?q=bague')).body.items[0].lastPrice, null, 'no history: null');
+    } finally {
+      await points.deleteMany({ productId: noPrice._id });
     }
   });
 
@@ -232,9 +253,9 @@ describe('filters and sorting', () => {
 
   it('sorts by newest by default, and pages with the right totals', async () => {
     const first = await client.get('/products?limit=2');
-    assert.deepEqual(refs(first), ['NOPRICE', 'R2']);
+    assert.deepEqual(refs(first), ['R2', 'R1'], 'products with a current price first');
     assert.deepEqual([first.body.total, first.body.totalPages, first.body.page], [5, 3, 1]);
-    assert.deepEqual(refs(await client.get('/products?limit=2&page=3')), ['P1']);
+    assert.deepEqual(refs(await client.get('/products?limit=2&page=3')), ['NOPRICE']);
     assert.deepEqual(refs(await client.get('/products?limit=2&page=9')), []);
   });
 

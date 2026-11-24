@@ -135,6 +135,7 @@ Images belong to their owners: always show a credit. `sourceId` matches an offer
 - `collection`: may be `null`.
 - `lowestPriceVnd`: the lowest `priceVnd` among the offers (only offers in the requested markets, when search is filtered by `market`). `null` when no offer has a VND price.
 - `offers`: can be empty. Most of the catalog is archive-only: products known only from Internet Archive snapshots, with no current price anywhere. Their `offers` is `[]` and `lowestPriceVnd` is `null`; their past prices are in the history endpoint.
+- `lastPrice`: search results only (`GET /api/products`). The product's most recent price point in any market, or `null` when it has no history: `{ "price": 4350, "currency": "SGD", "priceVnd": 79830000, "market": "SG", "observedAt": "2025-03-14T00:00:00.000Z" }`. `priceVnd` is converted at Vietcombank's rate for that day (`null` when no rate is stored near that day). A past price: show it with its date, never as the current price. Use it when the product has no current price.
 
 ### Fx
 The exchange rate used for every `priceVnd` in a response. `null` when no rate has been stored yet (then only VND offers have a `priceVnd`).
@@ -270,7 +271,7 @@ Search and filter products. Each result carries its offers in every market, so a
 | `collection` | Exact collection name, as given by `GET /api/brands/:slug`. Comma-separate several. |
 | `market` | `VN`, `SG` or `HK`, comma-separate several. Keeps only products that have an offer in one of those markets (with or without a price). `market=VN` is the "available in Vietnam" filter. Also restricts which offers count for `lowestPriceVnd`, the price filter and price sorting. All offers are still returned. |
 | `minPriceVnd`, `maxPriceVnd` | Price range in VND, inclusive, applied to `lowestPriceVnd`. Products without a `lowestPriceVnd` are left out when either bound is set. |
-| `sort` | `newest` (default: most recently added to the catalog), `name` (A to Z), `price_asc`, `price_desc` (by `lowestPriceVnd`; products without a price come last). In every sort, products with no picture that can load come after those with one: empty `images`, or only pictures on hosts that fail today (Dior's and IWC's old sites). A price sort lists priced products with a picture, then priced without, then unpriced with a picture, then unpriced without. |
+| `sort` | `newest` (default: most recently added to the catalog), `name` (A to Z), `price_asc`, `price_desc` (by `lowestPriceVnd`). In every sort, products with a current price (a `lowestPriceVnd`) come first, then, within each, products with a picture that can load before those without one (empty `images`, or only pictures on hosts that fail today: Dior's and IWC's old sites), then the chosen order. |
 | `page` | Page number, integer >= 1. Default `1`. |
 | `limit` | Results per page, integer from 1 to 60. Default `24`. |
 

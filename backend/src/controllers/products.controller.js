@@ -16,11 +16,11 @@ import { httpError } from '../utils/http-error.js';
 import { enumParam, intParam, listParam, nonNegativeNumberParam, stringParam } from '../utils/query.js';
 import { MAX_SEARCH_LENGTH, searchTerms, termRegex } from '../utils/search.js';
 
-// Products without a picture come after those with one; in a price sort, after
-// those with a price, and before the products without a price.
+// In every sort, products with a current price come first, then those with a
+// picture that can load, then the chosen order.
 const SORTS = {
-  newest: { hasImage: -1, createdAt: -1, _id: -1 },
-  name: { hasImage: -1, name: 1, _id: 1 },
+  newest: { hasPrice: -1, hasImage: -1, createdAt: -1, _id: -1 },
+  name: { hasPrice: -1, hasImage: -1, name: 1, _id: 1 },
   price_asc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: 1, _id: 1 },
   price_desc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: -1, _id: 1 },
 };
@@ -114,41 +114,37 @@ export async function searchProducts(req, res) {
   const fx = await getLatestFx();
   const rates = vndRates(fx);
 
-  // Offers are joined before paging only when they decide which products
-  // match or their order; otherwise only the products on the page get them.
+  // Offers are joined before paging: every sort puts priced products first.
   const hasPriceRange = minPriceVnd !== undefined || maxPriceVnd !== undefined;
-  const offersFirst = Boolean(markets) || hasPriceRange || sort.startsWith('price');
 
   const match = productMatch(search);
   const pipeline = [{ $match: match }, { $project: SUMMARY_FIELDS }];
-  if (offersFirst) {
-    // Most of the catalog is archive-only, with no offers: joining offers to every
-    // product is the slow part, so only products that have some are joined.
-    const withOffers = await Offer.distinct('productId', markets ? { 'source.market': { $in: markets } } : {});
-    const withoutOffers = { ...match, _id: { $nin: withOffers } };
-    match._id = { $in: withOffers };
-    pipeline.push(...offerStages(rates, markets));
-    if (!markets && !hasPriceRange) {
-      // A price sort alone still lists the products without offers, after the others.
-      pipeline.push({
-        $unionWith: {
-          coll: Product.collection.collectionName,
-          pipeline: [{ $match: withoutOffers }, { $project: SUMMARY_FIELDS }, { $set: { offers: [], lowestPriceVnd: null } }],
-        },
-      });
-    }
-    if (hasPriceRange) {
-      const priceRange = {};
-      if (minPriceVnd !== undefined) {
-        priceRange.$gte = minPriceVnd;
-      }
-      if (maxPriceVnd !== undefined) {
-        priceRange.$lte = maxPriceVnd;
-      }
-      pipeline.push({ $match: { lowestPriceVnd: priceRange } });
-    }
-    pipeline.push({ $set: { hasPrice: { $ne: ['$lowestPriceVnd', null] } } });
+  // Most of the catalog is archive-only, with no offers: joining offers to every
+  // product is the slow part, so only products that have some are joined.
+  const withOffers = await Offer.distinct('productId', markets ? { 'source.market': { $in: markets } } : {});
+  const withoutOffers = { ...match, _id: { $nin: withOffers } };
+  match._id = { $in: withOffers };
+  pipeline.push(...offerStages(rates, markets));
+  if (!markets && !hasPriceRange) {
+    // Without a market or price filter, the products without offers are listed too.
+    pipeline.push({
+      $unionWith: {
+        coll: Product.collection.collectionName,
+        pipeline: [{ $match: withoutOffers }, { $project: SUMMARY_FIELDS }, { $set: { offers: [], lowestPriceVnd: null } }],
+      },
+    });
   }
+  if (hasPriceRange) {
+    const priceRange = {};
+    if (minPriceVnd !== undefined) {
+      priceRange.$gte = minPriceVnd;
+    }
+    if (maxPriceVnd !== undefined) {
+      priceRange.$lte = maxPriceVnd;
+    }
+    pipeline.push({ $match: { lowestPriceVnd: priceRange } });
+  }
+  pipeline.push({ $set: { hasPrice: { $ne: ['$lowestPriceVnd', null] } } });
   pipeline.push({ $set: { hasImage: HAS_IMAGE } });
   pipeline.push({
     $facet: {
@@ -157,7 +153,20 @@ export async function searchProducts(req, res) {
         { $sort: SORTS[sort] },
         { $skip: (page - 1) * limit },
         { $limit: limit },
-        ...(offersFirst ? [] : offerStages(rates, markets)),
+        // The latest price point, for products with no current price.
+        {
+          $lookup: {
+            from: PricePoint.collection.collectionName,
+            localField: '_id',
+            foreignField: 'productId',
+            pipeline: [
+              { $sort: { observedAt: -1 } },
+              { $limit: 1 },
+              { $project: { _id: 0, price: 1, currency: 1, market: 1, observedAt: 1 } },
+            ],
+            as: 'lastPoints',
+          },
+        },
       ],
     },
   });
@@ -169,15 +178,34 @@ export async function searchProducts(req, res) {
   }
   const [[result], brandNames] = await Promise.all([aggregate, getBrandNames()]);
   const total = result.total[0]?.count ?? 0;
+  const lastPoints = result.items.map((doc) => doc.lastPoints?.[0]).filter(Boolean);
+  const rateOn = lastPoints.length
+    ? await loadHistoricalRates(new Date(Math.min(...lastPoints.map((p) => p.observedAt))), new Date())
+    : null;
 
   res.json({
-    items: result.items.map((doc) => toProductSummary(doc, brandNames)),
+    items: result.items.map((doc) => ({ ...toProductSummary(doc, brandNames), lastPrice: toLastPrice(doc.lastPoints?.[0], rateOn) })),
     page,
     limit,
     total,
     totalPages: Math.ceil(total / limit),
     fx,
   });
+}
+
+// LastPrice in docs/API.md: a price point, with its VND value at that day's rate.
+function toLastPrice(point, rateOn) {
+  if (!point) {
+    return null;
+  }
+  const rate = rateOn?.(point.currency, point.observedAt);
+  return {
+    price: point.price,
+    currency: point.currency,
+    priceVnd: rate == null ? null : Math.floor(point.price * rate + 0.5),
+    market: point.market,
+    observedAt: point.observedAt,
+  };
 }
 
 export async function getProduct(req, res) {
