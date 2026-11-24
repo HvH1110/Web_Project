@@ -29,3 +29,6 @@ Thumbs.db
 # Backups written by the crawler one-offs (--apply=...). Keep them outside the
 # project; this only stops one from being committed by mistake.
 *backup*.json
+
+# Test account logins (account.md): local only, never committed.
+account.md
