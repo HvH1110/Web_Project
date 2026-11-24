@@ -270,7 +270,7 @@ Search and filter products. Each result carries its offers in every market, so a
 | `collection` | Exact collection name, as given by `GET /api/brands/:slug`. Comma-separate several. |
 | `market` | `VN`, `SG` or `HK`, comma-separate several. Keeps only products that have an offer in one of those markets (with or without a price). `market=VN` is the "available in Vietnam" filter. Also restricts which offers count for `lowestPriceVnd`, the price filter and price sorting. All offers are still returned. |
 | `minPriceVnd`, `maxPriceVnd` | Price range in VND, inclusive, applied to `lowestPriceVnd`. Products without a `lowestPriceVnd` are left out when either bound is set. |
-| `sort` | `newest` (default: most recently added to the catalog), `name` (A to Z), `price_asc`, `price_desc` (by `lowestPriceVnd`; products without a price come last). In every sort, products with no picture (empty `images`) come after those with one. A price sort lists priced products with a picture, then priced without, then unpriced with a picture, then unpriced without. |
+| `sort` | `newest` (default: most recently added to the catalog), `name` (A to Z), `price_asc`, `price_desc` (by `lowestPriceVnd`; products without a price come last). In every sort, products with no picture that can load come after those with one: empty `images`, or only pictures on hosts that fail today (Dior's and IWC's old sites). A price sort lists priced products with a picture, then priced without, then unpriced with a picture, then unpriced without. |
 | `page` | Page number, integer >= 1. Default `1`. |
 | `limit` | Results per page, integer from 1 to 60. Default `24`. |
 

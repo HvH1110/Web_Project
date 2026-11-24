@@ -1,3 +1,4 @@
+import { UNRELIABLE_IMAGE_URL } from '../config/image-hosts.js';
 import { MARKETS, Offer } from '../models/offer.model.js';
 import { PricePoint } from '../models/price-point.model.js';
 import { Product } from '../models/product.model.js';
@@ -23,7 +24,9 @@ const SORTS = {
   price_asc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: 1, _id: 1 },
   price_desc: { hasPrice: -1, hasImage: -1, lowestPriceVnd: -1, _id: 1 },
 };
-// True when the product has an http(s) picture, as toImageDtos() would show.
+// True when the product has an http(s) picture that can load: pictures only on
+// hosts that mostly fail today (config/image-hosts.js) count as none, so those
+// products sort with the ones without a picture.
 const HAS_IMAGE = {
   $anyElementTrue: [
     {
@@ -31,9 +34,14 @@ const HAS_IMAGE = {
         input: { $ifNull: ['$images', []] },
         as: 'image',
         in: {
-          $regexMatch: {
-            input: { $cond: [{ $eq: [{ $type: '$$image.url' }, 'string'] }, '$$image.url', ''] },
-            regex: /^\s*https?:\/\/\S/i,
+          $let: {
+            vars: { url: { $cond: [{ $eq: [{ $type: '$$image.url' }, 'string'] }, '$$image.url', ''] } },
+            in: {
+              $and: [
+                { $regexMatch: { input: '$$url', regex: /^\s*https?:\/\/\S/i } },
+                { $not: [{ $regexMatch: { input: '$$url', regex: UNRELIABLE_IMAGE_URL } }] },
+              ],
+            },
           },
         },
       },
