@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { apiLimits } from './middleware/api-limits.js';
@@ -43,6 +44,13 @@ if (env.uploadStorage === 'local') {
 app.use(compression());
 
 app.use('/api', apiLimits);
+
+// The API reference, one HTML file built by `npm run docs` from the comments in src/routes.
+// Served here so it is live at the website's /api/docs, without the session or database.
+const apiDocsFile = fileURLToPath(new URL('../public/docs/index.html', import.meta.url));
+app.get('/api/docs', (req, res, next) => {
+  res.sendFile(apiDocsFile, { maxAge: '1h' }, (err) => err && next(err.status === 404 ? undefined : err));
+});
 app.use(express.json());
 app.use(cookieParser());
 app.use(checkOrigin);

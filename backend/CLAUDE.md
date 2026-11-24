@@ -38,6 +38,8 @@ Real values go in `backend/.env` (gitignored). Document every variable in `backe
 ## API contract
 Whenever you add or change an endpoint, update `../docs/API.md` in the same change: method, path, request body, response, error cases. The frontend session codes against that file.
 
+Also update the endpoint's apiDoc block (`@api …`, https://apidocjs.com) above its route in `src/routes/`, then run `npm run docs` and commit `public/docs/index.html`. Shared blocks (`@apiUse`) and the conventions page are in `apidoc/`; settings in `apidoc.json`. The page is served at `/api/docs`. `tests/apidoc.test.js` fails when a route has no `@api` block.
+
 ## Commands
 Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
 - `npm install`
@@ -45,6 +47,7 @@ Run from `backend/`. Requires Node >= 20.19 (Mongoose 9).
 - `npm start`: run without auto-restart
 - `npm run seed:brands`: upsert the 8 brands from `scripts/data/brands.js` into `brands` (by slug, safe to re-run; the file is the source of truth)
 - `npm run set-role -- <email> <member|moderator|admin>`: change a member's role (e.g. make a moderator)
+- `npm run docs`: build the API reference (apiDoc 1.2.0 through `npx`, not a dependency) into `public/docs/index.html`
 - `npm run lint`: ESLint (flat config in `eslint.config.js`: `js.configs.recommended` + Node globals). Keep it passing.
 - Smoke check: `curl http://localhost:5000/api/health`
 - `npm test`: automated tests in `tests/` (`node --test`) on an in-memory MongoDB, never Atlas. `pretest` downloads the MongoDB binary first, so the first run takes longer. Needs no secrets. Keep it passing.

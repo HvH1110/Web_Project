@@ -218,6 +218,9 @@ Health check. Also reports whether the backend is connected to MongoDB Atlas.
 ```
 `db` is `"connected"` or `"disconnected"`.
 
+### `GET /api/docs`
+The API reference as one HTML page (apiDoc), built from the comments above each route in `backend/src/routes/`. For people reading the API, not for the website's code. Live at https://maison-prix.vercel.app/api/docs.
+
 ### `GET /api/sitemap.xml`
 Sitemap for search engines, as `application/xml`, not JSON. Lists `/`, `/search`, `/deals`, every `/brands/:slug` and every `/products/:brand/:ref`, at the address in `CLIENT_ORIGIN`. The `ref` is URL-encoded as in the frontend's links. Community and account pages are left out.
 

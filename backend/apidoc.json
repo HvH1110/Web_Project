@@ -1,0 +1,51 @@
+{
+  "name": "Maison Prix API",
+  "version": "1.0.0",
+  "description": "Official luxury prices across Vietnam, Singapore and Hong Kong: houses, products, price history, deals, accounts and the members' forum.",
+  "title": "Maison Prix API",
+  "url": "https://maison-prix.vercel.app",
+  "sampleUrl": false,
+  "header": {
+    "title": "Conventions",
+    "filename": "apidoc/header.md"
+  },
+  "order": [
+    "Health",
+    "GetHealth",
+    "GetSitemap",
+    "Catalog",
+    "ListBrands",
+    "GetBrand",
+    "SearchProducts",
+    "GetProduct",
+    "GetProductHistory",
+    "ListDeals",
+    "Accounts",
+    "Register",
+    "Login",
+    "Logout",
+    "GetMe",
+    "UpdateMe",
+    "ChangePassword",
+    "Forum",
+    "ListTopics",
+    "CreateTopic",
+    "GetTopic",
+    "UpdateTopic",
+    "DeleteTopic",
+    "ListReplies",
+    "CreateReply",
+    "UpdateReply",
+    "DeleteReply",
+    "UploadImage",
+    "Moderation",
+    "ModerateTopic",
+    "ModerateReply",
+    "ModerateMember"
+  ],
+  "template": {
+    "withCompare": false,
+    "withGenerator": true,
+    "showRequiredLabels": true
+  }
+}
