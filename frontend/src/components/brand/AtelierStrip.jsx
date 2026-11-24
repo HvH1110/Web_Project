@@ -5,8 +5,8 @@ import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { cn } from '@/lib/utils'
 
 // "From the atelier": a row of the house's own pieces beside its story, each
-// one a tracked product (see atelierPhotos in lib/housePhotos.js), named,
-// linked to its page and credited. Pictures that don't load give their place
+// one a tracked product (see atelierPhotos in lib/housePhotos.js), named and
+// linked to its page, where its picture is credited. Pictures that don't load give their place
 // to the next; `exclude` is the URL of the picture already shown large above.
 // Nothing renders when fewer than two pictures are left.
 export default function AtelierStrip({ brand, photos, exclude, count = 4, className }) {
@@ -34,7 +34,6 @@ export default function AtelierStrip({ brand, photos, exclude, count = 4, classN
                   {photo.name}
                 </Link>
               </h4>
-              <p className="text-[0.625rem] leading-relaxed text-muted-foreground">Image: {photo.credit}</p>
             </article>
           </li>
         ))}

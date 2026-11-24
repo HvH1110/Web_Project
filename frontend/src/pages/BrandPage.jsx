@@ -211,7 +211,7 @@ function Masthead({ brand }) {
 const toneOf = (slug) => BRANDS.find((b) => b.slug === slug)?.tone
 
 // A wide picture of the house: its first tracked product picture that loads,
-// else its own licensed photo (see lib/housePhotos.js), credited below it.
+// else its own licensed photo (see lib/housePhotos.js), whose licence is credited below it.
 function HouseCover({ brand }) {
   const [[cover], markFailed] = useWorkingImages(housePhotos(brand))
   return (
@@ -222,7 +222,10 @@ function HouseCover({ brand }) {
         photo={cover}
         onPhotoError={() => markFailed(cover)}
         className="group aspect-4/5 sm:aspect-video lg:aspect-21/9"
-      />
+      >
+        {/* A product picture links to its product, whose page credits it. */}
+        {cover?.to && <Link to={cover.to} aria-label={cover.name} lang={cover.lang} className="absolute inset-0" />}
+      </ImagePlaceholder>
       {cover && <PhotoCredit photo={cover} className="mt-3" />}
     </Reveal>
   )
@@ -249,7 +252,7 @@ function History({ brand }) {
 }
 
 // Each piece is pictured by a tracked product its name finds (Brand.covers),
-// or keeps the house's backdrop when nothing tracked matches. It links to its
+// or shows no picture when nothing tracked matches. It links to its
 // collection below when the brand has one by that name, otherwise to a search
 // for it, but only once that search is known to find something. Many signature
 // pieces are never sold with a public price.
@@ -297,13 +300,19 @@ function SignatureRow({ brand, piece, number, searchTotal }) {
       delay={(number - 1) * 80}
       className="grid grid-cols-[5.5rem_1fr] gap-x-5 gap-y-3 border-t py-8 sm:grid-cols-[8rem_1fr] md:grid-cols-12 md:gap-x-8"
     >
-      <ImagePlaceholder
-        tone={toneOf(brand.slug)}
-        category={brand.category}
-        photo={photo}
-        onPhotoError={() => markFailed(photo)}
-        className="row-span-3 aspect-4/5 self-start md:col-span-2 md:row-span-1"
-      />
+      {photo ? (
+        <ImagePlaceholder
+          tone={toneOf(brand.slug)}
+          category={brand.category}
+          photo={photo}
+          onPhotoError={() => markFailed(photo)}
+          className="row-span-3 aspect-4/5 self-start md:col-span-2 md:row-span-1"
+        />
+      ) : (
+        // Nothing tracked pictures this piece (or none of it loads): an empty
+        // column keeps the rows aligned, without an empty frame.
+        <div aria-hidden="true" className="row-span-3 md:col-span-2 md:row-span-1" />
+      )}
       <div className="grid content-start gap-2 md:col-span-4">
         <p className="eyebrow text-muted-foreground">
           {pad2(number)}

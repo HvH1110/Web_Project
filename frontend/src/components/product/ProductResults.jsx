@@ -67,7 +67,7 @@ export default function ProductResults({
         )}
       >
         {items.map((item) => (
-          <li key={getKey(item)} className={variant === 'list' ? 'border-t' : undefined}>
+          <li key={getKey(item)} className={variant === 'list' ? 'border-t' : 'empty:hidden'}>
             {render(item)}
           </li>
         ))}

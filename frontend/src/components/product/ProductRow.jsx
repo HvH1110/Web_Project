@@ -4,7 +4,7 @@ import Photo from '@/components/Photo'
 import OfferTable from '@/components/product/OfferTable'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import BrandAndCollection from '@/components/product/BrandAndCollection'
-import { imageCredit, productPath } from '@/lib/catalog'
+import { productPath } from '@/lib/catalog'
 
 // A search result: image, name and reference, then the price in every market
 // with where-to-buy links. Not one big link, since the offers link out.
@@ -45,9 +45,6 @@ export default function ProductRow({ product }) {
           </Link>
         </h3>
         <p className="text-xs text-muted-foreground tabular-nums">Ref. {product.ref}</p>
-        {image && (
-          <p className="mt-2 text-[0.625rem] text-muted-foreground">Image: {imageCredit(product, image)}</p>
-        )}
       </div>
 
       <OfferTable product={product} className="col-span-2 lg:col-span-6" />

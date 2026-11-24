@@ -27,7 +27,7 @@ const STATS = [
 // grouped in category chapters. Layout comes from content/brands.js so it
 // renders at once; each house's story, facts and signature pieces fill in from
 // GET /api/brands. Each house is pictured by its own tracked products, named
-// and credited, or by a licensed photo of a boutique when none of those load,
+// and linked, or by a licensed photo of a boutique when none of those load,
 // with a "From the atelier" row of its pieces beside its story; the hero shows
 // three signature pieces (HERO_PIECES).
 export default function HomePage() {
@@ -294,7 +294,11 @@ const brandFacts = (info) => [
   info.productCount ? ['Products tracked', info.productCount] : ['Prices', 'Not available'],
 ]
 
-const signaturesOf = (info) => info?.signatureProducts.slice(0, 3) ?? []
+// The first three signature pieces a tracked product pictures: a piece with
+// none (e.g. a fragrance, which isn't tracked) is left out, not shown empty.
+const signaturesOf = (info) =>
+  info?.signatureProducts.filter((piece) => piecePhotos(info, piece.name).length > 0).slice(0, 3) ?? []
+const COLS = { 1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }
 
 // The large picture of a house: the first of its pictures that loads (see
 // lib/housePhotos.js), and the callback that skips one that doesn't.
@@ -330,6 +334,7 @@ function BrandFeature({ brand, info, loading }) {
               </h3>
             </div>
           </div>
+          <CoverLink photo={photos.cover} />
         </ImagePlaceholder>
         {photos.cover && <PhotoCredit photo={photos.cover} className="page-container mt-3" />}
       </Reveal>
@@ -359,7 +364,12 @@ function BrandFeature({ brand, info, loading }) {
             Signature pieces
           </Reveal>
           {/* A swipeable row on phones, three columns from sm up. */}
-          <ul className="-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10">
+          <ul
+            className={cn(
+              '-mx-gutter flex snap-x snap-mandatory scroll-px-gutter gap-4 overflow-x-auto px-gutter [scrollbar-width:none] sm:mx-0 sm:grid sm:gap-6 sm:overflow-visible sm:px-0 lg:gap-10',
+              COLS[pieces.length],
+            )}
+          >
             {pieces.map((piece, i) => (
               <Reveal as="li" key={piece.name} delay={i * 120} className="w-[72%] shrink-0 snap-start sm:w-auto">
                 <SignatureCard
@@ -396,7 +406,9 @@ function BrandSplit({ brand, info, loading, flip }) {
           photo={photos.cover}
           onPhotoError={photos.onCoverError}
           className="group aspect-4/5"
-        />
+        >
+          <CoverLink photo={photos.cover} />
+        </ImagePlaceholder>
         {photos.cover && <PhotoCredit photo={photos.cover} className="mt-3" />}
         <AtelierStrip
           brand={brand}
@@ -432,7 +444,7 @@ function BrandSplit({ brand, info, loading, flip }) {
         {pieces.length > 0 && (
           <Reveal delay={200}>
             <p className="eyebrow mb-5">Signature pieces</p>
-            <ul className="grid grid-cols-3 gap-3 sm:gap-5">
+            <ul className={cn('grid gap-3 sm:gap-5', pieces.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
               {pieces.map((piece) => (
                 <li key={piece.name}>
                   <SignatureCard
@@ -451,6 +463,13 @@ function BrandSplit({ brand, info, loading, flip }) {
       </div>
     </article>
   )
+}
+
+// Makes a house's large picture a link to the product it shows, whose page
+// credits the picture. Nothing for the house's own photo.
+function CoverLink({ photo }) {
+  if (!photo?.to) return null
+  return <Link to={photo.to} aria-label={photo.name} lang={photo.lang} className="absolute inset-0" />
 }
 
 function BrandLink({ brand }) {

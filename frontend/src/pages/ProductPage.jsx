@@ -333,7 +333,7 @@ function MoreFrom({ product, brandName }) {
         </div>
         <ul className="mt-12 grid grid-cols-2 gap-x-4 gap-y-12 md:grid-cols-4 md:gap-x-6">
           {items.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="empty:hidden">
               <ProductCard product={p} />
             </li>
           ))}

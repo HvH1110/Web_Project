@@ -3,18 +3,20 @@ import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Photo from '@/components/Photo'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
-import { NO_CURRENT_PRICE, handChecked, imageCredit, leadPrice, productPath } from '@/lib/catalog'
+import { NO_CURRENT_PRICE, handChecked, leadPrice, productPath } from '@/lib/catalog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 // A product in a grid: image (the second view fades in on hover), name,
 // reference, lead price and the markets that sell it. The whole card links to
-// the product page.
+// the product page. A product whose stored pictures all fail to load (some
+// houses delete old ones) leaves the grid rather than show an empty frame; its
+// list item hides with it (`empty:hidden`).
 export default function ProductCard({ product }) {
   const [images, markFailed] = useWorkingImages(product.images)
   const [image, hoverImage] = images
   const price = leadPrice(product)
-  const credit = image && imageCredit(product, image)
+  if (product.images.length > 0 && !image) return null
 
   return (
     <article className="group relative grid content-start gap-4">
@@ -73,7 +75,6 @@ export default function ProductCard({ product }) {
         {product.offers.length > 0 && <MarketStrip offers={product.offers} lowest={price?.market} />}
       </div>
 
-      {credit && <p className="text-[0.625rem] text-muted-foreground">Image: {credit}</p>}
     </article>
   )
 }
