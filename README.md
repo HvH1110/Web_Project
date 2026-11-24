@@ -4,6 +4,8 @@
 
 Maison Prix is a quiet, editorial price guide to the great houses: Louis Vuitton, Dior, Chanel, Cartier, Van Cleef & Arpels, Rolex, Omega and IWC. It gathers their **official** prices in Vietnam, Singapore and Hong Kong, sets them side by side in VND, and keeps every change, so a buyer walks into the boutique already knowing the number.
 
+**Visit it at [maison-prix.vercel.app](https://maison-prix.vercel.app).** The API sleeps when idle, so the first visit can take about a minute.
+
 *A non-commercial university project, not affiliated with any brand.*
 
 ![Maison Prix home page: "Know the price before you step inside."](docs/screenshots/home.webp)
