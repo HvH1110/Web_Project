@@ -3,7 +3,7 @@ import ImagePlaceholder from '@/components/ImagePlaceholder'
 import Photo from '@/components/Photo'
 import { MARKETS } from '@/content/site'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
-import { NO_CURRENT_PRICE, handChecked, leadPrice, productPath } from '@/lib/catalog'
+import { ON_REQUEST, handChecked, lastKnownPrice, leadPrice, productPath } from '@/lib/catalog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,7 @@ export default function ProductCard({ product }) {
   const [images, markFailed] = useWorkingImages(product.images)
   const [image, hoverImage] = images
   const price = leadPrice(product)
+  const last = !price && !product.offers.length ? lastKnownPrice(product.lastPrice) : null
   if (product.images.length > 0 && !image) return null
 
   return (
@@ -63,12 +64,9 @@ export default function ProductCard({ product }) {
 
       <div className="grid gap-2">
         <p className="text-sm tabular-nums">
-          {price
-            ? formatPrice(price.value, price.currency)
-            : product.offers.length
-              ? 'Price on request'
-              : NO_CURRENT_PRICE}
+          {price ? formatPrice(price.value, price.currency) : last ? last.text : ON_REQUEST}
         </p>
+        {last && <p className="text-xs text-muted-foreground">{last.note}</p>}
         {price?.origin === 'manual' && (
           <p className="text-xs text-muted-foreground">{handChecked(price.lastSeenAt)}</p>
         )}

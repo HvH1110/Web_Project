@@ -1,4 +1,5 @@
-import { formatDayUtc } from '@/lib/format'
+import { MARKETS } from '@/content/site'
+import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 
 // Helpers for catalog data from the API (shapes in ../docs/API.md).
 
@@ -83,7 +84,25 @@ export const imageCredit = (product, image) =>
   product.brandName ??
   product.brand
 
-export const NO_CURRENT_PRICE = 'No current online price'
+// What a product with no current price shows instead of saying so: its last
+// recorded price (ProductSummary.lastPrice in ../docs/API.md), in VND at the
+// rate of its day when known (to the nearest thousand: a conversion, not a
+// quoted price), with where and when it was seen. A past price,
+// so it is always shown with its date. `null` when nothing was ever recorded.
+export function lastKnownPrice(lastPrice) {
+  if (!lastPrice) return null
+  const market = MARKETS.find((m) => m.code === lastPrice.market)?.name ?? lastPrice.market
+  return {
+    text:
+      lastPrice.priceVnd != null
+        ? formatPrice(Math.round(lastPrice.priceVnd / 1000) * 1000, 'VND')
+        : formatPrice(lastPrice.price, lastPrice.currency),
+    note: `Last price, ${market}, ${formatDate(lastPrice.observedAt)}`,
+  }
+}
+
+// Shown when a product has no price at all, current or past.
+export const ON_REQUEST = 'Price on request'
 
 // A house with no tracked products has no usable source (see ../docs/PRODUCT.md).
 export const pricesUnavailable = (name) =>

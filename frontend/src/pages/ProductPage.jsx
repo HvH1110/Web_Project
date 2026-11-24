@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MARKETS } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { getProduct, getProductHistory, getProducts } from '@/lib/api'
-import { NO_CURRENT_PRICE, RATE_SOURCE, handChecked, leadPrice } from '@/lib/catalog'
+import { ON_REQUEST, RATE_SOURCE, handChecked, leadPrice } from '@/lib/catalog'
 import { formatDate, formatDayUtc, formatPrice } from '@/lib/format'
 import { lastKnownPrices } from '@/lib/history'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -244,19 +244,28 @@ function LeadPrice({ product }) {
   )
 }
 
-// For a product no store currently lists online: says so first, then the last
-// price seen in each market with its date and where it was seen. These are
-// past prices, so they are never shown as the product's price.
+// For a product no store currently lists online: leads with the most recent
+// price recorded in any market, with its market and date, then the last price
+// seen in each market and where it was seen. Past prices, always dated.
 function ArchivedPrices({ prices, history }) {
   const archivedOnly = prices.every((p) => p.origin === 'wayback')
+  const latest = prices.reduce((a, b) => (!a || new Date(b.date) > new Date(a.date) ? b : a), null)
+  const latestDate = latest && (latest.origin === 'manual' ? formatDayUtc(latest.date) : formatDate(latest.date))
+  const latestMarket = latest && (MARKETS.find((m) => m.code === latest.market)?.name ?? latest.market)
   return (
     <div className="grid gap-5">
       <div className="grid gap-2">
-        <p className="eyebrow text-muted-foreground">Price</p>
-        <p className="font-serif text-display-sm">{NO_CURRENT_PRICE}</p>
+        <p className="eyebrow text-muted-foreground">{latest || history.loading ? 'Last recorded price' : 'Price'}</p>
+        {history.loading ? (
+          <Skeleton className="h-9 w-48" aria-label="Loading the last price" />
+        ) : (
+          <p className="font-serif text-display-sm tabular-nums">
+            {latest ? formatPrice(latest.price, latest.currency) : ON_REQUEST}
+          </p>
+        )}
         <p className="text-sm leading-relaxed text-muted-foreground">
-          We can’t check this house’s website daily, so we don’t know today’s price. Ask the
-          boutique for it.
+          {latest && `Seen in ${latestMarket} on ${latestDate}. `}
+          We can’t check this house’s website daily: confirm today’s price with the boutique.
         </p>
       </div>
 

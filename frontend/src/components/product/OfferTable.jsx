@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { MARKETS } from '@/content/site'
-import { NO_CURRENT_PRICE, OUT_OF_STOCK, handChecked, productPath } from '@/lib/catalog'
+import { ON_REQUEST, OUT_OF_STOCK, handChecked, lastKnownPrice, productPath } from '@/lib/catalog'
 import { formatDate, formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -22,13 +22,18 @@ export default function OfferTable({ product, className }) {
     .at(-1)
 
   if (!product.offers.length) {
+    // No current price: the last one recorded, dated, and the way to its history.
+    const last = lastKnownPrice(product.lastPrice)
     return (
-      <p className={cn('self-start border-y py-4 text-sm', className)}>
-        {NO_CURRENT_PRICE}.{' '}
-        <Link to={`${productPath(product)}#history`} className="text-muted-foreground underline underline-offset-4">
-          See past prices
-        </Link>
-      </p>
+      <div className={cn('grid gap-1 self-start border-y py-4 text-sm', className)}>
+        <p className="tabular-nums">{last ? last.text : ON_REQUEST}</p>
+        <p className="text-xs text-muted-foreground">
+          {last && `${last.note}. `}
+          <Link to={`${productPath(product)}#history`} className="underline underline-offset-4">
+            Price history
+          </Link>
+        </p>
+      </div>
     )
   }
 
