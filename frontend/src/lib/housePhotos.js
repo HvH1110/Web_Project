@@ -30,13 +30,46 @@ export const piecePhotos = (brand, pieceName) =>
 // product pictures all fail, or that has none yet, is still pictured.
 export function housePhotos(brand) {
   if (!brand) return []
+  return orderedCovers(brand)
+    .map(coverPhoto)
+    .concat(brand.photo ? [scenePhoto(brand.photo)] : [])
+}
+
+// Pictures for a house's "From the atelier" row, best first: its tracked
+// products only (no boutique photo), leaving out the signature pieces' first
+// picks, which the signature cards already show. Takes one from each signature
+// piece in turn, then the house picks, so the row shows a range of pieces;
+// products with a name already taken come last.
+export function atelierPhotos(brand) {
+  if (!brand) return []
   const covers = brand.covers ?? []
-  const firsts = new Set(brand.signatureProducts.map((p) => covers.find((c) => c.piece === p.name)))
+  const firsts = firstPicks(brand)
+  const groups = brand.signatureProducts
+    .map((p) => covers.filter((c) => c.piece === p.name && !firsts.has(c)))
+    .concat([covers.filter((c) => c.piece === null)])
+  const turns = []
+  for (let i = 0; groups.some((g) => i < g.length); i++) {
+    for (let g = 0; g < groups.length - 1; g++) if (groups[g][i]) turns.push(groups[g][i])
+  }
+  const ordered = [...turns, ...groups.at(-1)]
+  const names = new Set()
+  const fresh = ordered.filter((c) => !names.has(c.name.toLowerCase()) && names.add(c.name.toLowerCase()))
+  return [...fresh, ...ordered.filter((c) => !fresh.includes(c))].map(coverPhoto)
+}
+
+const firstPicks = (brand) => {
+  const covers = brand.covers ?? []
+  return new Set(brand.signatureProducts.map((p) => covers.find((c) => c.piece === p.name)))
+}
+
+// The house picks, then the signature pieces' second and third picks, then
+// their first picks.
+function orderedCovers(brand) {
+  const covers = brand.covers ?? []
+  const firsts = firstPicks(brand)
   return [
     ...covers.filter((c) => c.piece === null),
     ...covers.filter((c) => c.piece !== null && !firsts.has(c)),
     ...covers.filter((c) => firsts.has(c)),
   ]
-    .map(coverPhoto)
-    .concat(brand.photo ? [scenePhoto(brand.photo)] : [])
 }

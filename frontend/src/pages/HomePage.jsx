@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { ArrowDown, ArrowRight } from 'lucide-react'
+import AtelierStrip from '@/components/brand/AtelierStrip'
 import SignatureCard, { PhotoCredit } from '@/components/brand/SignatureCard'
 import CtaButton from '@/components/CtaButton'
 import FactList from '@/components/FactList'
@@ -12,7 +13,7 @@ import { MARKETS, SITE } from '@/content/site'
 import { useApi } from '@/hooks/useApi'
 import { useWorkingImages } from '@/hooks/useWorkingImages'
 import { getBrands } from '@/lib/api'
-import { housePhotos, piecePhotos } from '@/lib/housePhotos'
+import { atelierPhotos, housePhotos, piecePhotos } from '@/lib/housePhotos'
 import { pad2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +27,8 @@ const STATS = [
 // grouped in category chapters. Layout comes from content/brands.js so it
 // renders at once; each house's story, facts and signature pieces fill in from
 // GET /api/brands. Each house is pictured by its own tracked products, named
-// and credited, or by a licensed photo of a boutique when none of those load;
+// and credited, or by a licensed photo of a boutique when none of those load,
+// with a "From the atelier" row of its pieces beside its story;
 // the hero keeps a plain backdrop.
 export default function HomePage() {
   const result = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
@@ -282,6 +284,13 @@ function BrandFeature({ brand, info, loading }) {
         )}
       </div>
 
+      <AtelierStrip
+        brand={brand}
+        photos={atelierPhotos(info)}
+        exclude={photos.cover?.url}
+        className="page-container mt-16"
+      />
+
       {pieces.length > 0 && (
         <div className="page-container mt-20">
           <Reveal as="p" className="eyebrow mb-8">
@@ -327,6 +336,13 @@ function BrandSplit({ brand, info, loading, flip }) {
           className="group aspect-4/5"
         />
         {photos.cover && <PhotoCredit photo={photos.cover} className="mt-3" />}
+        <AtelierStrip
+          brand={brand}
+          photos={atelierPhotos(info)}
+          exclude={photos.cover?.url}
+          count={3}
+          className="mt-8"
+        />
       </Reveal>
 
       <div
