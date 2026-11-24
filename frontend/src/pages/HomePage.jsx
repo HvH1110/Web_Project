@@ -28,8 +28,8 @@ const STATS = [
 // renders at once; each house's story, facts and signature pieces fill in from
 // GET /api/brands. Each house is pictured by its own tracked products, named
 // and credited, or by a licensed photo of a boutique when none of those load,
-// with a "From the atelier" row of its pieces beside its story;
-// the hero keeps a plain backdrop.
+// with a "From the atelier" row of its pieces beside its story; the hero shows
+// three signature pieces (HERO_PIECES).
 export default function HomePage() {
   const result = useApi('brands', (signal) => getBrands({ signal }).then((d) => d.items))
   const brands = {
@@ -40,7 +40,7 @@ export default function HomePage() {
   return (
     <>
       <PageMeta />
-      <Hero />
+      <Hero brands={brands} />
       <Intro />
       <HouseIndex brands={brands} />
       {CATEGORIES.map((category, i) => (
@@ -51,44 +51,106 @@ export default function HomePage() {
   )
 }
 
-function Hero() {
+// Three of the houses' best-known pieces, one per category, shown in the hero.
+// Each is a signature piece the house chapters below don't picture, so nothing
+// repeats; when its pictures fail, the house's other pictures stand in.
+const HERO_PIECES = [
+  { slug: 'louis-vuitton', piece: 'Neverfull' },
+  // Cartier's pictures have their own studio grey: shown filling the frame.
+  { slug: 'cartier', piece: 'Love', fill: true },
+  { slug: 'rolex', piece: 'Cosmograph Daytona' },
+]
+
+function Hero({ brands }) {
   return (
-    // Pulled up under the transparent header; fills the screen below the announcement bar.
-    <section className="dark relative -mt-header h-[calc(100svh-var(--spacing-bar))] min-h-[36rem] text-foreground">
+    // Pulled up under the transparent header; fills the screen below the announcement bar on large screens.
+    <section className="dark relative -mt-header min-h-[calc(100svh-var(--spacing-bar))] text-foreground lg:h-[calc(100svh-var(--spacing-bar))] lg:min-h-[40rem]">
       <ImagePlaceholder tone="ink" className="absolute inset-0">
         <div className="absolute inset-0 bg-linear-to-b from-black/45 via-transparent to-black/40" />
       </ImagePlaceholder>
 
-      <div className="page-container relative flex h-full flex-col items-center justify-center gap-8 pt-header text-center">
-        <Reveal as="p" className="eyebrow">
-          Fashion · Jewelry · Watches
-        </Reveal>
-        <Reveal as="h1" delay={150} className="max-w-6xl font-serif text-display-2xl font-light text-balance">
-          {SITE.tagline}
-        </Reveal>
-        <Reveal delay={300} className="mt-2 flex flex-wrap justify-center gap-3">
-          <CtaButton render={<Link to="/search" />} nativeButton={false}>
-            Search prices
-          </CtaButton>
-          <CtaButton
-            variant="outline"
-            render={<a href="#houses" />}
-            nativeButton={false}
-            className="border-foreground/60 bg-transparent hover:bg-foreground hover:text-background dark:border-foreground/60 dark:bg-transparent dark:hover:bg-foreground"
+      <div className="page-container relative grid h-full content-center gap-12 pt-[calc(var(--spacing-header)+3rem)] pb-24 lg:grid-cols-12 lg:items-center lg:gap-8 lg:pt-header lg:pb-16">
+        <div className="grid justify-items-start gap-7 lg:col-span-6">
+          <Reveal as="p" className="eyebrow">
+            Fashion · Jewelry · Watches
+          </Reveal>
+          <Reveal
+            as="h1"
+            delay={150}
+            className="max-w-[16ch] font-serif text-[clamp(2.75rem,1.4rem+3.4vw,5.25rem)] leading-[0.98] font-light tracking-[-0.01em] text-balance"
           >
-            Explore the houses
-          </CtaButton>
+            {SITE.tagline}
+          </Reveal>
+          <Reveal as="p" delay={250} className="max-w-md text-sm leading-relaxed text-foreground/75">
+            Official prices from the houses and their authorized dealers in Vietnam, Singapore and Hong Kong, side by
+            side in VND.
+          </Reveal>
+          <Reveal delay={300} className="mt-2 flex flex-wrap gap-3">
+            <CtaButton render={<Link to="/search" />} nativeButton={false}>
+              Search prices
+            </CtaButton>
+            <CtaButton
+              variant="outline"
+              render={<a href="#houses" />}
+              nativeButton={false}
+              className="border-foreground/60 bg-transparent hover:bg-foreground hover:text-background dark:border-foreground/60 dark:bg-transparent dark:hover:bg-foreground"
+            >
+              Explore the houses
+            </CtaButton>
+          </Reveal>
+        </div>
+
+        <Reveal delay={350} className="lg:col-span-6 lg:col-start-7 xl:col-span-5 xl:col-start-8">
+          <ul className="grid grid-cols-3 gap-3 lg:grid-cols-2 lg:grid-rows-2 lg:gap-5">
+            {HERO_PIECES.map((item, i) => (
+              <li key={item.slug} className={cn(i === 0 && 'lg:row-span-2')}>
+                <HeroPiece item={item} info={brands.bySlug[item.slug]} tall={i === 0} />
+              </li>
+            ))}
+          </ul>
         </Reveal>
       </div>
 
       <a
         href="#intro"
-        className="eyebrow absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 text-[0.625rem]"
+        className="eyebrow absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-3 text-[0.625rem] lg:flex"
       >
         Scroll
         <ArrowDown className="size-3.5 motion-safe:animate-bounce" strokeWidth={1.25} aria-hidden="true" />
       </a>
     </section>
+  )
+}
+
+// One framed piece in the hero: its picture on ivory, the house and the piece
+// beneath, linked to the product. A stand-in shows until the houses load.
+function HeroPiece({ item, info, tall }) {
+  const brand = BRANDS.find((b) => b.slug === item.slug)
+  const candidates = [...piecePhotos(info, item.piece), ...housePhotos(info).filter((p) => !p.fill)]
+  const [[working], markFailed] = useWorkingImages(candidates)
+  const photo = working && item.fill ? { ...working, fill: true } : working
+  return (
+    <figure className="group relative grid h-full content-start gap-3 lg:grid-rows-[1fr_auto]">
+      <ImagePlaceholder
+        tone="graphite"
+        category={brand.category}
+        photo={photo}
+        onPhotoError={() => markFailed(working)}
+        className={cn('aspect-square lg:aspect-auto', tall ? 'lg:h-full lg:min-h-80' : 'lg:h-full lg:min-h-36')}
+      />
+      <figcaption className="grid gap-1">
+        <span className="eyebrow text-[0.625rem] tracking-[0.16em] text-foreground/70">{brand.name}</span>
+        {photo && (
+          <Link
+            to={photo.to}
+            lang={photo.lang}
+            className="line-clamp-1 font-serif text-sm leading-snug after:absolute after:inset-0 group-hover:italic sm:text-base"
+          >
+            {photo.name}
+          </Link>
+        )}
+      </figcaption>
+    </figure>
   )
 }
 
